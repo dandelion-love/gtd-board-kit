@@ -17,10 +17,23 @@ data, tokens or board contents.
 | `skills/board-claim` | Claim it, work it on `gtd/issue-<n>`, hand back a PR |
 | `skills/board-report` | Report progress, renew, release, record failure |
 | `skills/board-needs-person` | Ask a person with the right `needs:*` label, then stop |
+| `okf/`, `skills/okf-knowledge`, `tools/okf_lint.py` | The pinned Open Knowledge Format spec, the authoring skill, and its linter |
+| `knowledge/` | The kit's own design notes, as an OKF bundle |
 | `install/` | `add-to-repo.ps1` / `.sh`, `install-user.ps1`, the SessionStart hook, the `BOARD.local.md` starter |
 | `tests/check_kit.py` | Size budgets, frontmatter, versions, links, and the public guard over the tree |
 | `tools/public_guard.py`, `.githooks/` | The guard that keeps private data out: `pre-commit`, `commit-msg`, `pre-push` |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` | Rules for any agent working on the kit, and Claude Code hooks that run the guard |
+
+## Knowledge docs: OKF, pinned by the kit
+
+Repos that use the kit keep their knowledge docs (findings, decisions, references) as an
+[Open Knowledge Format](okf/README.md) bundle at the version in `okf/PIN.json`, currently
+OKF 0.2. The spec travels with the kit, so moving a repo's kit pin is how it moves to a
+newer OKF. Lint a bundle with:
+
+```bash
+python3 .gtd/kit/tools/okf_lint.py docs/knowledge --strict
+```
 
 ## Onboard a repo (the one-line handoff)
 
@@ -50,7 +63,7 @@ git switch -c gtd/board-kit
 curl -fsSL https://raw.githubusercontent.com/dandelion-love/gtd-board-kit/main/install/add-to-repo.sh | bash
 ```
 
-It adds the submodule pinned to a full commit, links the four skills into
+It adds the submodule pinned to a full commit, links the kit's skills into
 `.claude/skills` and `.codex/skills`, adds a SessionStart hook that initialises the
 submodule in fresh cloud clones, and adds one line to `CLAUDE.md` and `AGENTS.md`. It
 commits nothing. Review, commit, open a PR, and let a person merge it.

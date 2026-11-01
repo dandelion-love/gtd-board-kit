@@ -22,8 +22,9 @@ at `.gtd/kit/ONBOARDING.md`.
 ## 1. Look at the repo
 
 Show your person: the repo root, `git status`, the current branch, the origin remote, and
-`.github/gtd-context.json`. That file should name the `profile` and the board as
-`project`. If it is missing or looks wrong, stop and ask. Do not invent a board.
+`.github/gtd-context.json`. That file should name the `profile`, the board as
+`project`, and the MCP server as `mcp_url`. If it is missing or looks wrong, stop and ask.
+Do not invent a board or a server address.
 
 ## 2. Add the kit (skip if `.gtd/kit` exists)
 
@@ -52,9 +53,10 @@ Call `whoami`.
 - It works: note the principal and the preset. Writing needs the `work` preset.
 - The tools are missing in a claude.ai cloud thread: ask your person to connect the gtd
   connector in their claude.ai settings, then continue.
-- The tools are missing anywhere else: ask your person for the server address, then follow
-  `<server>/join`. You run the join client; your person opens the link and approves. Ask
-  for the smallest preset that does the job.
+- The tools are missing anywhere else: follow `<mcp_url>/join`, with `mcp_url` from
+  `.github/gtd-context.json` (if it is missing, ask your person for the address and add it
+  to that file in this PR). You run the join client; your person opens the link and
+  approves. Ask for the smallest preset that does the job.
 
 ## 4. Draft `.gtd/BOARD.local.md`
 
@@ -71,6 +73,10 @@ Fill it from what the repo and the board say, not from memory:
 
 Show the draft and change it until your person agrees.
 
+Recommend OKF for the repo's knowledge docs: add the "Knowledge bundle" line (default
+`docs/knowledge/`). If the repo already keeps OKF docs at an older version, offer to
+migrate them with the `okf-knowledge` skill in a separate PR.
+
 ## 5. Open the PR
 
 Commit on the branch, push, and open a PR that lists what the installer added and what
@@ -86,4 +92,5 @@ reads). Report what it found, or why nothing qualified.
 
 Every step is safe to repeat. To upgrade the kit, move the pin in a PR:
 `git -C .gtd/kit fetch`, `git -C .gtd/kit checkout <full-commit>`, `git add .gtd/kit`.
-Then read the kit's README for anything new to add to `BOARD.local.md`.
+Then read the kit's README for anything new to add to `BOARD.local.md`, and lint the
+knowledge bundle against the newly pinned OKF.
