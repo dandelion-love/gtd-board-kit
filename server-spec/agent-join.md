@@ -146,7 +146,7 @@ sequenceDiagram
     C->>S: MCP calls as agent:name
     C->>S: /token (connector refresh token) when the access token ends
     S->>S: spend the agent refresh token once, keep the new one
-    S-->>C: new agent access token
+    S-->>C: new agent access token + new connector refresh token
 ```
 
 Requirements:
@@ -162,8 +162,8 @@ Requirements:
   connector they just added or reconnected themselves. The approver rules above apply
   unchanged: stable-id approvers, short session, CSRF token bound to the approver and that
   connect id.
-- **Registration** accepts loopback redirect addresses (plain `http` to the IPv4 or IPv6
-  loopback address, any port, RFC 8252 section 7.3) as well as `https` ones, so
+- **Registration** accepts loopback redirect addresses (plain `http` to `localhost` or to
+  the IPv4 or IPv6 loopback address, any port, RFC 8252 section 7.3) as well as `https` ones, so
   command-line clients can sign in.
 - **The code** goes only to the redirect address the client registered, is single use
   (atomic across replicas), lives at most 5 minutes, is bound to the client and to the
@@ -181,9 +181,11 @@ Requirements:
   new access token and never present the agent refresh token twice (which would revoke
   the agent). A refresh while the current access token still has minutes left MAY return
   it unchanged.
-- **The connector refresh token** is not rotated: the host stores it durably and may
-  refresh from several sessions at once. Its protection is the client binding, the
-  approval cap, and revoke.
+- **The connector refresh token rotates** on every refresh (RFC 9700, section 4.14.2: the
+  client may be public, so binding to a client id alone authenticates nothing). The
+  replaced token gets the same answer as the refresh that replaced it for a short grace
+  window (60 seconds by default), because a host may refresh from several sessions at
+  once; presented after the window, it revokes the agent and answers `invalid_grant`.
 - **Revoke.** Revoking the agent (one or all) deletes its connector grants, so the next
   connector refresh answers `invalid_grant` and the host asks the person to reconnect. A
   server SHOULD advertise a `revocation_endpoint` in its authorization-server metadata;
