@@ -38,7 +38,7 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
    repo's pin to do it. Note the kit's `VERSION`: that is the version being certified.
 2. **Run every check you can**, with `--json`: a token at `work`, a second principal, a
    scratch repo and board, `--join-start`, and `--connector NAME` if the server offers the
-   connector entrance. A skipped check keeps its level unclaimable.
+   connector entrance. A skipped check, or one the run never reached because an option was missing, keeps its level unclaimable; a check of an optional part the server does not offer is `n/a` and does not.
 3. **Do the manual checks with your person.** The run prints them under each claimable
    level ("confirm by hand"). Never mark one done yourself.
 4. **Read the verdict.** The last line names the levels claimable at this kit version.
