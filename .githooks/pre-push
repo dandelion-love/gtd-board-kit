@@ -1,6 +1,8 @@
 #!/bin/sh
 # This repository is PUBLIC. Scan everything a push would publish: files and commit messages.
+# Then check that server-spec/ changes come with conformance changes (tools/spec_pair.py).
 guard="$(git rev-parse --show-toplevel)/tools/public_guard.py"
+pair="$(git rev-parse --show-toplevel)/tools/spec_pair.py"
 zero=$(printf '%040d' 0)
 status=0
 while read -r local_ref local_sha remote_ref remote_sha; do
@@ -10,5 +12,8 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   else
     python3 "$guard" --range "$remote_sha..$local_sha" || status=1
   fi
+  # The whole branch, not just this push: a spec change pushed earlier still needs its checks.
+  base=$(git merge-base origin/main "$local_sha" 2>/dev/null) && \
+    { python3 "$pair" --range "$base..$local_sha" || status=1; }
 done
 exit $status

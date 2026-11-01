@@ -193,6 +193,40 @@ lint = subprocess.run([sys.executable, str(ROOT / "tools" / "okf_lint.py"),
 if lint.returncode != 0:
     fail("okf_lint knowledge --strict:\n" + lint.stdout.strip())
 
+# Spec and conformance stay paired. Every check id in server-spec/conformance.md is run or
+# listed as manual by the runner, the runner reports no id the spec lacks, and the C13
+# fixture table matches fold_cases.json.
+ID = r"(?:JC|[TPCBJX])\d+b?"
+conf_md = (ROOT / "server-spec" / "conformance.md").read_text()
+spec_ids = set(re.findall(rf"^\| ({ID}) \|", conf_md, re.M))
+runner_ids = set(re.findall(rf'"({ID})"', (ROOT / "conformance" / "runner.py").read_text()))
+for cid in sorted(spec_ids - runner_ids):
+    fail(f"conformance check {cid} is in server-spec/conformance.md but not in conformance/runner.py "
+         "(run it, or list it as manual)")
+for cid in sorted(runner_ids - spec_ids):
+    fail(f"conformance/runner.py reports {cid}, which server-spec/conformance.md does not define")
+fold_table = set(re.findall(r"^\| ([a-z]) \|", conf_md, re.M))
+fold_json = {c["name"] for c in json.loads((ROOT / "conformance" / "fold_cases.json").read_text())["cases"]}
+if fold_table != fold_json:
+    fail(f"C13 fixture table {sorted(fold_table)} differs from fold_cases.json {sorted(fold_json)}")
+
+# tools/spec_pair.py: a spec change needs a conformance change or a Conformance-unchanged trailer.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(ROOT / "tools"))
+from spec_pair import verdict  # noqa: E402
+for files, msg, want in (
+        (["server-spec/tools.md"], "Change a tool", False),
+        (["server-spec/tools.md", "server-spec/conformance.md"], "Change a tool", False),
+        (["server-spec/tools.md", "conformance/runner.py"], "Change a tool", False),
+        (["server-spec/tools.md", "server-spec/conformance.md", "conformance/runner.py"], "Change", True),
+        (["server-spec/conformance.md"], "Change a check", False),
+        (["server-spec/conformance.md", "conformance/runner.py"], "Change a check", True),
+        (["conformance/runner.py"], "Fix the runner", True),
+        (["server-spec/tools.md"], "Fix a typo\n\nConformance-unchanged: wording only", True),
+        (["skills/board-claim/SKILL.md"], "Skill change", True)):
+    if verdict(files, msg)[0] != want:
+        fail(f"spec_pair verdict for {files} with {msg!r} was not {want}")
+
 if errors:
     print("\n".join(f"FAIL {e}" for e in errors))
     sys.exit(1)

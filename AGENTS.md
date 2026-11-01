@@ -37,3 +37,9 @@ Examples in this repo use placeholders such as `owner/repo` and `owner/number`.
 - Never create or edit `.github/workflows/**`.
 - Run `python3 tests/check_kit.py` before a PR. Bump `VERSION` and the changed skills'
   `metadata.version`.
+- A change to `server-spec/` changes its conformance checks in the same PR: the check
+  table in `server-spec/conformance.md` and the runner in `conformance/`. A change to the
+  table changes the runner too. When a spec change
+  cannot affect conformance (wording, links), say so with a commit trailer
+  `Conformance-unchanged: <reason>`. `python3 tools/spec_pair.py` checks this, and the
+  `pre-push` hook runs it.
