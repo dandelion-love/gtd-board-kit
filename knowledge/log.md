@@ -2,6 +2,7 @@
 
 ## 2026-11-01
 
+* **Added**: `server-spec/`, an implementation-neutral specification of a compatible gtd MCP server, with conformance checks and a unit-by-unit work plan (kit 0.5.0). Onboarding now reads views with `project_views_list`, the read-only tool.
 * **Added**: agent sign-in, the agent-side contract for joining the gtd MCP server, with flow diagrams.
 * **Added**: the kit-as-interface decision and the queue and ETA pattern: native GitHub constructs carry the state, and a person's edit wins.
 * **Added**: standing lanes and workflow grants (kit 0.4.0), and a reference on DeepSeek's dsh-superagent, which the lane design borrows from.

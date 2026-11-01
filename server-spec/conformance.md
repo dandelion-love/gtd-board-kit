@@ -1,0 +1,102 @@
+# 08. Conformance
+
+Each check has an id, a level, and a pass condition a test can assert. A server meets a
+level when every check of that level and the levels below it passes. Run them against a
+**fake GitHub** (an in-memory stand-in for issues, labels, comments and one board) so they
+are fast and need no network or account; run the Join checks against the HTTP app in
+process.
+
+## Transport and identity (Core)
+
+| Id | Check |
+| --- | --- |
+| T1 | An unauthenticated `POST /mcp` gets `401` with a `WWW-Authenticate` header naming the protected resource metadata URL, and that URL serves RFC 9728 JSON with `resource` = `<mcp_url>/mcp` |
+| T2 | `initialize`, `tools/list` and `tools/call whoami` work statelessly: three requests with no session id, each authenticated, each succeed |
+| T3 | Every tool in `tools/list` has an input schema and an output schema; every call's structured content validates against its output schema |
+| T4 | A connector identity not on the allowlist is refused |
+| T5 | `whoami` returns every field in [transport-and-identity](transport-and-identity.md#whoami) |
+| T6 | For each preset, `tools/list` shows exactly the tools whose class is at or below it; calling a hidden tool is refused with a message naming the preset it needs |
+| T7 | No tool's input schema has a property used as identity (S1) |
+
+## Repo context and labels (Core)
+
+| Id | Check |
+| --- | --- |
+| P1 | `profile_get` of every listed profile returns every field in [repo-context-and-profiles](repo-context-and-profiles.md#profiles), and every profile declares every base label |
+| P2 | Every `needs` value has a matching `needs:*` label; `owner_needs` is one of them |
+| P3 | Every profile's `status_for_label` maps `agent-running`, `waiting-for-review`, `agent-failed` and every `needs:*` label, and names only columns in `board.status` |
+| P4 | `issue_labels` adds and removes a profile label and an `area:x` label; refuses a label outside the profile and lists the real ones; refuses adding `run-agent`; never changes Status |
+| P5 | A repo or board outside the allowlist is refused before any GitHub call (the fake sees no request) |
+| P6 | `list_next_actions` with a label returns only open issues with that label, never a PR |
+| P7 | `project_items` returns items in the board's manual order and pages with a cursor |
+
+## Claims (Core)
+
+| Id | Check |
+| --- | --- |
+| C1 | `item_claim` explicit without `asked_by` refuses; with it, posts one record whose JSON has `v`, `event=claim`, `by`=the caller's principal, `t`, `lease_until`, `mandate` with `scope.body_sha256` |
+| C2 | A second caller's claim during the lease refuses and names the holder and the lease end |
+| C3 | Race: two claims posted back to back by two callers; exactly one wins after both re-fold, and the loser's comment is deleted |
+| C4 | After the lease ends, a new claim is a takeover: the record names `takeover_of` and the fold makes the new caller holder |
+| C5 | `inferred` refuses without `agent-ready`; with `agent:<other runtime>`; with `agent:human`; with `needs:*`, `blocked` or `agent-proposed`; with a board Size outside `pickup_sizes` or none; and succeeds for `agent-ready` + `agent:any` + Size `S` |
+| C6 | `item_renew`, `item_release` and a `state` report by a non-holder refuse |
+| C6b | After a person closes a held issue, the holder's `item_release` succeeds and `item_claim` by anyone refuses |
+| C7 | `item_release` needs `done`, `remaining`, `next`; afterwards `item_get` shows no holder and the `handoff_to` |
+| C8 | `item_report` with `attention` and `needs=<owner_needs>` adds that `needs:*` label; without `needs` it refuses and lists the values; `state=dropped` releases |
+| C9 | A non-record comment after the holder's last record appears in `follow_ups`; a comment with two markers is not a record |
+| C10 | With record authors set, a record pasted by another login is ignored by the fold |
+| C11 | `issue_comment` with a record marker in the body refuses |
+| C12 | With a board, the claim tools write `Agent` and `Last report` and nothing else; a failing board write returns a warning and the record still posts |
+| C13 | Fold golden tests: the fixtures in this folder's table below give the stated `holder`, `lease_until`, `stale`, `last_report`, `handoff_to` |
+
+C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
+
+| Case | Records | Expected |
+| --- | --- | --- |
+| a | claim A lease to 250 | holder A, not stale |
+| b | claim A to 120; claim B | holder A, B in `lost_claims` |
+| c | claim A to 120; claim B at 130 `takeover_of` A, lease to 250 | holder B |
+| d | claim A to 120; claim B at 100 `takeover_of` A | holder A (lease not over at 100) |
+| e | claim A to 150; report A `progress`; report A `dropped` | no holder |
+| f | claim A to 150; release A `handoff_to` any | no holder, `handoff_to` any |
+| g | claim A to 150; renew B to 400 | holder A, lease 150, stale |
+| h | claim A to 300; report B `attention` | holder A, attention from B, `last_report` null |
+
+## Join (Join level)
+
+| Id | Check |
+| --- | --- |
+| J1 | With no approver configured, `/join/start` and joined-agent tokens are refused |
+| J2 | `/join/start` validates the name pattern and the preset; returns the fields in agent sign-in with `expires_in` 600 and `interval` 5; user code matches `^[A-Z0-9]{4}-[A-Z0-9]{4}$` |
+| J3 | Polling before a decision gets `authorization_pending`; past the pending-request cap `/join/start` gets `slow_down`; after 600 s `expired_token`; after deny `access_denied` |
+| J4 | After approval the first poll returns the grant (with the approved preset, which may be lower than requested); the second poll does not |
+| J5 | The store holds no plaintext token after collection |
+| J6 | A renew returns a new pair; reusing the old refresh token answers `invalid_grant` **and** the new access token is refused afterwards |
+| J7 | Token expiries never pass the approval's end; after it, renew is `invalid_grant` |
+| J8 | Revoke one: that agent's next MCP call is `401` and its renew is `invalid_grant`; other agents still work. Revoke all: every agent and pending request is gone |
+| J9 | `/join/decide`, `/join/revoke` and `/join/revoke-all` refuse without a valid CSRF token and without an approver session; a non-approver account is refused |
+| J10 | No MCP tool name or description offers approve, deny or revoke |
+
+## Board (Board level)
+
+| Id | Check |
+| --- | --- |
+| B1 | `project_set_status` with an unknown column refuses and lists the live ones |
+| B2 | `project_set_field` sets and clears text, number, date and single-select fields by name |
+| B3 | `project_item_move` with no `after_*` puts the item first; with one, right after it |
+| B4 | Writes to an issue not yet on the board add it first |
+
+## Security (all levels)
+
+| Id | Check |
+| --- | --- |
+| X1 | Across every test above, no log line contains a bearer token, a refresh token, a GitHub token or a token hash, and no response body does either, except the grant that `/join/token` returns on collection or renew (J4, J6) |
+| X2 | Every tool's class matches the class the spec gives it (the preset table in [transport-and-identity](transport-and-identity.md#presets) and the Class columns and group notes in [tools](tools.md)); every tool the spec does not class is `full` |
+| X3 | Over-long free text refuses rather than truncates |
+
+## Running against the kit
+
+A deployment can also smoke-test end to end: point a scratch repo with the kit installed
+at the server, join an agent at `work`, and have it run `board-pickup`, `board-claim` on a
+test issue, `board-report` with `progress`, `board-needs-person`, and `item_release`. Every
+step should succeed without the agent leaving the MCP tools.
