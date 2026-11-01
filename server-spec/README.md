@@ -49,6 +49,13 @@ This spec carries the kit's `VERSION`. A change that would break an existing con
 server or an existing agent is a minor bump before 1.0 and a major bump after, and lands
 with a line in [the knowledge log](../knowledge/log.md).
 
+**The spec and its checks change together.** A PR that changes a requirement here also
+changes its checks in [conformance](conformance.md) and the
+[runner](../conformance/README.md), in the same PR. `tests/check_kit.py` fails when a check
+id is in the table but not in the runner, or the other way round, and
+`tools/spec_pair.py` fails a branch that changes `server-spec/` without touching the checks,
+unless a commit says `Conformance-unchanged: <reason>`.
+
 ## What is deliberately not here
 
 Any deployment's address, accounts, organisation, board numbers, App or installation
