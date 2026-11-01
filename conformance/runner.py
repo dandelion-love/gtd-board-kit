@@ -17,6 +17,7 @@ What it needs, and which checks each unlocks:
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
+    profile_updates offered O1 (with a token), O2 (with --repo); O3 is manual
 
 Tokens are read from environment variables, never from the command line, and are never
 printed. Checks that need a person (J4 to J9, C4, C10, T4) are listed as manual with what
@@ -39,11 +40,53 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
+
+
+class Family(Enum):
+    """The check families of server-spec/conformance.md, in report order. A check id is
+    the family's prefix and a number (``T1``, ``JC4``, ``C6b``); ``RUN`` is the runner's
+    own row when a run stops early."""
+    TRANSPORT = "T"         # Transport and identity (Core)
+    PROFILES = "P"          # Repo context and labels (Core)
+    CLAIMS = "C"            # Claims (Core)
+    BOARD = "B"             # Board (Board level)
+    CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
+    JOIN = "J"              # Join (Join level)
+    CONNECTOR = "JC"        # Connector entrance (when offered)
+    SECURITY = "X"          # Security (all levels)
+    RUN = "RUN"             # the runner itself
+
+
+#: Each family's heading in server-spec/conformance.md (tests/check_kit.py checks them).
+HEADINGS = {
+    Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
+    Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
+    Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
+}
+
+#: A check id: a family prefix, a number, and an optional letter.
+CHECK_ID = re.compile(r"(?:%s)\d+b?" % "|".join(
+    sorted((f.value for f in Family if f is not Family.RUN), key=len, reverse=True)))
+
+
+def family_of(cid: str) -> Family:
+    """The family a check id belongs to (the longest matching prefix)."""
+    if cid == Family.RUN.value:
+        return Family.RUN
+    prefix = re.match(r"[A-Z]+", cid)
+    return Family(prefix.group(0)) if prefix else Family.RUN
+
+
+def report_order(cid: str) -> tuple:
+    """Family order, then number, then the id: ``T2`` before ``T10`` before ``P1``."""
+    families = list(Family)
+    return (families.index(family_of(cid)), int(re.sub(r"\D", "", cid) or 0), cid)
 PROTOCOL = "2025-06-18"
 MARKER = "gtd-desk"
 RECORD_RE = re.compile(r"<!--\s*" + MARKER + r"\s+v(\d+)\s+(\{.*?\})\s*-->", re.DOTALL)
@@ -56,7 +99,7 @@ CLASS.update(dict.fromkeys((
     "project_views_list", "list_next_actions", "issue_list", "issue_blocked_by_list",
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
-    "channel_comments_read"), "read"))
+    "channel_comments_read", "profile_updates"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -463,6 +506,65 @@ def check_profiles(rep: Report, c: Client) -> dict:
     rep.check("P2", not p2, f"needs or owner_needs inconsistent in {', '.join(p2)}")
     rep.check("P3", not p3, f"status_for_label incomplete or off-board in {', '.join(p3)}")
     return profiles
+
+
+def fingerprint(item: dict) -> str:
+    """The declaration fingerprint (repo-context-and-profiles.md, Fingerprints)."""
+    body = {k: v for k, v in item.items() if k != "fingerprint"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"),
+                                     ensure_ascii=False).encode()).hexdigest()[:12]
+
+
+def profile_items(profile: dict) -> list[tuple[str, dict]]:
+    board = profile.get("board") or {}
+    out = [("label", x) for x in profile.get("labels") or [] if isinstance(x, dict)]
+    out += [("field", x) for x in board.get("fields") or [] if isinstance(x, dict)]
+    out += [("view", x) for x in board.get("views") or [] if isinstance(x, dict)]
+    return out
+
+
+NOTICE_FIELDS = ("kind", "name", "mode", "source", "change", "seen", "current", "declaration")
+
+
+def check_customization(rep: Report, c: Client, tools: dict, profiles: dict,
+                        repo: str | None, project: str | None) -> None:
+    if "profile_updates" not in tools:
+        for cid in ("O1", "O2", "O3"):
+            rep.skip(cid, "profile_updates is not offered")
+        return
+    bad = []
+    for name, p in profiles.items():
+        for kind, item in profile_items(p):
+            if item.get("fingerprint") != fingerprint(item):
+                bad.append(f"{name} {kind} {item.get('name')}: {item.get('fingerprint')} != {fingerprint(item)}")
+    rep.check("O1", profiles and not bad, "; ".join(bad[:4]) or "no profiles",
+              f"{sum(len(profile_items(p)) for p in profiles.values())} items fingerprinted")
+    rep.manual("O3", "in a scratch repo, set an override with a stale seen and one skip without seen; "
+                     "a reconcile plan reports the first as an upstream change, never creates the second, "
+                     "and deletes nothing")
+    if not repo:
+        rep.skip("O2", "needs --repo")
+        return
+    args = {"repo": repo, **({"project": project} if project else {})}
+    ok, out, text = c.call("profile_updates", args)
+    if not ok or not isinstance(out, dict):
+        rep.fail("O2", f"profile_updates: {text[:120]}")
+        return
+    missing = [k for k in ("profile", "overrides", "inferred", "updates") if k not in out]
+    current = {(k, i.get("name")): i.get("fingerprint")
+               for k, i in profile_items(profiles.get(out.get("profile")) or {})}
+    probs = []
+    for n in out.get("updates") or []:
+        lack = [f for f in NOTICE_FIELDS if f not in n]
+        if lack:
+            probs.append(f"{n.get('name')}: lacks {', '.join(lack)}")
+        elif n["mode"] not in ("skip", "keep") or n["change"] not in ("changed", "removed"):
+            probs.append(f"{n['name']}: mode {n['mode']!r} or change {n['change']!r} is not allowed")
+        elif n["change"] == "changed" and n["current"] != current.get((n["kind"], n["name"])):
+            probs.append(f"{n['name']}: current {n['current']} is not profile_get's")
+    rep.check("O2", not missing and not probs,
+              f"lacks {', '.join(missing)}" if missing else "; ".join(probs[:4]),
+              f"{len(out.get('updates') or [])} upstream changes for {repo}")
 
 
 class Sandbox:
@@ -1047,6 +1149,7 @@ def main(argv: list[str]) -> int:
                 who, _tools = check_identity(rep, c)
                 claims_join = "Join" in (who.get("conformance") or [])
                 profiles = check_profiles(rep, c)
+                check_customization(rep, c, _tools, profiles, a.repo, a.project)
                 presets = {}
                 for spec in a.preset_token:
                     p, _, env = spec.partition("=")
@@ -1064,7 +1167,7 @@ def main(argv: list[str]) -> int:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
             except CheckError as e:
-                rep.fail("RUN", f"stopped: {e}")
+                rep.fail(Family.RUN.value, f"stopped: {e}")
             # T3 last, so every structured result of the run has been validated.
             if c.schemas:
                 ns = getattr(c, "no_schema", [])
@@ -1086,9 +1189,7 @@ def main(argv: list[str]) -> int:
         rep.check("X1", not leaked, "a token the runner sent came back in a response body",
                   f"{len(seen)} responses scanned")
 
-    order = {k: i for i, k in enumerate("TPCBJXR")}
-    rows = sorted(rep.rows, key=lambda r: (order.get(r["id"][0], 9),
-                                           int(re.sub(r"\D", "", r["id"]) or 0), r["id"]))
+    rows = sorted(rep.rows, key=lambda r: report_order(r["id"]))
     width = max(len(r["id"]) for r in rows)
     for r in rows:
         print(f"{r['id']:<{width}}  {r['status']:<6}  {r['note']}")
