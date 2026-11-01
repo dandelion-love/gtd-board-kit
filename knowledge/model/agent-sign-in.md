@@ -110,11 +110,15 @@ sequenceDiagram
     A->>S: POST /join/start (name, provider, preset)
     S-->>A: link + short code, device code, poll interval
     A->>P: show the link and the code
-    P->>S: sign in with GitHub, check the code, pick preset, approve
-    loop every few seconds until approved, denied or expired
-        A->>S: POST /join/token (device code)
-        S-->>A: authorization_pending
+    par agent polls
+        loop every few seconds until approved, denied or expired
+            A->>S: POST /join/token (device code)
+            S-->>A: authorization_pending
+        end
+    and person decides
+        P->>S: sign in with GitHub, check the code, pick preset, approve
     end
+    A->>S: POST /join/token (device code)
     S-->>A: access token (24 h) + refresh token (7 d, single use)
     A->>A: save to a user-only file
     A->>S: MCP call with bearer token: whoami
