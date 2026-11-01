@@ -17,6 +17,7 @@ What it needs, and which checks each unlocks:
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
+    profile_updates offered O1 (with a token), O2 (with --repo); O3 is manual
 
 Tokens are read from environment variables, never from the command line, and are never
 printed. Checks that need a person (J4 to J9, C4, C10, T4) are listed as manual with what
@@ -463,6 +464,63 @@ def check_profiles(rep: Report, c: Client) -> dict:
     rep.check("P2", not p2, f"needs or owner_needs inconsistent in {', '.join(p2)}")
     rep.check("P3", not p3, f"status_for_label incomplete or off-board in {', '.join(p3)}")
     return profiles
+
+
+def fingerprint(item: dict) -> str:
+    """The declaration fingerprint (repo-context-and-profiles.md, Fingerprints)."""
+    body = {k: v for k, v in item.items() if k != "fingerprint"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"),
+                                     ensure_ascii=False).encode()).hexdigest()[:12]
+
+
+def profile_items(profile: dict) -> list[tuple[str, dict]]:
+    board = profile.get("board") or {}
+    out = [("label", x) for x in profile.get("labels") or [] if isinstance(x, dict)]
+    out += [("field", x) for x in board.get("fields") or [] if isinstance(x, dict)]
+    out += [("view", x) for x in board.get("views") or [] if isinstance(x, dict)]
+    return out
+
+
+NOTICE_FIELDS = ("kind", "name", "mode", "source", "change", "seen", "current", "declaration")
+
+
+def check_customization(rep: Report, c: Client, tools: dict, profiles: dict,
+                        repo: str | None, project: str | None) -> None:
+    if "profile_updates" not in tools:
+        for cid in ("O1", "O2", "O3"):
+            rep.skip(cid, "profile_updates is not offered")
+        return
+    bad = []
+    for name, p in profiles.items():
+        for kind, item in profile_items(p):
+            if item.get("fingerprint") != fingerprint(item):
+                bad.append(f"{name} {kind} {item.get('name')}: {item.get('fingerprint')} != {fingerprint(item)}")
+    rep.check("O1", profiles and not bad, "; ".join(bad[:4]) or "no profiles",
+              f"{sum(len(profile_items(p)) for p in profiles.values())} items fingerprinted")
+    rep.manual("O3", "in a scratch repo, set an override with a stale seen and one skip without seen; "
+                     "a reconcile plan reports the first as an upstream change, never creates the second, "
+                     "and deletes nothing")
+    if not repo:
+        rep.skip("O2", "needs --repo")
+        return
+    args = {"repo": repo, **({"project": project} if project else {})}
+    ok, out, text = c.call("profile_updates", args)
+    if not ok or not isinstance(out, dict):
+        rep.fail("O2", f"profile_updates: {text[:120]}")
+        return
+    missing = [k for k in ("profile", "overrides", "inferred", "updates") if k not in out]
+    current = {(k, i.get("name")): i.get("fingerprint")
+               for k, i in profile_items(profiles.get(out.get("profile")) or {})}
+    probs = []
+    for n in out.get("updates") or []:
+        lack = [f for f in NOTICE_FIELDS if f not in n]
+        if lack:
+            probs.append(f"{n.get('name')}: lacks {', '.join(lack)}")
+        elif n["change"] == "changed" and n["current"] != current.get((n["kind"], n["name"])):
+            probs.append(f"{n['name']}: current {n['current']} is not profile_get's")
+    rep.check("O2", not missing and not probs,
+              f"lacks {', '.join(missing)}" if missing else "; ".join(probs[:4]),
+              f"{len(out.get('updates') or [])} upstream changes for {repo}")
 
 
 class Sandbox:
@@ -1047,6 +1105,7 @@ def main(argv: list[str]) -> int:
                 who, _tools = check_identity(rep, c)
                 claims_join = "Join" in (who.get("conformance") or [])
                 profiles = check_profiles(rep, c)
+                check_customization(rep, c, _tools, profiles, a.repo, a.project)
                 presets = {}
                 for spec in a.preset_token:
                     p, _, env = spec.partition("=")
@@ -1086,7 +1145,7 @@ def main(argv: list[str]) -> int:
         rep.check("X1", not leaked, "a token the runner sent came back in a response body",
                   f"{len(seen)} responses scanned")
 
-    order = {k: i for i, k in enumerate("TPCBJXR")}
+    order = {k: i for i, k in enumerate("TPCBOJXR")}
     rows = sorted(rep.rows, key=lambda r: (order.get(r["id"][0], 9),
                                            int(re.sub(r"\D", "", r["id"]) or 0), r["id"]))
     width = max(len(r["id"]) for r in rows)

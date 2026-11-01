@@ -18,6 +18,7 @@ through the GitHub API when a tool needs the repo's profile and none was passed.
 | `profile` | yes | The profile name the repo follows ([below](#profiles)) |
 | `project` | no | The repo's board as `owner/number`. No board: board tools are not used |
 | `mcp_url` | for joined agents | The server's base URL, https, no path |
+| `overrides` | no | The repo's deliberate departures from its profile ([below](#per-repo-customization-and-upstream-changes)) |
 
 A server MUST ignore keys it does not know (deployments add their own, for example a
 manifest version stamp). It MUST NOT trust the file for authorization: the allowlists
@@ -42,6 +43,7 @@ are called is the deployment's choice.
 | `board.status` | list of strings | Status column names in board order |
 | `board.fields` | list of `{name, type, options?}` | `type` is `single_select`, `text`, `number`, `date` or `iteration` |
 | `board.views` | list of `{name, layout, filter?, sort?, group_by?, fields?}` | The views a board of this profile should have |
+| `fingerprint` on every label, field and view | string | That item's declaration fingerprint ([below](#fingerprints)) |
 | `pickup_sizes` | list of strings | Size options an unpointed (`inferred`) pickup may take. Default `XS`, `S`, `M` |
 | `status_for_label` | list of rules | The label-to-Status map ([below](#the-label-to-status-map)) |
 
@@ -118,3 +120,113 @@ Rules (any bridge, any language):
    event's sender).
 
 The column names above are an example. Each profile's own map names its own columns.
+
+## Per-repo customization and upstream changes
+
+A profile is a starting point. A repo may delete a view it does not want, reshape a
+field, or recolour a label, and the next reconcile must not undo that. When the profile
+later changes an item the repo departed from, the change must not be applied, and it must
+not be lost either: an agent surfaces it so a person can choose.
+
+This section covers labels, board fields and board views (the **items**). It applies to
+any reconciler: a nightly job, an MCP tool such as `project_reconcile`, or a script.
+
+### Fingerprints
+
+An item's **fingerprint** is the first 12 hex digits of the SHA-256 of its declaration in
+canonical JSON: the item's object as `profile_get` returns it, without its `fingerprint`
+key, serialised with object keys sorted by code point, no whitespace (`,` and `:` as
+separators), non-ASCII characters written as themselves, and encoded as UTF-8. In Python:
+
+```python
+hashlib.sha256(json.dumps(item, sort_keys=True, separators=(",", ":"),
+                          ensure_ascii=False).encode()).hexdigest()[:12]
+```
+
+Golden values: `{"name": "Inbox", "layout": "table", "filter": "status:Inbox"}` gives
+`9c5ee7e85d3e`, and `{"name": "Engage — Now", "layout": "board"}` (an em dash) gives
+`14d526f52c0e`.
+
+Two declarations with the same fingerprint are the same declaration. A server that
+returns `fingerprint` MUST compute it this way, so a fingerprint recorded by one tool can
+be compared by another.
+
+### Overrides: the repo's explicit choices
+
+`overrides` in `.github/gtd-context.json` names items by kind and name:
+
+```json
+{
+  "overrides": {
+    "views":  {"Roadmap": {"mode": "skip", "seen": "3f2a9c01b7de"}},
+    "fields": {"Priority": {"mode": "keep"}},
+    "labels": {"area:docs": {"mode": "keep", "seen": "b1c4e0a95f13"}}
+  }
+}
+```
+
+| Key | Meaning |
+| --- | --- |
+| `mode: skip` | Never create the item. If it exists, leave it alone |
+| `mode: keep` | The item may exist, but its shape is the repo's: never reset, rename or recreate it |
+| `mode: follow` | Follow the profile: cancels an inferred mode, so a deleted item is created again |
+| `seen` | Optional. The fingerprint of the profile's declaration the repo last decided about |
+
+A change to `overrides` is a change to a tracked file, so it goes through review like any
+other. A server MUST NOT trust it for authorization.
+
+### The ledger: choices inferred from what a person did
+
+A person who deletes a view in the board's UI has made a choice without writing it down. A
+reconciler that creates items SHOULD keep a **ledger** of the items it created, each with
+the fingerprint it created from. Where the ledger lives is the deployment's choice (for
+example the board's own description), but it MUST survive between runs and be readable
+by `profile_updates`.
+
+From the ledger, a reconciler infers:
+
+| Ledger says | Board has | Inferred mode |
+| --- | --- | --- |
+| created | no such item | `skip` (a person deleted it) |
+| created | the item, differing from the declaration it was created from | `keep` (a person reshaped it) |
+| created | the item, as created | none: the item still follows the profile |
+
+An explicit override wins over an inferred one. An item that is neither in the ledger nor
+in `overrides` and is missing from the board is new: a reconciler creates it as usual.
+
+### What a reconciler does
+
+1. It never creates an item whose mode is `skip`, and never changes, renames or recreates
+   an item whose mode is `keep`.
+2. It never deletes an item, including one the profile no longer declares.
+3. For each item with a mode, it compares the profile's current fingerprint with the
+   recorded one: `seen`, else the ledger's fingerprint for the item. When they differ,
+   when no fingerprint is recorded at all, or when the profile no longer declares the
+   item, it reports an **upstream change** and writes nothing for that item.
+4. It lists upstream changes in its plan and apply output, and SHOULD keep them visible
+   in one place in the repo (for example one open issue labelled `needs:triage` that it
+   updates rather than duplicates).
+5. When a person decides, the decision is recorded in `overrides`: the same `mode` with
+   `seen` set to the current fingerprint keeps the repo's choice; `follow` (for an inferred
+   mode) or removing the entry (for an explicit one) takes the profile's version. The next
+   reconcile then creates a missing item, and reports a differing one as work for a person
+   where the platform cannot update it in place. Once the item matches the profile
+   again, a `follow` entry can be removed.
+
+### Upstream change notice
+
+`profile_updates` returns, and a reconciler reports, each upstream change as:
+
+| Field | Meaning |
+| --- | --- |
+| `kind` | `label`, `field` or `view` |
+| `name` | The item's name |
+| `mode` | `skip` or `keep` |
+| `source` | `explicit` (from `overrides`) or `inferred` (from the ledger) |
+| `change` | `changed` (the declaration differs) or `removed` (the profile no longer declares it) |
+| `seen` | The recorded fingerprint, or null when none was recorded |
+| `current` | The profile's fingerprint now, or null for `removed` |
+| `declaration` | The profile's declaration now, or null for `removed`, so an agent can show what is new |
+
+The list is empty when nothing a repo departed from has changed. An item with a mode whose
+fingerprint matches is not a notice.

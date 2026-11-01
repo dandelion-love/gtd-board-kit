@@ -196,7 +196,7 @@ if lint.returncode != 0:
 # Spec and conformance stay paired. Every check id in server-spec/conformance.md is run or
 # listed as manual by the runner, the runner reports no id the spec lacks, and the C13
 # fixture table matches fold_cases.json.
-ID = r"(?:JC|[TPCBJX])\d+b?"
+ID = r"(?:JC|[TPCBJXO])\d+b?"
 conf_md = (ROOT / "server-spec" / "conformance.md").read_text()
 spec_ids = set(re.findall(rf"^\| ({ID}) \|", conf_md, re.M))
 runner_ids = set(re.findall(rf'"({ID})"', (ROOT / "conformance" / "runner.py").read_text()))
@@ -209,6 +209,16 @@ fold_table = set(re.findall(r"^\| ([a-z]) \|", conf_md, re.M))
 fold_json = {c["name"] for c in json.loads((ROOT / "conformance" / "fold_cases.json").read_text())["cases"]}
 if fold_table != fold_json:
     fail(f"C13 fixture table {sorted(fold_table)} differs from fold_cases.json {sorted(fold_json)}")
+
+# The runner's fingerprint gives the golden values server-spec states.
+sys.path.insert(0, str(ROOT / "conformance"))
+sys.dont_write_bytecode = True
+from runner import fingerprint  # noqa: E402
+spec_md = (ROOT / "server-spec" / "repo-context-and-profiles.md").read_text()
+for item, want in (({"name": "Inbox", "layout": "table", "filter": "status:Inbox"}, "9c5ee7e85d3e"),
+                   ({"name": "Engage \u2014 Now", "layout": "board", "fingerprint": "x"}, "14d526f52c0e")):
+    if fingerprint(item) != want or f"`{want}`" not in spec_md:
+        fail(f"fingerprint golden value {want} disagrees between the runner and the spec")
 
 # tools/spec_pair.py: a spec change needs a conformance change or a Conformance-unchanged trailer.
 sys.dont_write_bytecode = True

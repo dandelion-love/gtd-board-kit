@@ -115,6 +115,16 @@ session or a long wait (marked *manual*) may be run by hand.
 | B3 | `project_item_move` with no `after_*` puts the item first; with one, right after it |
 | B4 | Writes to an issue not yet on the board add it first |
 
+## Customization (when offered)
+
+A server that lists `profile_updates` in `tools/list` must also pass these.
+
+| Id | Check |
+| --- | --- |
+| O1 | Every label, field and view in every `profile_get` carries a `fingerprint` equal to the one recomputed from the item as [fingerprints](repo-context-and-profiles.md#fingerprints) defines |
+| O2 | `profile_updates` for the sandbox repo returns `profile`, `overrides`, `inferred` and `updates`; every notice has the fields of the [upstream change notice](repo-context-and-profiles.md#upstream-change-notice), and `current` equals that item's fingerprint in `profile_get` |
+| O3 | With an override whose `seen` is stale, a reconcile plan reports the item as an upstream change and plans no write to it; with `skip` and no `seen`, the item is not created; nothing is ever deleted (*manual*: needs a scratch repo whose `gtd-context.json` a person edits) |
+
 ## Security (all levels)
 
 | Id | Check |
