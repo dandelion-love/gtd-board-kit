@@ -32,8 +32,8 @@ the runner never prints them. Check X1 fails if a token it sent comes back in an
 | Option | Unlocks | Side effects |
 | --- | --- | --- |
 | none | C13 | none |
-| `--server` | T1, J2 and J3 skip unless the server claims Join | none |
-| `--token-env` | T0, T2, T3, T5, T7, J10, P1 to P3, X1 | none (reads only) |
+| `--server` | T1, T8, T9 (from the well-known document's levels); J2 and J3 skip unless the server claims Join | none |
+| `--token-env` | T0, T2, T3, T5, T7, T8 compared with `whoami`, J10, P1 to P3, X1 | none (reads only) |
 | `--preset-token PRESET=ENV` (repeat) | T6, X2 for each preset you pass | none |
 | `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, X3 | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them |
 | `--token-b-env` | C2, C3, C6 with a second principal | as above |
@@ -67,8 +67,10 @@ and parts of JC2, JC3 and JC5 to JC9) need a person, a second account or a wait 
 from their description.
 
 A server meets a level when every check of that level and the levels below it passes,
-manual ones included. The runner prints the levels the server claims in `whoami` (T5) so
-you can compare.
+manual ones included. The runner prints the levels the server claims in `whoami` (T5) and
+at `/.well-known/gtd-board-kit` (T8), and T9 fails when a claimed level, or Core beneath it,
+has a failing check in the same run. Checks a run skipped or left manual do not count
+against T9, so a full claim still needs the manual ones.
 
 Exit code: `0` when nothing failed, `1` when a check failed, `2` when the server could not
 be reached or the arguments were wrong. `--json FILE` writes the same rows for CI.

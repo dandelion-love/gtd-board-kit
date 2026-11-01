@@ -5,3 +5,4 @@
 * [Claims and leases](claims-and-leases.md) - One holder per item, recorded by the server, for a limited time
 * [Queue and ETA](queue-and-eta.md) - Card order is the queue, a date field is the ETA, a person's edit wins
 * [Report vocabulary](report-vocabulary.md) - Six report states and the question for a person
+* [Server version and levels](server-version.md) - The server declares its spec version and honest levels; agents run only skills whose level is claimed

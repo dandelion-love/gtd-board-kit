@@ -3,7 +3,7 @@ name: board-pickup
 description: Find a board item this agent may take in the current repo, through the gtd MCP server. Use when a session starts with no task, or when asked "what should I work on", "pick up work", "anything on the board for me". Read-only; it never claims.
 metadata:
   author: gtd-board-kit
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Pick up work from the board
@@ -15,7 +15,9 @@ through the gtd MCP server; if its tools are missing, stop and say so (BOARD.md 
 ## 1. Who and where
 
 1. `whoami`: note your principal (`agent:<name>` or `google:<email>`) and preset. Writes
-   need the `work` preset; `read` can only look.
+   need the `work` preset; `read` can only look. This skill needs `Core` in
+   `conformance`; compare `spec_version` with `.gtd/kit/VERSION` and react as
+   `.gtd/kit/knowledge/model/server-version.md` says.
 2. Read `.github/gtd-context.json`: `profile`, and `project` if set (pass it as
    `owner/number`). `repo` is this repo's `owner/name` from `git remote get-url origin`.
 3. Pointed at a specific issue already? Skip to the `board-claim` skill. Running a
