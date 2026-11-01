@@ -38,7 +38,8 @@ go unseen. `profile_updates` lists them. For each update, show your person the i
 the repo has, and the profile's `declaration` now, and ask which they want:
 
 - **Keep the repo's choice:** in a PR, set that item's `overrides` entry to the `mode`
-  shown and `seen` to the update's `current`. The notice goes away.
+  shown and `seen` to the update's `current`, or to `removed` when the update's `change`
+  is `removed`. The notice goes away.
 - **Take the profile's version:** in a PR, remove the item's `overrides` entry, or for an
   `inferred` update set it to `{"mode": "follow"}`. Reconcile recreates a deleted item; a
   reshaped one it reports for a person to change by hand where it cannot.

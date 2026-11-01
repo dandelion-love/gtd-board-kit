@@ -170,7 +170,7 @@ be compared by another.
 | `mode: skip` | Never create the item. If it exists, leave it alone |
 | `mode: keep` | The item may exist, but its shape is the repo's: never reset, rename or recreate it |
 | `mode: follow` | Follow the profile: cancels an inferred mode, so a deleted item is created again |
-| `seen` | Optional. The fingerprint of the profile's declaration the repo last decided about |
+| `seen` | Optional. The fingerprint of the profile's declaration the repo last decided about, or `removed` once the repo has decided about the profile dropping the item |
 
 A change to `overrides` is a change to a tracked file, so it goes through review like any
 other. A server MUST NOT trust it for authorization.
@@ -190,25 +190,34 @@ From the ledger, a reconciler infers:
 | created | no such item | `skip` (a person deleted it) |
 | created | the item, differing from the declaration it was created from | `keep` (a person reshaped it) |
 | created | the item, as created | none: the item still follows the profile |
+| nothing | the item, differing from the profile's declaration | `keep`, with no recorded fingerprint (it predates the ledger, so whose change it is is unknown) |
 
-An explicit override wins over an inferred one. An item that is neither in the ledger nor
-in `overrides` and is missing from the board is new: a reconciler creates it as usual.
+An explicit override wins over an inferred one. An item whose live shape matches the
+profile's current declaration has no inferred mode, whatever the ledger says. An item
+that is neither in the ledger nor in `overrides` and is missing from the board is new: a
+reconciler creates it as usual. An inferred `skip` of an item the profile no longer
+declares is no notice (both sides dropped it), and the reconciler forgets it.
 
 ### What a reconciler does
 
 1. It never creates an item whose mode is `skip`, and never changes, renames or recreates
    an item whose mode is `keep`.
 2. It never deletes an item, including one the profile no longer declares.
-3. For each item with a mode, it compares the profile's current fingerprint with the
-   recorded one: `seen`, else the ledger's fingerprint for the item. When they differ,
-   when no fingerprint is recorded at all, or when the profile no longer declares the
-   item, it reports an **upstream change** and writes nothing for that item.
+3. For each item whose mode is `skip` or `keep` (a departure from the profile; `follow`
+   is not one, and an item with `follow` is reconciled like any other), it compares the
+   profile's current fingerprint with the recorded one: `seen`, else the ledger's
+   fingerprint for the item. When they differ, or when no fingerprint is recorded at all,
+   it reports an **upstream change**. When the profile no longer declares the item, it
+   reports one unless `seen` is `removed`, or the item is in neither the ledger nor a
+   `seen` (a repo's own item the profile never had). Either way it writes nothing for
+   that item.
 4. It lists upstream changes in its plan and apply output, and SHOULD keep them visible
    in one place in the repo (for example one open issue labelled `needs:triage` that it
    updates rather than duplicates).
 5. When a person decides, the decision is recorded in `overrides`: the same `mode` with
-   `seen` set to the current fingerprint keeps the repo's choice; `follow` (for an inferred
-   mode) or removing the entry (for an explicit one) takes the profile's version. The next
+   `seen` set to the current fingerprint (or to `removed`, for a `removed` notice) keeps
+   the repo's choice; `follow` (for an inferred mode) or removing the entry (for an
+   explicit one) takes the profile's version. The next
    reconcile then creates a missing item, and reports a differing one as work for a person
    where the platform cannot update it in place. Once the item matches the profile
    again, a `follow` entry can be removed.

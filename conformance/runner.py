@@ -57,7 +57,7 @@ CLASS.update(dict.fromkeys((
     "project_views_list", "list_next_actions", "issue_list", "issue_blocked_by_list",
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
-    "channel_comments_read"), "read"))
+    "channel_comments_read", "profile_updates"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -516,6 +516,8 @@ def check_customization(rep: Report, c: Client, tools: dict, profiles: dict,
         lack = [f for f in NOTICE_FIELDS if f not in n]
         if lack:
             probs.append(f"{n.get('name')}: lacks {', '.join(lack)}")
+        elif n["mode"] not in ("skip", "keep") or n["change"] not in ("changed", "removed"):
+            probs.append(f"{n['name']}: mode {n['mode']!r} or change {n['change']!r} is not allowed")
         elif n["change"] == "changed" and n["current"] != current.get((n["kind"], n["name"])):
             probs.append(f"{n['name']}: current {n['current']} is not profile_get's")
     rep.check("O2", not missing and not probs,
