@@ -69,6 +69,7 @@ for anything specific to this repo. Delete any section you don't need.
 - queue: <!-- the board view whose card order is this lane's queue -->
 - resource: <!-- optional: what only this lane's jobs use, e.g. a machine; delete if none -->
 - capacity: <!-- optional, with resource: how many jobs at once; default 1 -->
+- busy_check: <!-- optional, with resource: a repo command that exits 0 when it is free -->
 - on_board_down: hold
 - every: 1h
 - lease: 3h

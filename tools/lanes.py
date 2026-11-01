@@ -30,12 +30,21 @@ PROMPT = "Run lane {name} as .gtd/BOARD.local.md defines it."
 
 
 def read_merged() -> str | None:
-    """The default branch's copy, or None if it can't be read."""
+    """The default branch's copy, or None if it can't be read. Says which commit it read,
+    because a clone that hasn't fetched reads a stale default branch."""
     try:
-        return subprocess.run(["git", "show", f"origin/HEAD:{LOCAL}"], capture_output=True,
+        text = subprocess.run(["git", "show", f"origin/HEAD:{LOCAL}"], capture_output=True,
                               text=True, check=True).stdout
     except (OSError, subprocess.CalledProcessError):
         return None
+    try:
+        info = subprocess.run(["git", "log", "-1", "--format=%h %cI", "origin/HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        print(f"NOTE read origin/HEAD at {info}; run git fetch first if that looks old",
+              file=sys.stderr)
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return text
 
 
 def read_local(path: str | None) -> tuple[str, str, bool]:

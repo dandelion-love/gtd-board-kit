@@ -26,6 +26,9 @@ A lane that owns something only one job (or a few) can use at once names it:
 resource's queue.
 
 - Start a job only while fewer than `capacity` of the lane's jobs are running.
+  `capacity` counts this lane's jobs only. If anything else can use the resource (a
+  person, another lane), the repo names a `busy_check`: a command in the repo that exits
+  0 when the resource is free. Run it before each start and start nothing on non-zero.
 - A person's direct ask that needs the resource jumps the queue: it starts at the next
   job boundary (when a running job ends), not by killing one, unless the person says to
   stop that job.
@@ -39,7 +42,10 @@ Revalidation reads git, so it still runs. What happens next is the lane's
 `on_board_down`:
 
 - `hold` (the default): do nothing but check again next tick. Tell your person once.
-- `continue`: keep doing local work inside `may`, under the last policy that validated.
-  Start nothing that needs the board (no new claims, no new items). Queue each report
+- `continue`: finish what is running and keep doing local work on items you already
+  hold, inside `may`, under the last policy that validated. It starts no new item: no
+  new claims, no new items, no new job from the queue, so the resource may idle once the
+  running job ends. That is deliberate: a claim the board never recorded could collide
+  with another holder. Queue each report
   you would have made, with its original time, and post them in order, times included,
   once the board is back; renew leases first.
