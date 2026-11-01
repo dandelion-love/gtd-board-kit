@@ -40,11 +40,46 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
+
+
+class Family(Enum):
+    """The check families of server-spec/conformance.md, in report order. A check id is
+    the family's prefix and a number (``T1``, ``JC4``, ``C6b``); ``RUN`` is the runner's
+    own row when a run stops early."""
+    TRANSPORT = "T"         # Transport and identity (Core)
+    PROFILES = "P"          # Repo context and labels (Core)
+    CLAIMS = "C"            # Claims (Core)
+    BOARD = "B"             # Board (Board level)
+    CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
+    JOIN = "J"              # Join (Join level)
+    CONNECTOR = "JC"        # Connector entrance (when offered)
+    SECURITY = "X"          # Security (all levels)
+    RUN = "RUN"             # the runner itself
+
+
+#: A check id: a family prefix, a number, and an optional letter.
+CHECK_ID = re.compile(r"(?:%s)\d+b?" % "|".join(
+    sorted((f.value for f in Family if f is not Family.RUN), key=len, reverse=True)))
+
+
+def family_of(cid: str) -> Family:
+    """The family a check id belongs to (the longest matching prefix)."""
+    if cid == Family.RUN.value:
+        return Family.RUN
+    prefix = re.match(r"[A-Z]+", cid)
+    return Family(prefix.group(0)) if prefix else Family.RUN
+
+
+def report_order(cid: str) -> tuple:
+    """Family order, then number, then the id: ``T2`` before ``T10`` before ``P1``."""
+    families = list(Family)
+    return (families.index(family_of(cid)), int(re.sub(r"\D", "", cid) or 0), cid)
 PROTOCOL = "2025-06-18"
 MARKER = "gtd-desk"
 RECORD_RE = re.compile(r"<!--\s*" + MARKER + r"\s+v(\d+)\s+(\{.*?\})\s*-->", re.DOTALL)
@@ -1125,7 +1160,7 @@ def main(argv: list[str]) -> int:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
             except CheckError as e:
-                rep.fail("RUN", f"stopped: {e}")
+                rep.fail(Family.RUN.value, f"stopped: {e}")
             # T3 last, so every structured result of the run has been validated.
             if c.schemas:
                 ns = getattr(c, "no_schema", [])
@@ -1147,9 +1182,7 @@ def main(argv: list[str]) -> int:
         rep.check("X1", not leaked, "a token the runner sent came back in a response body",
                   f"{len(seen)} responses scanned")
 
-    order = {k: i for i, k in enumerate("TPCBOJXR")}
-    rows = sorted(rep.rows, key=lambda r: (order.get(r["id"][0], 9),
-                                           int(re.sub(r"\D", "", r["id"]) or 0), r["id"]))
+    rows = sorted(rep.rows, key=lambda r: report_order(r["id"]))
     width = max(len(r["id"]) for r in rows)
     for r in rows:
         print(f"{r['id']:<{width}}  {r['status']:<6}  {r['note']}")
