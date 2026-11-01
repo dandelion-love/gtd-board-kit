@@ -121,9 +121,9 @@ A server that lists `profile_updates` in `tools/list` must also pass these.
 
 | Id | Check |
 | --- | --- |
-| O1 | Every label, field and view in every `profile_get` carries a `fingerprint` equal to the one recomputed from the item as [fingerprints](repo-context-and-profiles.md#fingerprints) defines |
+| O1 | Every label, field and view in every `profile_get` carries a `fingerprint` equal to the one recomputed from the item as [fingerprints](repo-context-and-profiles.md#fingerprints) defines (without `fingerprint` and `manual`) |
 | O2 | `profile_updates` for the sandbox repo returns `profile`, `overrides`, `inferred` and `updates`; every notice has the fields of the [upstream change notice](repo-context-and-profiles.md#upstream-change-notice), and `current` equals that item's fingerprint in `profile_get` |
-| O3 | With an override whose `seen` is stale, a reconcile plan reports the item as an upstream change and plans no write to it; with `skip` and no `seen`, the item is not created; nothing is ever deleted (*manual*: needs a scratch repo whose `gtd-context.json` a person edits) |
+| O3 | With an override whose `seen` is stale, a reconcile plan reports the item as an upstream change and plans no write to it; with `skip` and no `seen`, the item is not created; recolouring a label the reconciler made (its name in another case too) is kept on the next run; nothing is ever deleted (*manual*: needs a scratch repo whose `gtd-context.json` a person edits) |
 
 ## Security (all levels)
 
