@@ -95,6 +95,21 @@ guard = subprocess.run([sys.executable, str(ROOT / "tools" / "public_guard.py"),
 if guard.returncode != 0:
     fail("public_guard --all found private data:\n" + guard.stderr.strip())
 
+# The guard must catch these shapes. Built at run time so the file itself stays clean.
+LEAKS = ["tok " + "ghp_" + "a" * 30, "see " + "D:" + "\\work", "fixes " + "#" + "12",
+         "board " + "acme/" + "4", "id " + "55" + "60276", "a" + "@" + "b.com",
+         "/mnt/" + "project-files/x"]
+for leak in LEAKS:
+    r = subprocess.run([sys.executable, str(ROOT / "tools" / "public_guard.py"), "--text"],
+                       input=leak, capture_output=True, text=True)
+    if r.returncode != 1:
+        fail(f"public_guard missed a leak shape: {leak[:12]}...")
+for trailer in ("Co-Authored-By: " + "ghp_" + "a" * 30,):
+    r = subprocess.run([sys.executable, str(ROOT / "tools" / "public_guard.py"), "--text"],
+                       input=trailer, capture_output=True, text=True)
+    if r.returncode != 1:
+        fail("public_guard lets a token through in a trailer")
+
 if errors:
     print("\n".join(f"FAIL {e}" for e in errors))
     sys.exit(1)

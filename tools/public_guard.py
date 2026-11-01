@@ -8,8 +8,8 @@ false alarm costs a rewrite of one line, a leak cannot be taken back.
 Modes:
   --staged              scan what is staged for commit (pre-commit)
   --message FILE        scan a commit message (commit-msg)
-  --range A..B          scan the files changed and the commit messages in a range (pre-push)
-  --new REF             scan a ref the remote has never seen: whole tree + new commits
+  --range A..B          scan every commit in a range: files it adds or changes, message, author
+  --new REF             scan a ref the remote has never seen: every commit not on a remote
   --all                 scan every tracked file (tests, a manual check)
   --text                scan text on stdin
   --claude-hook         read a Claude Code PreToolUse event on stdin; block (exit 2) a git
@@ -92,8 +92,6 @@ def scan(text: str, where: str, *, message: bool = False) -> list[str]:
         rf"github\.com/{re.escape(org)}/(?!{THIS_REPO}\b)[\w.-]+", re.I) if org else None
     deny = denylist()
     for n, line in enumerate(text.splitlines(), 1):
-        if message and re.match(r"^(Co-Authored-By|Claude-Session|Signed-off-by):", line):
-            continue
         hits: list[str] = []
         for name, rx, in_msgs in RULES:
             if message and not in_msgs:
@@ -136,17 +134,35 @@ def scan_staged() -> list[str]:
     return out
 
 
-def scan_range(rng: str) -> list[str]:
+def scan_commit(sha: str) -> list[str]:
+    """The file contents a commit introduces (against its first parent, or its whole tree
+    for a root commit), plus its message and author lines. Every outgoing commit is
+    scanned this way, so a secret added and then removed before a push is still caught."""
+    parents = git("rev-list", "--parents", "-n", "1", sha).split()[1:]
+    if parents:
+        paths = git("diff", "--name-only", "--diff-filter=ACMR", "-z", parents[0], sha)
+    else:
+        paths = git("ls-tree", "-r", "--name-only", "-z", sha)
     out: list[str] = []
-    head = rng.split("..")[-1]
-    for path in git("diff", "--name-only", "--diff-filter=ACMR", "-z", rng).split("\0"):
+    for path in paths.split("\0"):
         if not path:
             continue
-        blob = subprocess.run(["git", "-C", str(ROOT), "show", f"{head}:{path}"],
+        mode = git("ls-tree", sha, "--", path).split()
+        if not mode or mode[0] == "120000":
+            continue  # gone, or a symlink (its target is a path, not content)
+        blob = subprocess.run(["git", "-C", str(ROOT), "show", f"{sha}:{path}"],
                               capture_output=True, check=True).stdout
         if is_text(blob):
-            out += scan(blob.decode("utf-8", "replace"), f"{head[:8]}:{path}")
-    return out + scan_messages(git("rev-list", rng).split())
+            out += scan(blob.decode("utf-8", "replace"), f"{sha[:8]}:{path}")
+        out += scan(path, f"{sha[:8]}:{path} (file name)")
+    return out + scan_messages([sha])
+
+
+def scan_range(rng: str) -> list[str]:
+    out: list[str] = []
+    for sha in git("rev-list", "--reverse", rng).split():
+        out += scan_commit(sha)
+    return out
 
 
 def scan_all() -> list[str]:
@@ -209,21 +225,6 @@ def claude_hook() -> int:
     return 0
 
 
-def scan_tree(ref: str) -> list[str]:
-    out: list[str] = []
-    for line in git("ls-tree", "-r", "-z", ref).split("\0"):
-        if not line:
-            continue
-        meta, path = line.split("\t", 1)
-        if meta.split()[0] == "120000":
-            continue  # symlink: its target is a path, not content
-        blob = subprocess.run(["git", "-C", str(ROOT), "cat-file", "blob", meta.split()[2]],
-                              capture_output=True, check=True).stdout
-        if is_text(blob):
-            out += scan(blob.decode("utf-8", "replace"), f"{ref[:8]}:{path}")
-    return out
-
-
 def scan_messages(revs: list[str]) -> list[str]:
     out: list[str] = []
     for sha in revs:
@@ -235,10 +236,12 @@ def scan_messages(revs: list[str]) -> list[str]:
 
 
 def scan_new(head: str) -> list[str]:
-    """A ref the remote has never seen: the whole tree, plus every commit not on a remote."""
+    """A ref the remote has never seen: every commit on it that no remote ref has."""
     remote = [r for r in git("for-each-ref", "--format=%(objectname)", "refs/remotes").split()]
-    revs = git("rev-list", head, *(["--not", *remote] if remote else [])).split()
-    return scan_tree(head) + scan_messages(revs)
+    out: list[str] = []
+    for sha in git("rev-list", "--reverse", head, *(["--not", *remote] if remote else [])).split():
+        out += scan_commit(sha)
+    return out
 
 
 def scan_outgoing() -> list[str]:
