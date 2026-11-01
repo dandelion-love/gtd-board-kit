@@ -96,12 +96,12 @@ session or a long wait (marked *manual*) may be run by hand.
 
 | Id | Check |
 | --- | --- |
-| JC1 | Registration accepts a loopback redirect; `/authorize` sends the browser to `/join/approve?connect=<id>`; the page offers "Sign in as an agent"; with `resource=<mcp_url>/mcp?agent=<name>` the card is prefilled with that name |
+| JC1 | Registration accepts a loopback redirect (`localhost` or the loopback address); `/authorize` sends the browser to `/join/approve?connect=<id>`; the page offers "Sign in as an agent"; with `resource=<mcp_url>/mcp?agent=<name>` the card is prefilled with that name |
 | JC2 | Approving redirects to the client's registered address with `state` unchanged and a code; denying redirects with `error=access_denied` and creates no agent |
 | JC3 | The code works once, only for its client and only with the right PKCE verifier; a refused redemption does not spend it, so a correct one afterwards succeeds; not after 5 minutes (*manual*) |
 | JC4 | The token response holds the agent access token and a connector refresh token, never the agent's own refresh token; `whoami` with that access token shows `agent:<name>`, the approved preset, `entrance` `connector`, and the fence applies |
 | JC5 | `/join/agents` lists the agent with entrance `connector` beside device-code agents (*manual*) |
-| JC6 | Two connector refreshes sent at once both succeed and the agent is not revoked; a refresh after the access token ends returns a new access token (*manual*: after 24 hours) |
+| JC6 | A connector refresh returns a new connector refresh token; two refreshes sent at once with the same token both succeed with the same answer and the agent is not revoked; the replaced token presented after the grace window answers `invalid_grant` and revokes the agent; a refresh after the access token ends returns a new access token (*manual*: after 24 hours) |
 | JC7 | After revoke (through `revocation_endpoint` when advertised, else *manual* on `/join/agents`) the access token gets `401` and the connector refresh gets `invalid_grant`; the connector refresh token never works for another client, nor past the approval's end (*manual*) |
 | JC8 | Re-joining the same name through the device code revokes the connector agent, and the reverse (*manual*) |
 | JC9 | `/join/decide` for a connect id refuses without a valid CSRF token, without an approver session, and for a non-approver account (*manual*) |
