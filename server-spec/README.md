@@ -40,8 +40,11 @@ The agent-side halves live elsewhere in the kit and are normative here too:
 | **Board** | Core, plus board writes (Status, fields, card order, drafts) | Everything, in repos without a label bridge too |
 | **Extended** | Any of the optional tool groups in [tools.md](tools.md#optional-groups) | Repo-specific procedures in `.gtd/BOARD.local.md` that name them |
 
-A server says which levels it meets in `whoami` (`conformance`, see
-[transport-and-identity](transport-and-identity.md#whoami)).
+A server says which levels it meets, and which spec version it implements, in `whoami` and
+at `<mcp_url>/.well-known/gtd-board-kit`, and claims only levels whose checks it passes
+([spec version and levels](transport-and-identity.md#spec-version-and-levels)). An agent
+runs a kit skill only when the server claims that skill's level
+([server version and levels](../knowledge/model/server-version.md)).
 
 ## Versioning
 

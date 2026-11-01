@@ -10,9 +10,9 @@ the join routes, so it works against any implementation, in any language.
 What it needs, and which checks each unlocks:
 
     nothing                 C13 (the fold fixtures, against the reference fold or --fold-cmd)
-    --server                T1, J2, J3 (J2 and J3 only with --join-start: it opens one join
+    --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
-    + a token               T2, T3, T5, T6 (partly), T7, P1 to P3, J10, X2 (partly)
+    + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, J10, X2 (partly)
     + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
@@ -73,6 +73,25 @@ HEADINGS = {
 #: A check id: a family prefix, a number, and an optional letter.
 CHECK_ID = re.compile(r"(?:%s)\d+b?" % "|".join(
     sorted((f.value for f in Family if f is not Family.RUN), key=len, reverse=True)))
+
+
+class Level(Enum):
+    """The conformance levels of server-spec/README.md, lowest first."""
+    CORE = "Core"
+    JOIN = "Join"
+    BOARD = "Board"
+    EXTENDED = "Extended"
+
+
+#: The level each family's checks belong to (Security holds at every level, so Core).
+LEVEL_OF = {
+    Family.TRANSPORT: Level.CORE, Family.PROFILES: Level.CORE, Family.CLAIMS: Level.CORE,
+    Family.SECURITY: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
+    Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
+}
+
+WELL_KNOWN = "/.well-known/gtd-board-kit"
+SEMVER = re.compile(r"\d+\.\d+\.\d+")
 
 
 def family_of(cid: str) -> Family:
@@ -473,6 +492,54 @@ def check_presets(rep: Report, base: str, preset_tokens: dict[str, str], seen: l
                 bad_t6.append(f"calling {above} at {preset} did not refuse naming {PRESETS[rank + 1]}")
     rep.check("T6", not bad_t6, "; ".join(bad_t6), f"presets {', '.join(preset_tokens)}")
     rep.check("X2", not bad_x2, "; ".join(bad_x2[:6]))
+
+
+def check_t8(rep: Report, base: str, who: dict | None) -> dict | None:
+    """The unauthenticated spec-version document, and that it agrees with whoami."""
+    status, _, text = http("GET", base + WELL_KNOWN)
+    try:
+        doc = json.loads(text) if status == 200 else None
+    except json.JSONDecodeError:
+        doc = None
+    if not isinstance(doc, dict):
+        rep.fail("T8", f"GET {WELL_KNOWN} gave {status}, not a JSON object")
+        return None
+    problems = [f"lacks {f}" for f in ("spec_version", "conformance", "mcp", "join_url") if f not in doc]
+    version, levels = doc.get("spec_version"), doc.get("conformance")
+    if not (isinstance(version, str) and SEMVER.fullmatch(version)):
+        problems.append(f"spec_version {version!r} is not MAJOR.MINOR.PATCH")
+    names = {lv.value for lv in Level}
+    if not (isinstance(levels, list) and all(lv in names for lv in levels)):
+        problems.append(f"conformance {levels!r} holds unknown levels")
+    elif levels and Level.CORE.value not in levels:
+        problems.append(f"conformance {levels} claims a level without Core")
+    if who is not None:
+        for f in ("spec_version", "conformance"):
+            if doc.get(f) != who.get(f):
+                problems.append(f"{f} {doc.get(f)!r} differs from whoami's {who.get(f)!r}")
+    rep.check("T8", not problems, "; ".join(problems),
+              f"spec {version}, levels {levels}" + ("" if who is not None else " (no token: not compared)"))
+    return doc
+
+
+def check_t9(rep: Report, claimed: list | None) -> None:
+    """Honest levels: no check of a claimed level, or of Core beneath it, failed this run."""
+    if claimed is None:
+        rep.skip("T9", "needs whoami or the well-known document to know the claimed levels")
+        return
+    failed: dict[Level, list[str]] = {}
+    for r in rep.rows:
+        fam = family_of(r["id"])
+        if r["status"] == "FAIL" and fam in LEVEL_OF:
+            failed.setdefault(LEVEL_OF[fam], []).append(r["id"])
+    dishonest = []
+    for name in claimed:
+        level = next((lv for lv in Level if lv.value == name), None)
+        ids = failed.get(level, []) + ([] if level is Level.CORE else failed.get(Level.CORE, []))
+        if ids:
+            dishonest.append(f"{name} (failed {', '.join(sorted(set(ids), key=report_order))})")
+    rep.check("T9", not dishonest, f"claims levels it fails: {'; '.join(dishonest)}",
+              f"claims {claimed or 'nothing'}; no check of those levels failed")
 
 
 def check_profiles(rep: Report, c: Client) -> dict:
@@ -1147,7 +1214,7 @@ def main(argv: list[str]) -> int:
             c = Client(base, t1, seen)
             try:
                 who, _tools = check_identity(rep, c)
-                claims_join = "Join" in (who.get("conformance") or [])
+                claims_join = Level.JOIN.value in (who.get("conformance") or [])
                 profiles = check_profiles(rep, c)
                 check_customization(rep, c, _tools, profiles, a.repo, a.project)
                 presets = {}
@@ -1175,6 +1242,9 @@ def main(argv: list[str]) -> int:
                           f"no input or output schema: {', '.join(ns[:12]) or '-'}; "
                           f"invalid results: {'; '.join(c.schema_errs[:4]) or '-'}",
                           f"{len(c.schemas)} tools; every structured result of the run validated")
+        doc = check_t8(rep, base, who)
+        if claims_join is None and doc is not None and isinstance(doc.get("conformance"), list):
+            claims_join = Level.JOIN.value in doc["conformance"]
         check_join(rep, base, a.join_start, claims_join)
         entrances = join_entrances(base)
         check_j11(rep, entrances, claims_join, who)
@@ -1188,6 +1258,10 @@ def main(argv: list[str]) -> int:
         leaked = [s for s in secrets if any(s in body for body in seen)]
         rep.check("X1", not leaked, "a token the runner sent came back in a response body",
                   f"{len(seen)} responses scanned")
+
+    if a.server:
+        claimed = (who or {}).get("conformance") if who else (doc or {}).get("conformance")
+        check_t9(rep, claimed if isinstance(claimed, list) else None)
 
     rows = sorted(rep.rows, key=lambda r: report_order(r["id"]))
     width = max(len(r["id"]) for r in rows)

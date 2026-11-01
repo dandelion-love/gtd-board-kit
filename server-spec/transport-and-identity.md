@@ -75,11 +75,49 @@ Registered in every mode, class `desk`. Takes no arguments. Returns:
 | `entrance` | string or null | For a joined agent, how it came in: `device-code` or `connector`; null for every other caller |
 | `expires_at` | int or null | Unix time the current access token ends |
 | `join_url` | string or null | `<mcp_url>/join` when the join is switched on, else null |
-| `conformance` | list of strings | The levels from the [README](README.md#conformance-levels) this server meets |
-| `spec_version` | string | The kit version of this spec the server implements |
+| `conformance` | list of strings | The levels from the [README](README.md#conformance-levels) this server meets ([spec version and levels](#spec-version-and-levels)) |
+| `spec_version` | string | The kit version of this spec the server implements, `MAJOR.MINOR.PATCH` |
 
 An agent calls `whoami` first in every session (BOARD.md rule 1), so it must be cheap and
 must never fail for a valid token.
+
+## Spec version and levels
+
+A server declares which version of this spec it implements and which levels it meets, in
+two places that always agree:
+
+- `whoami` (`spec_version`, `conformance`) for a signed-in caller, and
+- `GET <mcp_url>/.well-known/gtd-board-kit`, unauthenticated, for anyone who has only the
+  URL: a person checking a deployment, a runner, or an agent deciding whether to join.
+
+The well-known document is JSON:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `spec_version` | string | The same value `whoami` gives |
+| `conformance` | list of strings | The same value `whoami` gives |
+| `mcp` | string | `<mcp_url>/mcp` |
+| `join_url` | string or null | `<mcp_url>/join` when the join is switched on, else null |
+
+It carries nothing about any caller, agent or person, never a token, and MAY be cached for
+up to five minutes (`Cache-Control: max-age=300` or less).
+
+**`spec_version`** is the kit `VERSION` whose `server-spec/` the server implements. It is
+bumped when the server catches up with a newer spec, not when the kit changes elsewhere.
+
+**`conformance` is honest.** The levels describe this deployment as it is configured right
+now, not the code's potential, and the same list goes to every caller whatever its preset.
+A server lists a level only when every check of that level (and of the levels below it) in
+[conformance](conformance.md) passes against it:
+
+- a check it knows it fails drops the level: a missing Core tool or an identity-like
+  argument (T0, T7) means no `Core`, and then no level at all;
+- configuration counts: with the join switched off there is no `Join`; without a board
+  credential the board reads and writes fail, so there is no `Core` and no `Board`;
+- `Extended` is listed only with `Core`, when at least one optional group is offered.
+
+An empty list is valid and means "no kit skill will work here". Agents react to the version
+and the levels as [server version and levels](../knowledge/model/server-version.md) says.
 
 ## Errors
 

@@ -3,7 +3,7 @@ name: board-onboard
 description: Connect this repo to its board, or check and repair that connection. Covers the kit install, gtd MCP access, drafting .gtd/BOARD.local.md from the repo and the board, and the PR. Use when asked to onboard, set up, connect or check a repo's board, when .gtd/BOARD.local.md is missing or unfilled, or after moving the kit pin.
 metadata:
   author: gtd-board-kit
-  version: 0.3.0
+  version: 0.4.0
 ---
 
 # Onboard this repo to its board
@@ -22,6 +22,7 @@ Check each item and redo only the step that fails:
 | `.gtd/kit` exists and its submodule is initialised | step 2 (install), or `git submodule update --init .gtd/kit` |
 | `.claude/skills/board-*` are folders, not small text files | on Windows, `.gtd/kit/install/install-user.ps1` |
 | `whoami` answers, with `work` if you will write | step 3 (MCP access) |
+| `whoami` lists `Core` in `conformance` (and `Board` if the repo has no label bridge) | tell your person the server lacks that level; see `.gtd/kit/knowledge/model/server-version.md` |
 | `.github/gtd-context.json` names `profile` and `project` | ask your person; never guess a board |
 | `.gtd/BOARD.local.md` has no empty sections that matter here | step 4 (draft it) |
 | `CLAUDE.md` and `AGENTS.md` point at both BOARD files | rerun the installer; it only adds what is missing |
