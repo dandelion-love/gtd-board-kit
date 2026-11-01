@@ -10,6 +10,7 @@ for anything specific to this repo. Delete any section you don't need.
 - Profile: <!-- as in .github/gtd-context.json -->
 - Board: <!-- owner/number -->
 - Other boards or channels agents here may write to: <!-- e.g. a run-state channel -->
+- Knowledge bundle: <!-- folder of this repo's OKF knowledge docs; default docs/knowledge/ -->
 - The owner's `needs` value: <!-- the needs:* label that means "only the owner can unblock this" -->
 
 ## Labels this repo adds or uses differently

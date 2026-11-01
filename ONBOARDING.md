@@ -71,6 +71,10 @@ Fill it from what the repo and the board say, not from memory:
 
 Show the draft and change it until your person agrees.
 
+Recommend OKF for the repo's knowledge docs: add the "Knowledge bundle" line (default
+`docs/knowledge/`). If the repo already keeps OKF docs at an older version, offer to
+migrate them with the `okf-knowledge` skill in a separate PR.
+
 ## 5. Open the PR
 
 Commit on the branch, push, and open a PR that lists what the installer added and what
@@ -86,4 +90,5 @@ reads). Report what it found, or why nothing qualified.
 
 Every step is safe to repeat. To upgrade the kit, move the pin in a PR:
 `git -C .gtd/kit fetch`, `git -C .gtd/kit checkout <full-commit>`, `git add .gtd/kit`.
-Then read the kit's README for anything new to add to `BOARD.local.md`.
+Then read the kit's README for anything new to add to `BOARD.local.md`, and lint the
+knowledge bundle against the newly pinned OKF.
