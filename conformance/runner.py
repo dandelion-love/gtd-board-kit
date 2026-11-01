@@ -733,9 +733,11 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def http_noredirect(url: str) -> tuple[int, dict]:
+def http_noredirect(url: str, form: dict | None = None) -> tuple[int, dict]:
+    """GET (or a form POST) that reports a redirect instead of following it."""
+    data = urllib.parse.urlencode(form).encode() if form is not None else None
     try:
-        with urllib.request.build_opener(_NoRedirect).open(url, timeout=60) as r:
+        with urllib.request.build_opener(_NoRedirect).open(url, data=data, timeout=60) as r:
             return r.status, {k.lower(): v for k, v in r.headers.items()}
     except urllib.error.HTTPError as e:
         return e.code, {k.lower(): v for k, v in e.headers.items()}
@@ -866,11 +868,12 @@ def _connector_run(rep: Report, base: str, meta: dict, cb: Loopback, name: str, 
     loc = urllib.parse.urlparse(location)
     connect = (urllib.parse.parse_qs(loc.query).get("connect") or [""])[0]
     _, _, page = http("GET", location) if connect else (0, {}, "")
-    rep.check("JC1", s in (302, 303, 307) and loc.path.endswith("/join/approve") and bool(connect)
-              and name in page,
-              f"/authorize gave {s} to {loc.path or '-'}; connect id {'present' if connect else 'missing'}; "
-              f"name {'on' if name in page else 'not on'} the page",
-              "to /join/approve?connect=..., agent name shown")
+    # The page may sign the approver in first (agent-join.md), so the name is checked only
+    # when it is shown before sign-in; otherwise the approving person checks it.
+    shown = "agent name shown before sign-in" if name in page else "approver checks the prefilled name"
+    rep.check("JC1", s in (302, 303, 307) and loc.path.endswith("/join/approve") and bool(connect),
+              f"/authorize gave {s} to {loc.path or '-'}; connect id {'present' if connect else 'missing'}",
+              f"loopback registered; to /join/approve?connect=...; {shown}")
     if not connect:
         return
 
@@ -878,7 +881,7 @@ def _connector_run(rep: Report, base: str, meta: dict, cb: Loopback, name: str, 
     refused = []
     for form in ({"connect": connect, "decision": "approve", "name": name, "preset": "desk"},
                  {"connect": connect, "decision": "approve", "name": name, "preset": "desk", "csrf": "forged"}):
-        s9, h9, _ = http("POST", f"{base}/join/decide", form, form=True)
+        s9, h9 = http_noredirect(f"{base}/join/decide", form)
         to_client = h9.get("location", "").startswith(cb.uri)
         refused.append(s9 >= 400 or (s9 in (302, 303) and not to_client))
     early = cb.wait(0.5)
@@ -886,7 +889,7 @@ def _connector_run(rep: Report, base: str, meta: dict, cb: Loopback, name: str, 
               "no session and forged CSRF refused (non-approver: by hand)")
 
     print(f"\nACTION: open this link in a browser, sign in as an approver, choose to sign in as an agent,\n"
-          f"and approve '{name}' at preset desk. The runner waits {int(wait)} s.\n\n  {location}\n",
+          f"and approve '{name}' at preset desk; check that the card shows that name. The runner waits {int(wait)} s.\n\n  {location}\n",
           file=sys.stderr, flush=True)
     answer = cb.wait(wait)
     if answer is None:
