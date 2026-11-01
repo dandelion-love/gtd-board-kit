@@ -17,6 +17,7 @@ data, tokens or board contents.
 | `skills/board-claim` | Claim it, work it on `gtd/issue-<n>`, hand back a PR |
 | `skills/board-report` | Report progress, renew, release, record failure |
 | `skills/board-needs-person` | Ask a person with the right `needs:*` label, then stop |
+| `skills/board-lane`, `tools/lanes.py` | Standing lanes: recurring pre-approved work with its own switch; run a tick, resume schedules, lint lanes and workflow grants |
 | `okf/`, `skills/okf-knowledge`, `tools/okf_lint.py` | The pinned Open Knowledge Format spec, the authoring skill, and its linter |
 | `knowledge/` | The kit's own design notes, as an OKF bundle |
 | `install/` | `add-to-repo.ps1` / `.sh`, `install-user.ps1`, the SessionStart hook, the `BOARD.local.md` starter |
@@ -82,6 +83,14 @@ Each repo layers its own rules on top of the kit without touching it:
   repo: this kit is public. Agents read it right after
   `BOARD.md`, and it wins where they differ, except rule 1 (MCP only) and rule 9 (hard
   limits).
+- **Standing lanes** in `.gtd/BOARD.local.md`: recurring work a person approved once,
+  each with `asked_by`, `basis`, a `grant` link, a `policy` version, a switch
+  (`auto`, `observe`, `hold`, `off`), its own board item whose lease is the heartbeat,
+  and `may` / `never` lists. Scheduled prompts only point at the lane; the
+  `board-lane` skill re-creates schedules after a restart.
+- **Workflow grants** in `.gtd/BOARD.local.md`: the one way rule 9 opens. Each grant
+  names the workflow files, who granted it, when, and a link. Agents still branch, open
+  a PR and never merge. No grant: never.
 - A real folder at `.claude/skills/<name>` (and `.codex/skills/<name>`) is the repo's own
   skill. One named like a kit skill replaces it; the installer leaves it alone.
 - The label-to-Status bridge already takes a local map at

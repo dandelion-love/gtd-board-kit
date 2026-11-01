@@ -3,7 +3,7 @@ name: board-pickup
 description: Find a board item this agent may take in the current repo, through the gtd MCP server. Use when a session starts with no task, or when asked "what should I work on", "pick up work", "anything on the board for me". Read-only; it never claims.
 metadata:
   author: gtd-board-kit
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Pick up work from the board
@@ -18,7 +18,8 @@ through the gtd MCP server; if its tools are missing, stop and say so (BOARD.md 
    need the `work` preset; `read` can only look.
 2. Read `.github/gtd-context.json`: `profile`, and `project` if set (pass it as
    `owner/number`). `repo` is this repo's `owner/name` from `git remote get-url origin`.
-3. Pointed at a specific issue already? Skip to the `board-claim` skill.
+3. Pointed at a specific issue already? Skip to the `board-claim` skill. Running a
+   standing lane? Use `board-lane`; its `may` list replaces the pull filter below.
 
 ## 2. List candidates
 

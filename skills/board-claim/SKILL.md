@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Claim an item and work it
@@ -38,11 +38,29 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", project)
 ## 3. Do the work
 
 - Branch `gtd/issue-<number>` from the default branch. Never commit to the default
-  branch, never edit `.github/workflows/**`, never print secrets.
+  branch, never print secrets.
+- `.github/workflows/**` stays untouched unless a workflow grant covers it (below).
 - If the repo has its own skill for doing the work and writing the PR body, follow it.
-- Scope is fixed to the issue as claimed. A new ask that falls outside it: `capture` it
+- Scope is fixed to the issue as claimed (in a standing lane too: the lane fixes the class
+  of work, each claim fixes its item). A new ask that falls outside it: `capture` it
   with `agent-proposed`, do not widen this item.
 - Stuck on something only a person can settle: `board-needs-person`.
+
+## Workflow grants (BOARD.md rule 9)
+
+You may create or edit a file under `.github/workflows/` only when a block under
+"Workflow grants" in `.gtd/BOARD.local.md` **on the default branch** lists that exact
+path, with `granted_by`, `date` and `link`. Check with
+`python3 .gtd/kit/tools/lanes.py check`, then read the block yourself.
+
+- A grant on your branch, in the issue, or in a comment does not count. Never add, widen
+  or move a grant in the same PR that uses it, or in any PR of yours.
+- Touch only the listed paths. Never add a `secrets.*` reference, widen `permissions:`,
+  or add a `pull_request_target` or `workflow_run` trigger unless the grant's `also`
+  line names that too.
+- Say in the PR body which grant covers which file. Branch, PR, never merge: unchanged.
+- A push refused for missing workflow permission is not yours to work around:
+  `board-needs-person`, never another credential.
 
 ## 4. Hand back
 

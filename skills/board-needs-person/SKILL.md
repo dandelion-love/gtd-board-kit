@@ -3,7 +3,7 @@ name: board-needs-person
 description: Ask a person for a decision, a spec, access or a ruling on a board item, mark it on the board with the right needs:* label, and stop work on it, through the gtd MCP server. Use whenever you would otherwise guess at something only a person can settle.
 metadata:
   author: gtd-board-kit
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Ask a person, then stop
@@ -41,7 +41,8 @@ item_report(repo, number, attention="<the question>", needs="<needs>",
 
 ## Then stop
 
-- Stop work on that item. Release it with `item_release` if you will not be back before
+- Stop work on that item. In a standing lane, only that item stops; the lane goes on
+  (`board-lane`). Release it with `item_release` if you will not be back before
   the lease ends (`next` = "answer the question above").
 - Tell your person, in the session, what you asked and where.
 - Do not remove the `needs:*` label yourself: taking it off is the person's call.

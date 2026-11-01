@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS = ["board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "okf-knowledge"]
+SKILLS = ["board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "okf-knowledge"]
 BOARD_BUDGET = 3000      # bytes; BOARD.md is read in full by every agent
 SKILL_BUDGET = 6000      # bytes per SKILL.md
 DESC_BUDGET = 1024       # characters; the Agent Skills limit for description
@@ -119,6 +119,45 @@ for trailer in ("Co-Authored-By: " + "ghp_" + "a" * 30,):
                        input=trailer, capture_output=True, text=True)
     if r.returncode != 1:
         fail("public_guard lets a token through in a trailer")
+
+# lanes.py: a filled lane and a named grant pass; a whole-folder grant and a bad switch fail.
+FILLED = """## Standing lanes
+
+### lane: nightly
+- asked_by: owner
+- basis: the owner approved a nightly check
+- grant: https://example.com/approval
+- policy: 1
+- switch: observe
+- item: owner/repo#N
+- every: 24h
+- lease: 72h
+- may:
+  - run the check and report
+- never:
+  - touch the default branch
+
+## Workflow grants
+
+### grant: ci
+- paths:
+  - .github/workflows/ci.yml
+- granted_by: owner
+- date: 2026-01-01
+- link: https://example.com/approval
+"""
+import tempfile  # noqa: E402
+BAD = FILLED.replace("switch: observe", "switch: maybe").replace("workflows/ci.yml", "workflows/**")
+for body, want in ((FILLED, 0), (BAD, 1)):
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+        fh.write(body)
+    r = subprocess.run([sys.executable, str(ROOT / "tools" / "lanes.py"), "check", fh.name],
+                       capture_output=True, text=True)
+    Path(fh.name).unlink()
+    if r.returncode != want:
+        fail(f"lanes.py check returned {r.returncode}, wanted {want}: {r.stdout.strip()}")
+    if want and not ("switch must be" in r.stdout and "whole-folder" in r.stdout):
+        fail("lanes.py check missed a bad switch or a whole-folder grant")
 
 # OKF: the pinned spec is present, PIN.json agrees with it, and the kit's own bundle lints.
 import json  # noqa: E402

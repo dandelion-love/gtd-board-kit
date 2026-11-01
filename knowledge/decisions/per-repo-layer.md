@@ -11,7 +11,9 @@ generated: { by: claude-code/cloud, at: 2026-11-01T04:00:00Z }
 
 - `.gtd/BOARD.local.md` in the work repo is read right after the kit's `BOARD.md` and
   wins where they differ. It can never relax "board only through the MCP server" or the
-  hard limits.
+  hard limits, except by a [workflow grant](/decisions/workflow-grants.md), the one
+  opening the hard limits allow.
+- It also declares the repo's [standing lanes](/decisions/standing-lanes.md).
 - A real folder at `.claude/skills/<name>` replaces the kit skill of that name.
 - Onboarding (`ONBOARDING.md`) drafts the layer from the repo and the board at run time,
   so the kit never needs to know any repo's details.

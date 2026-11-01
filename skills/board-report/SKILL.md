@@ -3,7 +3,7 @@ name: board-report
 description: Report progress on a claimed board item, renew or release its claim, or record a failure, through the gtd MCP server. Use at each milestone of work on a claimed issue, before a lease runs out, when work stops for any reason, and when handing an item to someone else.
 metadata:
   author: gtd-board-kit
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Report on a claimed item
@@ -38,6 +38,7 @@ item_report(repo, number, state, note, links, project)
 
 - Report at every milestone and at least once per lease.
 - `item_renew(repo, number, lease, project)` before the lease ends if you still hold it.
+  A standing lane's item is renewed every tick: its lease is the lane's heartbeat.
 - When you stop, for any reason, end with `item_release(repo, number, done, remaining,
   next, handoff_to, project)`. `handoff_to` is a principal, a role, `any`, or omitted.
   An item left held by a session that has ended blocks everyone until the lease expires.

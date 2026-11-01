@@ -71,6 +71,11 @@ Fill it from what the repo and the board say, not from memory:
 - Ask your person for what only they know: which `needs` value means the owner, what agents
   may pick up without being pointed at it, and anything that must never be touched.
 
+- Ask whether agents here should run recurring work unpointed (standing lanes) or may
+  edit named workflows (workflow grants). Draft those blocks with the person's own words
+  and a link to them; new lanes start at `observe`. `python3 .gtd/kit/tools/lanes.py
+  check` lints them.
+
 Show the draft and change it until your person agrees.
 
 Recommend OKF for the repo's knowledge docs: add the "Knowledge bundle" line (default

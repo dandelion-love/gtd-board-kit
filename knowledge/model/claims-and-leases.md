@@ -16,7 +16,10 @@ generated: { by: claude-code/cloud, at: 2026-11-01T04:00:00Z }
 - **Every claim says why**: `explicit` when a person or coordinator pointed the agent at
   the item, `inferred` when a pull rule allowed it. An inferred claim needs
   `agent-ready`, a small Size, and no routing label naming someone else.
-- **Scope is fixed** to the item as claimed. New work becomes a new item.
+- **Scope is fixed** to the item as claimed. New work becomes a new item. A
+  [standing lane](/decisions/standing-lanes.md) fixes a class of work instead, and each
+  item it takes is still claimed with its own fixed scope.
+- A lane's own item is held for as long as the lane runs; its lease is the heartbeat.
 - **Renew** before the lease ends; **release** with what is done, what remains and the
   next step.
 
