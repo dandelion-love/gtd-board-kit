@@ -57,7 +57,7 @@ Call `whoami` either way. It shows your principal, your preset and, for a joined
 ## Device-code entrance
 
 - **Join with a device code.** Read `<mcp_url>/join` (plain-text steps, always current
-  for that server; it lists both entrances) and run the join client it serves at
+  for that server; its `Entrances:` line says which entrances that server offers) and run the join client it serves at
   `<mcp_url>/join/client.py` (Python 3.9+, standard library only):
 
   ```

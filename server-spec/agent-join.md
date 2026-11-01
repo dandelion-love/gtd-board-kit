@@ -33,7 +33,7 @@ is refused. That one setting is the operator's emergency stop for all joined age
 
 | Route | Method | Who | Does |
 | --- | --- | --- | --- |
-| `/join` | GET | anyone | Plain-text steps for an agent, always current for this server, naming this server's own URLs. Starts with which entrance to use and lists every entrance this server offers |
+| `/join` | GET | anyone | Plain-text steps for an agent, always current for this server, naming this server's own URLs. Carries one line `Entrances: <list>` (below), then which entrance to use and the steps for each |
 | `/join/client.py` | GET | anyone | The join client (standard-library Python 3.9 or later). A server MAY serve the kit's reference client or its own; either must honour the client contract in agent sign-in |
 | `/join/start` | POST | the agent | Opens a request; returns the device code, the short user code and the verification links |
 | `/join/token` | POST | the agent | Polls a request, or renews with a refresh token |
@@ -44,6 +44,10 @@ is refused. That one setting is the operator's emergency stop for all joined age
 | `/join/revoke-all` | POST | approver | Revokes every agent and every pending request, after an explicit confirmation |
 
 Route names are part of the contract (agents and people are sent to them).
+
+The `/join` text MUST contain exactly one line of the form `Entrances: device-code` or
+`Entrances: device-code, connector`, listing the entrances this server offers, so a client
+or a conformance runner can tell without reading prose.
 
 ## Request lifecycle
 
@@ -158,10 +162,14 @@ Requirements:
   connector they just added or reconnected themselves. The approver rules above apply
   unchanged: stable-id approvers, short session, CSRF token bound to the approver and that
   connect id.
+- **Registration** accepts loopback redirect addresses (plain `http` to the IPv4 or IPv6
+  loopback address, any port, RFC 8252 section 7.3) as well as `https` ones, so
+  command-line clients can sign in.
 - **The code** goes only to the redirect address the client registered, is single use
   (atomic across replicas), lives at most 5 minutes, is bound to the client and to the
-  PKCE challenge, and carries the `state` back unchanged. A denial redirects with
-  `error=access_denied`.
+  PKCE challenge, and carries the `state` back unchanged. A refused redemption (another
+  client, a wrong verifier, a mismatched redirect) does **not** spend it; only a
+  successful one does. A denial redirects with `error=access_denied`.
 - **The tokens.** The token endpoint returns the agent's access token (the same kind and
   lifetime as a device-code join: opaque, prefixed, 24 hours, clamped to the approval) and
   a **connector refresh token** (opaque, its own prefix, bound to that OAuth client, never
@@ -178,7 +186,9 @@ Requirements:
   approval cap, and revoke.
 - **Revoke.** Revoking the agent (one or all) deletes its connector grants, so the next
   connector refresh answers `invalid_grant` and the host asks the person to reconnect. A
-  token revocation request (RFC 7009) for the connector refresh token revokes the agent.
+  server SHOULD advertise a `revocation_endpoint` in its authorization-server metadata;
+  where it does, a token revocation request (RFC 7009) for the connector refresh token
+  revokes the agent.
   Re-joining the name through either entrance does the same to the old record.
 - **Store.** The connector grant holds hashes and encrypted values only, like every other
   credential record.
