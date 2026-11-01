@@ -40,6 +40,7 @@ process.
 | C4 | After the lease ends, a new claim is a takeover: the record names `takeover_of` and the fold makes the new caller holder |
 | C5 | `inferred` refuses without `agent-ready`; with `agent:<other runtime>`; with `agent:human`; with `needs:*`, `blocked` or `agent-proposed`; with a board Size outside `pickup_sizes` or none; and succeeds for `agent-ready` + `agent:any` + Size `S` |
 | C6 | `item_renew`, `item_release` and a `state` report by a non-holder refuse |
+| C6b | After a person closes a held issue, the holder's `item_release` succeeds and `item_claim` by anyone refuses |
 | C7 | `item_release` needs `done`, `remaining`, `next`; afterwards `item_get` shows no holder and the `handoff_to` |
 | C8 | `item_report` with `attention` and `needs=<owner_needs>` adds that `needs:*` label; without `needs` it refuses and lists the values; `state=dropped` releases |
 | C9 | A non-record comment after the holder's last record appears in `follow_ups`; a comment with two markers is not a record |
@@ -52,7 +53,7 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 
 | Case | Records | Expected |
 | --- | --- | --- |
-| a | claim A lease to 120 | holder A, not stale |
+| a | claim A lease to 250 | holder A, not stale |
 | b | claim A to 120; claim B | holder A, B in `lost_claims` |
 | c | claim A to 120; claim B at 130 `takeover_of` A, lease to 250 | holder B |
 | d | claim A to 120; claim B at 100 `takeover_of` A | holder A (lease not over at 100) |
@@ -89,8 +90,8 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 
 | Id | Check |
 | --- | --- |
-| X1 | Across every test above, no response body or log line contains a bearer token, a refresh token, a GitHub token or a token hash |
-| X2 | Every tool not in the read or work lists of [transport-and-identity](transport-and-identity.md#presets) is `full` |
+| X1 | Across every test above, no log line contains a bearer token, a refresh token, a GitHub token or a token hash, and no response body does either, except the grant that `/join/token` returns on collection or renew (J4, J6) |
+| X2 | Every tool's class matches the class the spec gives it (the preset table in [transport-and-identity](transport-and-identity.md#presets) and the Class columns and group notes in [tools](tools.md)); every tool the spec does not class is `full` |
 | X3 | Over-long free text refuses rather than truncates |
 
 ## Running against the kit

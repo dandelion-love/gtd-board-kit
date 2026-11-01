@@ -42,8 +42,9 @@ Common rules for every tool:
 ### Claims and reports
 
 Semantics and records are in [claim-records](claim-records.md). All five take `repo` and `number`,
-refuse a pull request ("claim its issue instead"), and refuse a closed issue (except
-`item_get`). Each write returns the folded item as `item_get` does, plus `event`,
+refuse a pull request ("claim its issue instead"). `item_claim`, `item_renew` and
+`item_report` refuse a closed issue; `item_get` and `item_release` work on one, so a holder
+can still let go of an item a person closed to stop it (a standing lane's fast stop). Each write returns the folded item as `item_get` does, plus `event`,
 `comment_url`, `board` (`{project, written}`) and `warnings`.
 
 | Tool | Class | Further arguments | Refuses when |
