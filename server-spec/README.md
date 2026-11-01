@@ -1,0 +1,57 @@
+# Building a compatible gtd MCP server
+
+The rest of the kit is written for **agents**: it says what an agent may rely on when it
+works a board through "the gtd MCP server". This folder is written for **whoever builds
+that server**. It specifies, without naming any deployment, what a server must do so that
+the kit's skills, `BOARD.md` and the join client work against it unchanged.
+
+It is a contract, not a design. Hosting, language, storage engine and identity provider are
+the builder's choice. Where a choice affects interoperability (a record format, a wire
+shape, a fold rule) the spec fixes it; everywhere else it says MUST / SHOULD / MAY in the
+sense of RFC 2119 and leaves the how open.
+
+## Reading order
+
+| File | What it fixes |
+| --- | --- |
+| [architecture.md](architecture.md) | The parts, the roles, where state lives, the trust boundaries |
+| [transport-and-identity.md](transport-and-identity.md) | MCP transport, the three kinds of caller, principals, presets, `whoami` |
+| [agent-join.md](agent-join.md) | The server side of the device-code join, renew and revoke |
+| [repo-context-and-profiles.md](repo-context-and-profiles.md) | `.github/gtd-context.json`, profiles, the label families, the label-to-Status map |
+| [claim-records.md](claim-records.md) | The record format on issues and the fold that turns records into claim state |
+| [tools.md](tools.md) | Every tool the kit calls: arguments, results, refusals, preset class, side effects |
+| [security.md](security.md) | The rules that hold whatever the deployment |
+| [conformance.md](conformance.md) | Numbered checks a server must pass, and how to run them |
+| [work-plan.md](work-plan.md) | The same spec cut into work units a coding agent can plan and build one at a time |
+
+The agent-side halves live elsewhere in the kit and are normative here too:
+[agent sign-in](../knowledge/model/agent-sign-in.md) (the join wire shape),
+[claims and leases](../knowledge/model/claims-and-leases.md),
+[report vocabulary](../knowledge/model/report-vocabulary.md),
+[labels are signals](../knowledge/model/labels-are-signals.md) and
+[queue and ETA](../knowledge/model/queue-and-eta.md).
+
+## Conformance levels
+
+| Level | A server at this level | Kit skills that work |
+| --- | --- | --- |
+| **Core** | Transport, identity, presets, `whoami`, repo and board reads, issue labels and comments, the claim tools | `board-pickup`, `board-claim`, `board-report`, `board-needs-person`, `board-lane` (with a bridge in the repo) |
+| **Join** | Core, plus the device-code join on its own routes | Everything above, for agents outside a hosted connector |
+| **Board** | Core, plus board writes (Status, fields, card order, drafts) | Everything, in repos without a label bridge too |
+| **Extended** | Any of the optional tool groups in [tools.md](tools.md#optional-groups) | Repo-specific procedures in `.gtd/BOARD.local.md` that name them |
+
+A server says which levels it meets in `whoami` (`conformance`, see
+[transport-and-identity](transport-and-identity.md#whoami)).
+
+## Versioning
+
+This spec carries the kit's `VERSION`. A change that would break an existing conforming
+server or an existing agent is a minor bump before 1.0 and a major bump after, and lands
+with a line in [the knowledge log](../knowledge/log.md).
+
+## What is deliberately not here
+
+Any deployment's address, accounts, organisation, board numbers, App or installation
+numbers, allowlists, people or emergency procedures. A deployment documents those in its
+own private repo. Examples in this folder use placeholders: `owner/repo`, `owner/number`,
+`https://gtd.example.com`.
