@@ -216,8 +216,12 @@ sys.path.insert(0, str(ROOT / "tools"))
 from spec_pair import verdict  # noqa: E402
 for files, msg, want in (
         (["server-spec/tools.md"], "Change a tool", False),
-        (["server-spec/tools.md", "server-spec/conformance.md"], "Change a tool", True),
-        (["server-spec/tools.md", "conformance/runner.py"], "Change a tool", True),
+        (["server-spec/tools.md", "server-spec/conformance.md"], "Change a tool", False),
+        (["server-spec/tools.md", "conformance/runner.py"], "Change a tool", False),
+        (["server-spec/tools.md", "server-spec/conformance.md", "conformance/runner.py"], "Change", True),
+        (["server-spec/conformance.md"], "Change a check", False),
+        (["server-spec/conformance.md", "conformance/runner.py"], "Change a check", True),
+        (["conformance/runner.py"], "Fix the runner", True),
         (["server-spec/tools.md"], "Fix a typo\n\nConformance-unchanged: wording only", True),
         (["skills/board-claim/SKILL.md"], "Skill change", True)):
     if verdict(files, msg)[0] != want:

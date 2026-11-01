@@ -53,8 +53,9 @@ with a line in [the knowledge log](../knowledge/log.md).
 changes its checks in [conformance](conformance.md) and the
 [runner](../conformance/README.md), in the same PR. `tests/check_kit.py` fails when a check
 id is in the table but not in the runner, or the other way round, and
-`tools/spec_pair.py` fails a branch that changes `server-spec/` without touching the checks,
-unless a commit says `Conformance-unchanged: <reason>`.
+`tools/spec_pair.py` fails a branch that changes `server-spec/` without changing both the
+check table and the runner (or the table without the runner), unless a commit says
+`Conformance-unchanged: <reason>`.
 
 ## What is deliberately not here
 

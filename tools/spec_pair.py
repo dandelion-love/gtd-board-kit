@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Spec changes travel with conformance changes.
 
-A change under server-spec/ must also change the checks (server-spec/conformance.md or
-conformance/), or say why not in a commit trailer:
+A change under server-spec/ must also change the check table (server-spec/conformance.md)
+and the runner (conformance/); a change to the table must also change the runner. Or say
+why not in a commit trailer:
 
     Conformance-unchanged: <reason, e.g. wording only>
 
@@ -28,18 +29,24 @@ def git(*args: str) -> str:
 
 
 def verdict(files: list[str], messages: str) -> tuple[bool, str]:
+    """A spec change needs both the check table and the runner; a table change needs the runner."""
     spec = sorted(f for f in files if f.startswith("server-spec/") and f != "server-spec/conformance.md")
-    checks = [f for f in files if f == "server-spec/conformance.md" or f.startswith("conformance/")]
-    if not spec:
-        return True, "no server-spec change"
-    if checks:
-        return True, f"spec and checks change together ({len(spec)} spec, {len(checks)} check files)"
+    table = "server-spec/conformance.md" in files
+    runner = any(f.startswith("conformance/") for f in files)
+    missing = []
+    if spec and not table:
+        missing.append("the check table (server-spec/conformance.md)")
+    if (spec or table) and not runner:
+        missing.append("the runner (conformance/)")
+    if not missing:
+        return True, ("no server-spec change" if not (spec or table)
+                      else "spec, check table and runner change together")
     if TRAILER.search(messages):
-        return True, "spec change excused by a Conformance-unchanged trailer"
-    return False, ("server-spec/ changed without a conformance change:\n  " + "\n  ".join(spec) +
-                   "\nAdd or update the checks (server-spec/conformance.md and conformance/), or, for a "
-                   "change that cannot affect conformance,\nadd a commit trailer "
-                   "'Conformance-unchanged: <reason>'.")
+        return True, "excused by a Conformance-unchanged trailer"
+    changed = spec + (["server-spec/conformance.md"] if table else [])
+    return False, ("changed without " + " or ".join(missing) + ":\n  " + "\n  ".join(changed) +
+                   "\nChange them together, or, when the change cannot affect conformance, add a commit "
+                   "trailer 'Conformance-unchanged: <reason>'.")
 
 
 def main(argv: list[str]) -> int:
