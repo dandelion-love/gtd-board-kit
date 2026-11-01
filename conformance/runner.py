@@ -139,6 +139,8 @@ class Client:
         self.base, self.token, self.seen = base.rstrip("/"), token, seen
         self.session: str | None = None
         self._id = 0
+        self.schemas: dict[str, dict] = {}
+        self.schema_errs: list[str] = []
 
     def _post(self, payload: dict, notification: bool = False) -> tuple[int, dict, Any]:
         headers = {"Accept": "application/json, text/event-stream",
@@ -188,6 +190,7 @@ class Client:
             out += res.get("tools") or []
             cursor = res.get("nextCursor")
             if not cursor:
+                self.schemas = {t["name"]: t.get("outputSchema") or {} for t in out}
                 return out
 
     def call(self, name: str, args: dict | None = None) -> tuple[bool, Any, str]:
@@ -202,7 +205,11 @@ class Client:
             return False, None, str(msg["error"].get("message", ""))
         res = msg.get("result") or {}
         text = " ".join(c.get("text", "") for c in res.get("content") or [] if isinstance(c, dict))
-        return not res.get("isError"), res.get("structuredContent"), text
+        ok, structured = not res.get("isError"), res.get("structuredContent")
+        if ok and self.schemas.get(name):
+            errs = schema_errors(structured if structured is not None else {}, self.schemas[name])
+            self.schema_errs += [f"{name}: {e}" for e in errs[:2]]
+        return ok, structured, text
 
 
 # ---------------------------------------------------------------------------
@@ -374,11 +381,7 @@ def check_identity(rep: Report, c: Client) -> tuple[dict, dict]:
         raise
     rep.check("T2", ok and isinstance(who, dict) and c.session is None,
               f"whoami: {text[:120]}", f"protocol {init.get('protocolVersion')}")
-    no_schema = [n for n, t in tools.items() if not t.get("inputSchema") or not t.get("outputSchema")]
-    errs = schema_errors(who or {}, tools.get("whoami", {}).get("outputSchema") or {})
-    rep.check("T3", not no_schema and not errs,
-              f"no input or output schema: {', '.join(sorted(no_schema)[:12])}; whoami: {'; '.join(errs[:3])}",
-              f"{len(tools)} tools")
+    c.no_schema = sorted(n for n, t in tools.items() if not t.get("inputSchema") or not t.get("outputSchema"))
     missing = [f for f in WHOAMI_FIELDS if f not in (who or {})]
     rep.check("T5", not missing, f"whoami lacks {', '.join(missing)}",
               f"{(who or {}).get('principal')} at {(who or {}).get('preset')}, "
@@ -588,17 +591,47 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
         ok, _, _ = c.call("item_claim", {"repo": repo, "number": num, "basis": "inferred"})
         if ok:
             leaked.append(what)
+    # Without `project` the server checks labels only (the Size part runs in check_board).
     num = sb.issue("inferred ok", labels=["agent-ready", "agent:any"])
     ok, _, text = c.call("item_claim", {"repo": repo, "number": num, "basis": "inferred"})
     rep.check("C5", not leaked and ok, f"accepted: {', '.join(leaked) or '-'}; agent-ready claim {ok} {text[:80]}",
-              "Size checked too" if sb.project else "labels only (pass --project for Size)")
+              "labels" if sb.project else "labels only (pass --project for the Size part)")
 
     # C6b closed issue: needs issue_close, an optional tool
     rep.manual("C6b", "close a claimed sandbox issue by hand, then item_release must succeed and item_claim refuse")
 
 
-def check_board(rep: Report, c: Client, sb: Sandbox) -> None:
+def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
+    """C5, Size part: with `project`, an inferred claim needs a Size in the profile's pickup_sizes."""
+    ok, board, _text = c.call("project_get", {"project": sb.project})
+    size = next((f for f in (board or {}).get("fields") or [] if f.get("name") == "Size"), None)
+    options = [o.get("name") if isinstance(o, dict) else o for o in (size or {}).get("options") or []]
+    allowed = [o for o in options if o in (profile.get("pickup_sizes") or [])]
+    other = [o for o in options if o not in allowed]
+    if not ok or not allowed:
+        rep.skip("C5", f"Size part: the board has no Size option in pickup_sizes {profile.get('pickup_sizes')}")
+        return
+    cases = [("no Size", None, False), ("allowed Size", allowed[0], True)]
+    if other:
+        cases.append((f"Size {other[0]}", other[0], False))
+    wrong = []
+    for what, value, want in cases:
+        n = sb.issue(f"inferred {what}", labels=["agent-ready", "agent:any"])
+        if value is None:
+            c.call("project_set_field", sb.args(n, field="Size", clear=True))
+        else:
+            c.call("project_set_field", sb.args(n, field="Size", value=value))
+        got, _, msg = c.call("item_claim", sb.args(n, basis="inferred"))
+        if got != want:
+            wrong.append(f"{what}: {'accepted' if got else 'refused ' + msg[:60]}")
+        if got:
+            c.call("item_release", sb.args(n, done="size check", remaining="none", next="close"))
+    rep.check("C5", not wrong, f"Size part: {'; '.join(wrong)}", f"Size part: {len(cases)} cases")
+
+
+def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
     proj = sb.project
+    check_size(rep, c, sb, profile)
     ok, out, text = c.call("project_items", {"project": proj, "limit": 2})
     pages = ok and "has_next_page" in (out or {}) and "next_cursor" in (out or {})
     rep.check("P7", pages, f"project_items: {text[:100] or 'no paging fields'}")
@@ -653,7 +686,13 @@ def check_join(rep: Report, base: str, start: bool, claims_join: bool | None) ->
               re.fullmatch(r"[A-Z0-9]{4}-[A-Z0-9]{4}", str(grant.get("user_code", ""))),
               f"start gave {s}: missing {[f for f in fields if f not in grant]}")
     if grant.get("device_code"):
-        s, _, text = http("POST", f"{base}/join/token", {"device_code": grant["device_code"]})
+        wait = int(grant.get("interval") or 5)
+        for _ in range(3):
+            time.sleep(wait)
+            s, _, text = http("POST", f"{base}/join/token", {"device_code": grant["device_code"]})
+            if "slow_down" not in text:
+                break
+            wait += 5  # RFC 8628: slow_down adds five seconds to the interval
         rep.check("J3", "authorization_pending" in text, f"poll gave {s}: {text[:80]}",
                   "pending; the request expires on its own")
 
@@ -730,11 +769,18 @@ def main(argv: list[str]) -> int:
                     sb = Sandbox(c, a.repo, a.project, datetime.now(timezone.utc).strftime("%m%d-%H%M"))
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
                     if a.project:
-                        check_board(rep, c, sb)
+                        check_board(rep, c, sb, profiles.get(name) or {})
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
             except CheckError as e:
                 rep.fail("RUN", f"stopped: {e}")
+            # T3 last, so every structured result of the run has been validated.
+            if c.schemas:
+                ns = getattr(c, "no_schema", [])
+                rep.check("T3", not ns and not c.schema_errs,
+                          f"no input or output schema: {', '.join(ns[:12]) or '-'}; "
+                          f"invalid results: {'; '.join(c.schema_errs[:4]) or '-'}",
+                          f"{len(c.schemas)} tools; every structured result of the run validated")
         check_join(rep, base, a.join_start, claims_join)
     for cid, how in MANUAL.items():
         rep.manual(cid, how)
