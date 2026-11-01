@@ -56,7 +56,8 @@ Call `whoami`.
 - The tools are missing anywhere else: follow `<mcp_url>/join`, with `mcp_url` from
   `.github/gtd-context.json` (if it is missing, ask your person for the address and add it
   to that file in this PR). You run the join client; your person opens the link and
-  approves. Ask for the smallest preset that does the job.
+  approves. Ask for the smallest preset that does the job. The rules for keeping and renewing that access
+  are in [agent sign-in](knowledge/model/agent-sign-in.md).
 
 ## 4. Draft `.gtd/BOARD.local.md`
 
