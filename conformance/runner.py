@@ -807,7 +807,8 @@ JC_MANUAL = {
     "JC2": "deny a second connector sign-in: the client gets error=access_denied with its state, and no agent appears",
     "JC3": "leave a code unredeemed for more than 5 minutes: the token endpoint refuses it",
     "JC5": "open /join/agents as an approver: the connector agent is listed with entrance connector",
-    "JC6": "a day later (access token ended), a connector refresh returns a new access token that works",
+    "JC6": "present a replaced connector refresh token after the grace window: invalid_grant and the agent is "
+           "revoked; a day later (access token ended), a refresh returns a new access token that works",
     "JC7": "after the approval's end the connector refresh answers invalid_grant",
     "JC8": "re-join the same name with the device code: the connector agent's token and refresh stop working; "
            "and the reverse",
@@ -925,7 +926,8 @@ def _connector_run(rep: Report, base: str, meta: dict, cb: Loopback, name: str, 
               f"{'' if ok else '; ' + text[:60]}",
               f"agent:{name} at desk, entrance connector, fenced")
 
-    # JC6 (automated part): two refreshes at once both succeed and the agent stays live.
+    # JC6 (automated part): a refresh rotates the connector refresh token; two racing
+    # refreshes with the same token get the same answer and the agent stays live.
     rform = {"grant_type": "refresh_token", "refresh_token": refresh, "client_id": client_a}
     results: list[tuple[int, dict]] = []
     threads = [threading.Thread(target=lambda: results.append(token_call(meta, rform))) for _ in range(2)]
@@ -933,20 +935,27 @@ def _connector_run(rep: Report, base: str, meta: dict, cb: Loopback, name: str, 
         t.start()
     for t in threads:
         t.join()
-    fresh = [g.get("access_token") for s6, g in results if s6 == 200]
-    secrets += [t for t in fresh if t]
+    grants = [g for s6, g in results if s6 == 200]
+    fresh = [g.get("access_token") for g in grants]
+    new_refresh = [g.get("refresh_token") for g in grants]
+    secrets += [t for t in fresh + new_refresh if t]
+    same = len(grants) == 2 and fresh[0] == fresh[1] and new_refresh[0] == new_refresh[1]
+    rotated = bool(new_refresh) and all(r and r != refresh for r in new_refresh)
     live = []
-    for t in fresh:
+    for t in set(filter(None, fresh)):
         try:
             cl = Client(base, t, seen)
             cl.initialize()
             live.append(cl.call("whoami")[0])
         except CheckError:
             live.append(False)
-    rep.check("JC6", len(fresh) == 2 and all(live),
-              f"racing refreshes gave {[s6 for s6, _ in results]}; tokens working {live}",
-              "two racing refreshes, agent not revoked (after 24 h: by hand)")
-    access = fresh[-1] if fresh else access
+    rep.check("JC6", same and rotated and bool(live) and all(live),
+              f"racing refreshes gave {[s6 for s6, _ in results]}; same answer {same}; "
+              f"refresh token rotated {rotated}; access working {live}",
+              "rotates, racing refreshes agree, agent live (grace-window replay, after 24 h: by hand)")
+    if grants:
+        access, refresh = fresh[0] or access, new_refresh[0] or refresh
+    rform = {**rform, "refresh_token": refresh}  # chain with the latest token
 
     # JC7 (automated part): client binding, then RFC 7009 revocation ends the agent.
     s_b, g_b = token_call(meta, {**rform, "client_id": client_b})
