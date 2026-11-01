@@ -72,8 +72,10 @@ submodule in fresh cloud clones, and adds one line to `CLAUDE.md` and `AGENTS.md
 commits nothing. Review, commit, open a PR, and let a person merge it.
 
 The repo also needs `.github/gtd-context.json` with its `profile` and `project`, and the
-agent needs the gtd MCP server: claude.ai cloud threads use the connector; everything
-else joins at `<server>/join`.
+agent needs the gtd MCP server. There is one join with two entrances: a host that keeps
+the sign-in (a claude.ai connector) uses the connector, and a host that keeps a file uses
+the device code; `<server>/join` and [agent sign-in](knowledge/model/agent-sign-in.md)
+say which.
 
 ## Build a compatible server
 

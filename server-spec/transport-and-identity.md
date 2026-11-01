@@ -26,7 +26,7 @@ verifiers in a fixed order and the first that recognises the token decides.
 | Caller | How it signs in | Principal | Fenced by a preset |
 | --- | --- | --- | --- |
 | Hosted connector session (for example a claude.ai cloud thread) | OAuth through the identity provider the operator chose, discovered via RFC 9728 | `<idp>:<stable-id>`, for example `google:<email>` or `github:<login>` | No (MAY be) |
-| Joined agent | Device-code join, then its own bearer token ([agent-join](agent-join.md)) | `agent:<name>` | **Yes** |
+| Joined agent | Device-code join, then its own bearer token; or the connector entrance, where the host signs in with OAuth and the server issues the agent's token ([agent-join](agent-join.md)) | `agent:<name>` | **Yes** |
 | Service agent | A signed token (JWT) whose issuer and audience the operator configures | `agent:<subject>` | MAY be |
 
 Rules:
@@ -72,6 +72,7 @@ Registered in every mode, class `desk`. Takes no arguments. Returns:
 | `preset` | string | The caller's preset; `full` when not fenced |
 | `fenced` | bool | Whether the preset fence applies to this caller |
 | `provider` | string or null | The agent runtime the join declared (`claude`, `codex`, ...) |
+| `entrance` | string or null | For a joined agent, how it came in: `device-code` or `connector`; null for every other caller |
 | `expires_at` | int or null | Unix time the current access token ends |
 | `join_url` | string or null | `<mcp_url>/join` when the join is switched on, else null |
 | `conformance` | list of strings | The levels from the [README](README.md#conformance-levels) this server meets |

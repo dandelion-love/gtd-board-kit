@@ -52,7 +52,13 @@ Call `whoami`.
 
 - It works: note the principal and the preset. Writing needs the `work` preset.
 - The tools are missing in a claude.ai cloud thread: ask your person to connect the gtd
-  connector in their claude.ai settings, then continue.
+  connector in their claude.ai settings, with the address `<mcp_url>/mcp?agent=<name>`
+  and "Sign in as an agent" on the approval page, then continue. If the connector exists
+  but its sign-in expired, they reconnect it. Do not try the join client from the cloud
+  container: its network policy may block the server, and it cannot keep the credential.
+- `whoami` shows your person's own principal (for example `google:<email>`) instead of
+  `agent:<name>`: the connector signed in as them, so your work is recorded under their
+  name. Ask them to reconnect as an agent if this repo wants agent names.
 - The tools are missing anywhere else: follow `<mcp_url>/join`, with `mcp_url` from
   `.github/gtd-context.json` (if it is missing, ask your person for the address and add it
   to that file in this PR). You run the join client; your person opens the link and

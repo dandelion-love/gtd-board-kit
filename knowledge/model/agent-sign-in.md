@@ -1,7 +1,7 @@
 ---
 type: Pattern
 title: Agent sign-in
-description: How an agent outside claude.ai gets and keeps access to the gtd MCP server; a person approves a device-code join, the agent holds a 24-hour access token and a single-use refresh token, and revoked means join again.
+description: How an agent gets and keeps access to the gtd MCP server; one join with two entrances (a connector when the host keeps the sign-in, a device code when it keeps a file), a person approves either, and revoked means join again.
 tags: [auth, mcp, onboarding]
 status: draft
 generated: { by: claude-code/cloud, at: 2026-11-01T06:40:00Z }
@@ -16,11 +16,48 @@ server behind it can change, and these rules hold.
   `.github/gtd-context.json`: the server's base URL, https, no path. MCP itself is at
   `<mcp_url>/mcp` and the join pages under `<mcp_url>/join`. Never hard-code it and never
   guess it; if it is missing, ask your person.
-- **claude.ai cloud threads do not join.** They reach the server through their gtd
-  connector. Call `whoami`; if the connector is missing or its sign-in expired, ask your
-  person to connect or reconnect it.
-- **Everyone else joins with a device code.** Read `<mcp_url>/join` (plain-text steps,
-  always current for that server) and run the join client it serves at
+- **One join, two entrances.** Both give you the same agent record: `agent:<name>`, an
+  access preset, an approval that lasts 30 days by default and the person who approved
+  it. Everything after the entrance is shared.
+
+# Which entrance
+
+| Your host | Entrance | Why |
+| --- | --- | --- |
+| Keeps the sign-in for you: a claude.ai connector, or any MCP client that signs in with OAuth | **Connector** | The host stores and renews the sign-in; no secret ever lives in your container or chat |
+| Can keep a file only you can read: a desktop, a server, a sandbox that lasts | **Device code** | The join client keeps and renews the credential in that file |
+| Keeps neither: an ephemeral container with no connector | **Do not join** | A single-use refresh token cannot be shared between containers or written back to a fixed secret, and two copies of it revoke the agent. Ask your person for a connector |
+
+Call `whoami` either way. It shows your principal, your preset and, for a joined agent,
+`entrance` (`connector` or `device-code`).
+
+## Connector entrance
+
+- **Adding it.** Your person adds a connector (in claude.ai: Settings, Connectors, add a
+  custom connector) with the address `<mcp_url>/mcp?agent=<short-name>`. The sign-in
+  opens `<mcp_url>/join/approve`, where they pick **Sign in as an agent**, sign in as an
+  approver, check the name, pick the preset and approve. If the server does not pass the
+  name through, they type it on that page.
+- **Whose name the work goes under.** Only an agent sign-in makes you `agent:<name>`. A
+  server MAY also offer **Sign in as me**: then `whoami` shows the person's own principal
+  (for example `google:<email>`), the work is recorded under their name, and no preset
+  fences you. If you expected an agent, ask your person to reconnect and pick the agent.
+- **Reconnecting.** If the connector's tools are missing, or a call says its sign-in
+  expired or was revoked, ask your person to reconnect it (in claude.ai, the connector's
+  Connect or Reconnect button, or the reconnect card in the chat). A reconnect is a new
+  sign-in: they approve again, and it replaces the old one under the same name.
+- **Network policy.** The host reaches the server for you, so a connector works even when
+  your own environment cannot. If you try the server directly (`curl`, the join client)
+  and it fails with a blocked host, a proxy refusal or a name that does not resolve, that
+  is your environment's network policy, not the server. Use the connector, or ask your
+  person to allow the server's host in the environment's network settings.
+- **What you hold.** Nothing. The host keeps its connector sign-in and renews it; the
+  server keeps the agent's rotating refresh token. You never see, store or renew a token.
+
+## Device-code entrance
+
+- **Join with a device code.** Read `<mcp_url>/join` (plain-text steps, always current
+  for that server; its `Entrances:` line says which entrances that server offers) and run the join client it serves at
   `<mcp_url>/join/client.py` (Python 3.9+, standard library only):
 
   ```
@@ -33,7 +70,11 @@ server behind it can change, and these rules hold.
   It prints a link and a short code. The code is not a secret: show both to your person.
   They sign in with GitHub, check the code and the details, pick the preset and approve.
   The client waits and stops when they approve or deny, or when the request expires
-  (about ten minutes).
+  (about ten minutes). If the client cannot reach the server at all, see network policy
+  above.
+
+# Shared rules
+
 - **A person approves every agent.** An agent can never approve itself or another agent.
 - **Ask for the smallest preset**: `desk` < `read` < `work` < `full`. Writing to a board
   needs `work`. A tool above your preset is hidden, and a call to it is refused with the
@@ -41,7 +82,7 @@ server behind it can change, and these rules hold.
 - **Your identity is `agent:<name>`.** The server stamps it on every claim, report and
   log line; `whoami` shows it with your preset.
 
-# Credential
+# Credential (device-code entrance)
 
 | Part | Lasts | Rule |
 | --- | --- | --- |
@@ -66,7 +107,11 @@ server behind it can change, and these rules hold.
 
 # Revoked means join again
 
-An unauthorised MCP call on its own does not mean revoked: an expired access token gets
+**Connector entrance:** when the host's renew is refused, it shows the connector as
+needing a reconnect. That is the same as revoked: tell your person, and reconnect once
+they agree.
+
+**Device-code entrance:** an unauthorised MCP call on its own does not mean revoked: an expired access token gets
 the same answer, and the client renews and the call is retried. **Only a refused renew
 ends the credential**: the server answers `invalid_grant`, and `--headers` or `--token`
 exits with status 1 and says to run the join again. That covers every way it ends:
@@ -135,6 +180,10 @@ stateDiagram-v2
     Active --> Revoked: renew refused (approval ran out, person revoked, refresh reused)
     Revoked --> Joining: tell your person, join again
 ```
+
+For the connector entrance the host runs a standard OAuth authorization-code sign-in
+(PKCE) against the server, discovered through the server's protected resource metadata;
+the server side is in `server-spec/agent-join.md` in this kit.
 
 How the server keeps tokens and approvals is up to each deployment; this page is only
 what an agent may rely on. See [claims and leases](/model/claims-and-leases.md) for what

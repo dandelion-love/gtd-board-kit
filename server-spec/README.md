@@ -36,7 +36,7 @@ The agent-side halves live elsewhere in the kit and are normative here too:
 | Level | A server at this level | Kit skills that work |
 | --- | --- | --- |
 | **Core** | Transport, identity, presets, `whoami`, repo and board reads, issue labels and comments, the claim tools | `board-pickup`, `board-claim`, `board-report`, `board-needs-person`, `board-lane` (with a bridge in the repo) |
-| **Join** | Core, plus the device-code join on its own routes | Everything above, for agents outside a hosted connector |
+| **Join** | Core, plus the device-code join on its own routes, and optionally the connector entrance | Everything above, for agents with their own `agent:<name>` identity, whatever the host |
 | **Board** | Core, plus board writes (Status, fields, card order, drafts) | Everything, in repos without a label bridge too |
 | **Extended** | Any of the optional tool groups in [tools.md](tools.md#optional-groups) | Repo-specific procedures in `.gtd/BOARD.local.md` that name them |
 
