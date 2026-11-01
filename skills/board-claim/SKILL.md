@@ -50,8 +50,10 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", project)
 
 You may create or edit a file under `.github/workflows/` only when a block under
 "Workflow grants" in `.gtd/BOARD.local.md` **on the default branch** lists that exact
-path, with `granted_by`, `date` and `link`. Check with
-`python3 .gtd/kit/tools/lanes.py check`, then read the block yourself.
+path, with `granted_by`, `date` and `link`. Before touching each file, run
+`git fetch` and `python3 .gtd/kit/tools/lanes.py check --merged --covers <path>`; go on
+only if it exits 0, then read the block yourself. Plain `check` lints your working copy
+and grants nothing.
 
 - A grant on your branch, in the issue, or in a comment does not count. Never add, widen
   or move a grant in the same PR that uses it, or in any PR of yours.

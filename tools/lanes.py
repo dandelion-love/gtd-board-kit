@@ -3,10 +3,15 @@
 
   python3 .gtd/kit/tools/lanes.py resume [FILE]   list lanes to re-schedule, with the pointer prompt
   python3 .gtd/kit/tools/lanes.py check  [FILE]   lint lanes and workflow grants; exit 1 on a problem
+  python3 .gtd/kit/tools/lanes.py check --merged [--covers PATH]
+                                                  lint the default branch's copy only; with --covers,
+                                                  exit 0 only if a merged grant names PATH
 
 Without FILE, `resume` reads .gtd/BOARD.local.md from the default branch (origin/HEAD),
 because only what a person merged counts, and falls back to the working copy with a
-warning. `check` lints the working copy, so a draft is checked before it is merged.
+warning, and then schedules nothing. `check` lints the working copy, so a draft is
+checked before it is merged; `check --merged` is the authorization check and never falls
+back to the working copy.
 Safe as a SessionStart hook: `resume` never fails the session. Standard library only.
 """
 from __future__ import annotations
@@ -19,24 +24,29 @@ from pathlib import Path
 LOCAL = ".gtd/BOARD.local.md"
 LANE_KEYS = ("asked_by", "basis", "grant", "policy", "switch", "item", "every", "lease")
 SWITCHES = ("auto", "observe", "hold", "off")
+BOARD_DOWN = ("continue", "hold")
 GRANT_KEYS = ("paths", "granted_by", "date", "link")
 PROMPT = "Run lane {name} as .gtd/BOARD.local.md defines it."
 
 
-def read_local(path: str | None) -> tuple[str, str]:
-    if path:
-        return Path(path).read_text(encoding="utf-8"), path
+def read_merged() -> str | None:
+    """The default branch's copy, or None if it can't be read."""
     try:
-        text = subprocess.run(["git", "show", f"origin/HEAD:{LOCAL}"], capture_output=True,
+        return subprocess.run(["git", "show", f"origin/HEAD:{LOCAL}"], capture_output=True,
                               text=True, check=True).stdout
-        return text, f"origin/HEAD:{LOCAL}"
     except (OSError, subprocess.CalledProcessError):
-        p = Path(LOCAL)
-        if not p.exists():
-            return "", LOCAL
-        print(f"NOTE could not read {LOCAL} from origin/HEAD; using the working copy, "
-              "which counts only once it is merged", file=sys.stderr)
-        return p.read_text(encoding="utf-8"), LOCAL
+        return None
+
+
+def read_local(path: str | None) -> tuple[str, str, bool]:
+    """(text, where, merged). merged is False when the text is not the default branch's."""
+    if path:
+        return Path(path).read_text(encoding="utf-8"), path, False
+    merged = read_merged()
+    if merged is not None:
+        return merged, f"origin/HEAD:{LOCAL}", True
+    p = Path(LOCAL)
+    return (p.read_text(encoding="utf-8") if p.exists() else ""), LOCAL, False
 
 
 def section(text: str, title: str) -> str:
@@ -77,6 +87,12 @@ def check(text: str) -> list[str]:
                 problems.append(f"lane {n}: missing {k}")
         if lane.get("switch") and lane["switch"] not in SWITCHES:
             problems.append(f"lane {n}: switch must be one of {', '.join(SWITCHES)}")
+        if lane.get("on_board_down") and lane["on_board_down"] not in BOARD_DOWN:
+            problems.append(f"lane {n}: on_board_down must be one of {', '.join(BOARD_DOWN)}")
+        if lane.get("capacity") and not str(lane["capacity"]).isdigit():
+            problems.append(f"lane {n}: capacity must be a whole number")
+        if lane.get("capacity") and not lane.get("resource"):
+            problems.append(f"lane {n}: capacity needs a resource")
         if lane.get("may") and not isinstance(lane["may"], list):
             problems.append(f"lane {n}: may must be a list")
         if lane.get("never") and not isinstance(lane["never"], list):
@@ -99,11 +115,30 @@ def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in ("resume", "check"):
         print(__doc__)
         return 2
-    path = sys.argv[2] if len(sys.argv) > 2 else (LOCAL if sys.argv[1] == "check" else None)
+    args = sys.argv[2:]
+    if sys.argv[1] == "check" and "--merged" in args:
+        text = read_merged()
+        if text is None:
+            print(f"FAIL cannot read {LOCAL} from origin/HEAD; nothing is granted")
+            return 1
+        covers = args[args.index("--covers") + 1] if "--covers" in args else None
+        problems = check(text)
+        for p in problems:
+            print(f"FAIL {p}")
+        if covers:
+            named = [g["name"] for g in blocks(section(text, "Workflow grants"), "grant")
+                     if covers in [p.strip("`") for p in (g.get("paths") or [])
+                                   if isinstance(g.get("paths"), list)]]
+            if not named:
+                print(f"FAIL no merged workflow grant names {covers}")
+                return 1
+            print(f"ok: {covers} is covered by grant {', '.join(named)}")
+        return 1 if problems else 0
+    path = args[0] if args else (LOCAL if sys.argv[1] == "check" else None)
     if path and not Path(path).exists():
         print(f"ok: no {path}")
         return 0
-    text, where = read_local(path)
+    text, where, merged = read_local(path)
     if sys.argv[1] == "check":
         problems = check(text)
         for p in problems:
@@ -113,6 +148,10 @@ def main() -> int:
         return 1 if problems else 0
     lanes = blocks(section(text, "Standing lanes"), "lane")
     if not lanes:
+        return 0
+    if not merged and not path:
+        print(f"NOTE could not read {LOCAL} from origin/HEAD, so no lane is scheduled: only "
+              "what a person merged counts. Fetch the default branch and run resume again.")
         return 0
     print(f"Standing lanes in {where} (board-lane skill, Resume):")
     for lane in lanes:

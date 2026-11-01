@@ -26,8 +26,14 @@ fragile: a schedule made inside a session dies with it, and recurring ones expir
   lane's `asked_by` and its `grant` as `pointed_in` (kit rule 4). **Scope stays fixed**
   on two levels: the lane fixes the class at its policy version, and each claim fixes
   its item. Widening the class is a new policy version a person merges.
-- Switches: `auto`, `observe` (report what it would do, change nothing; every new lane
-  starts here), `hold`, `off`. A person stops a lane fast, with no PR, by closing its item
+- Switches: `auto`, `observe` (report what it would do, change nothing), `hold`, `off`.
+  `observe` is the default for a new class of work. A person may merge a lane straight
+  at `auto` when its `grant` links an approval that predates the lane and the PR says so.
+- Items a lane creates inside `may` carry the lane's mandate and may be claimed in the
+  same tick, so a lane that owns a resource never idles on its own output.
+- A lane may own a `resource` with a `capacity`; a person's direct ask jumps its queue at
+  the next job boundary. `on_board_down` (`hold` by default, or `continue`) says what
+  a tick does when the board is unreachable. A person stops a lane fast, with no PR, by closing its item
   (`off`) or adding any `needs:*` label to it (`hold`).
 - Every tick revalidates the lane from the default branch before acting, so an edit takes
   effect at the next tick and a removed lane stops.

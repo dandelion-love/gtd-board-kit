@@ -3,7 +3,7 @@ name: board-lane
 description: Run one tick of a standing lane, or resume every lane's schedule after a session starts, through the gtd MCP server. A standing lane is recurring, pre-approved work declared in .gtd/BOARD.local.md with its own switch. Use when a scheduled prompt says "run lane X", at session start in a repo with lanes, or when asked to start, hold, check or stop a lane.
 metadata:
   author: gtd-board-kit
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Run a standing lane
@@ -20,16 +20,19 @@ that by merging a PR.
 The lane's `asked_by`, `basis` and `grant` link are the pointing (rule 4): work inside its
 `may` list is claimed `explicit`, with `asked_by` from the lane and `pointed_in` = the
 `grant` link. Its scope is a class of work, fixed by `may` and `never` at its `policy`
-version. Every item a tick takes still gets its own claim with a fixed scope, and
-anything outside `may` is captured as `agent-proposed` (rule 8), never done.
+version. Every item a tick takes still gets its own claim with a fixed scope.
+
+**Items a lane creates.** An item a tick creates for work inside `may` carries the
+lane's mandate: its body names the lane, `asked_by`, the `grant` link, a link to the lane
+item and the `policy` version. The tick may claim it at once (`explicit`, as above), so
+the lane never idles on its own output. Anything outside `may` is captured as
+`agent-proposed` (rule 8) and not done. Under `observe`, report "would create" instead.
 
 ## Resume: at session start, and at least every 6 days
 
-Session schedules (Claude Code's `CronCreate`) die with the session and recurring ones
-expire after 7 days, so every session that runs lanes re-creates them:
+Session schedules (`CronCreate`) die with the session and expire after 7 days:
 
-1. `python3 .gtd/kit/tools/lanes.py resume` (or read the file) lists each lane, its
-   switch and cadence.
+1. `python3 .gtd/kit/tools/lanes.py resume` lists each lane, its switch and cadence.
 2. For each lane with switch `auto`, `observe` or `hold` (held lanes keep renew-only
    ticks, so the heartbeat holds and a person's switch back is seen): check its `item`
    with `item_get`.
@@ -39,9 +42,8 @@ expire after 7 days, so every session that runs lanes re-creates them:
    - Free: `item_claim` it (`explicit`, the lane's `asked_by`, `pointed_in` = `grant`,
      `lease` from the lane).
    Then add `agent-running` to the lane item (`issue_labels`) and schedule it.
-3. Schedule with whatever your runtime has, using only a pointer as the prompt:
-   `Run lane <name> as .gtd/BOARD.local.md defines it.` Never copy the lane's rules into
-   the schedule: the file is read fresh every tick.
+3. Schedule with whatever your runtime has, with only a pointer as the prompt:
+   `Run lane <name> as .gtd/BOARD.local.md defines it.` Never copy the rules in.
 4. Tell your person in one line which lanes you resumed and which you skipped.
 
 ## The issue is the record
@@ -53,15 +55,16 @@ item, an item it claims, or one it captures. No work happens off the board.
 
 ## One tick
 
-1. **Revalidate.** Re-read the lane from the default branch. Stop the tick, delete its
+1. **Revalidate.** Re-read the lane from the default branch (git, so it works while the
+   board is down: see `on_board_down` in `resources-and-long-jobs.md`). Stop the tick, delete its
    schedule and `item_release` the lane item if the lane is gone, its switch is `off`,
    or the lane item is closed. If the switch is `hold`, or the lane item carries any
    `needs:*` label, do nothing this tick except renew. If `policy` changed since your
    last tick, say so in the tick's report and follow the new text. On `off`, also
    remove `agent-running` from the lane item.
-2. **Heartbeat.** `item_renew` the lane item. The lease is the heartbeat: a lane whose
-   lease lapsed is a dead lane, and anyone can see it on the board. The lease must be
-   longer than two cadences.
+2. **Heartbeat.** `item_renew` the lane item, and every item whose long job this lane
+   started that has no completion marker yet. The lease is the heartbeat: a lapsed one
+   means a dead lane or job. The lease must be longer than two cadences.
 3. **Recover before acting.** Check the repo, git history, the board and any marker
    files before repeating an outside action: a previous tick may have done it.
 4. **Work.** Take items in the order of the lane's `queue` view and keep their ETA
@@ -73,19 +76,16 @@ item, an item it claims, or one it captures. No work happens off the board.
    (`board-needs-person`) and carry on with the rest. Put `needs:*` on the lane item
    only to ask whether the lane should keep running; that holds it.
 6. **Speak only on change.** A tick that found nothing reports nothing; the renew is
-   enough. Report a result, a failure, or a question.
-7. A person's direct ask always comes before a lane tick.
+   enough.
+7. A person's direct ask always comes before a lane tick. If the lane owns a
+   `resource`, the ask jumps its queue: see `resources-and-long-jobs.md`.
 
-## Long jobs
+## Long jobs, resources, board outages
 
-- A tick never waits on a long job. Start it, record it on the lane item
-  (`item_report(state="waiting", note=…, links=…)`, add `blocked`) with where its result
-  and completion marker will be. A later tick checks them and removes `blocked`.
-- A job is done only when its own completion marker or result file says so. An exit
-  code of 0 alone proves nothing: background jobs (WSL ones in particular) can die
-  with the session and still report 0. No marker means `failed`, and say so.
-- **Never restart or close a session while a lane's long job runs** in it. Stop the lane
-  (switch `hold`) and let the job finish first.
+Read `resources-and-long-jobs.md` here before a lane starts a long job, owns a
+`resource`, or finds the board down. In short: a tick never waits on a job; a job is
+done only when its own marker says so, never on exit 0 alone; and **never restart or
+close a session while a lane's long job runs** in it.
 
 ## Switches
 
@@ -93,8 +93,8 @@ item, an item it claims, or one it captures. No work happens off the board.
 | --- | --- |
 | `auto` | ticks run and act within `may` |
 | `observe` | ticks run and report what they would do; nothing else changes. New lanes start here |
-| `hold` | ticks only renew; a person lifts it |
-| `off` | the next tick deletes the schedule and releases the lane item |
+| `hold` | ticks only renew; no new job starts, a running one is never killed; a person lifts it |
+| `off` | no new job starts; the next tick with no running job deletes the schedule and releases the lane item |
 
 Fast stop for a person, no PR needed: close the lane item (`off`) or add any `needs:*`
 label to it (`hold`). Never remove either yourself.

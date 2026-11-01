@@ -18,6 +18,9 @@ generated: { by: claude-code/cloud, at: 2026-11-01T06:10:00Z }
   the agent's last report was set by a person: it stands, and the agent reports when it
   can't meet it.
 - **Order between items:** native blocked-by links, not prose.
+- **Serial resource:** when a lane owns a resource and the head of its queue slips, the
+  lane recomputes Start and Target dates for the items behind it from the head's new
+  ETA. A date a person set stands; the conflict is reported, not overwritten.
 
 The repo names its queue view and fields in its own layer; see
 [the kit is the interface](/decisions/kit-is-the-interface.md).

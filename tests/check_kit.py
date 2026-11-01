@@ -159,6 +159,26 @@ for body, want in ((FILLED, 0), (BAD, 1)):
     if want and not ("switch must be" in r.stdout and "whole-folder" in r.stdout):
         fail("lanes.py check missed a bad switch or a whole-folder grant")
 
+# check --merged reads only the default branch: a grant added on a branch grants nothing.
+with tempfile.TemporaryDirectory() as tmp:
+    def git(*a, cwd=tmp):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=" + "t" + "@" + "example.com", *a],
+                       cwd=cwd, check=True, capture_output=True)
+    origin, work = Path(tmp) / "origin.git", Path(tmp) / "work"
+    git("init", "-q", "--bare", str(origin))
+    git("clone", "-q", str(origin), str(work))
+    (work / ".gtd").mkdir()
+    (work / ".gtd" / "BOARD.local.md").write_text(FILLED)
+    git("add", "-A", cwd=work); git("commit", "-qm", "base", cwd=work)
+    git("push", "-q", "origin", "HEAD", cwd=work)
+    git("remote", "set-head", "origin", "-a", cwd=work)
+    (work / ".gtd" / "BOARD.local.md").write_text(FILLED.replace("workflows/ci.yml", "workflows/ci.yml\n  - .github/workflows/deploy.yml"))
+    lanes = [sys.executable, str(ROOT / "tools" / "lanes.py"), "check", "--merged", "--covers"]
+    for path, want in ((".github/workflows/ci.yml", 0), (".github/workflows/deploy.yml", 1)):
+        r = subprocess.run(lanes + [path], cwd=work, capture_output=True, text=True)
+        if r.returncode != want:
+            fail(f"check --merged --covers {path} returned {r.returncode}, wanted {want}")
+
 # OKF: the pinned spec is present, PIN.json agrees with it, and the kit's own bundle lints.
 import json  # noqa: E402
 pin = json.loads((ROOT / "okf" / "PIN.json").read_text())
