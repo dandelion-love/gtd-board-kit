@@ -160,7 +160,9 @@ def scan_commit(sha: str) -> list[str]:
 
 def scan_range(rng: str) -> list[str]:
     out: list[str] = []
-    for sha in git("rev-list", "--reverse", rng).split():
+    # Commits any remote already has are public already (a merge commit GitHub wrote, for
+    # one); scanning them again would block a push over text nobody can now take back.
+    for sha in git("rev-list", "--reverse", rng, "--not", "--remotes").split():
         out += scan_commit(sha)
     return out
 
