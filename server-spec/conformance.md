@@ -23,7 +23,7 @@ reports pass, fail, skip or manual for every id below.
 | T6 | For each preset, `tools/list` shows exactly the tools whose class is at or below it; calling a hidden tool is refused with a message naming the preset it needs |
 | T7 | No tool's input schema has a property used as identity (S1) |
 | T8 | An unauthenticated `GET <mcp_url>/.well-known/gtd-board-kit` returns `200` JSON with `spec_version` (`MAJOR.MINOR.PATCH`), `conformance` (only level names from the [README](README.md#conformance-levels), and no other level without `Core`), `mcp` and `join_url`; with a token, its `spec_version` and `conformance` equal those `whoami` returns |
-| T9 | The levels in `conformance` are honest: no check of a claimed level, or of a level below it, fails in the same run ([spec version and levels](transport-and-identity.md#spec-version-and-levels)) |
+| T9 | The levels in `conformance` are honest: no check of a claimed level, or of a level below it, fails in the same run ([spec version and levels](transport-and-identity.md#spec-version-and-levels)). The run also reports which levels it makes claimable: those with no failed or skipped check, in it or in Core |
 
 ## Repo context and labels (Core)
 

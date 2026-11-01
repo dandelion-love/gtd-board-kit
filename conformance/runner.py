@@ -542,6 +542,28 @@ def check_t9(rep: Report, claimed: list | None) -> None:
               f"claims {claimed or 'nothing'}; no check of those levels failed")
 
 
+def claimable(rep: Report) -> tuple[list[str], dict[str, list[str]]]:
+    """The levels this run lets a server claim at this kit version, lowest first, and the
+    manual checks a person still has to confirm for each. A level is claimable when no
+    check of it, or of Core beneath it, failed or was skipped; a level with no checks
+    run at all is not."""
+    seen: dict[Level, list[dict[str, str]]] = {}
+    for r in rep.rows:
+        fam = family_of(r["id"])
+        if fam in LEVEL_OF and r["id"] != "T9":
+            seen.setdefault(LEVEL_OF[fam], []).append(r)
+
+    def clean(level: Level) -> bool:
+        rows = seen.get(level, [])
+        return any(r["status"] == "pass" for r in rows) and \
+            not any(r["status"] in ("FAIL", "skip") for r in rows)
+    levels = [lv for lv in Level if clean(lv) and (lv is Level.CORE or clean(Level.CORE))]
+    manual = {lv.value: sorted({r["id"] for r in seen.get(lv, []) + seen.get(Level.CORE, [])
+                                if r["status"] == "manual"}, key=report_order)
+              for lv in levels}
+    return [lv.value for lv in levels], manual
+
+
 def check_profiles(rep: Report, c: Client) -> dict:
     ok, lst, text = c.call("profile_list")
     if not ok:
@@ -1269,8 +1291,13 @@ def main(argv: list[str]) -> int:
         print(f"{r['id']:<{width}}  {r['status']:<6}  {r['note']}")
     counts = {s: sum(r["status"] == s for r in rows) for s in ("pass", "FAIL", "skip", "manual")}
     print(", ".join(f"{v} {k}" for k, v in counts.items()))
+    kit_version = (HERE.parent / "VERSION").read_text().strip()
+    levels, manual = claimable(rep)
+    print(f"claimable at kit {kit_version}: {', '.join(levels) or 'nothing'}"
+          + "".join(f"\n  {lv}: confirm by hand {', '.join(ids)}" for lv, ids in manual.items() if ids))
     if a.json:
-        Path(a.json).write_text(json.dumps({"rows": rows, "counts": counts}, indent=2))
+        Path(a.json).write_text(json.dumps({"rows": rows, "counts": counts, "kit_version": kit_version,
+                                           "claimable": levels, "manual": manual}, indent=2))
     return 1 if rep.failed() else 0
 
 
