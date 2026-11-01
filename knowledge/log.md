@@ -2,6 +2,7 @@
 
 ## 2026-11-01
 
+* **Changed**: per-repo customization clarified (kit 0.10.1): fingerprints leave out the advisory `manual` key; a reconciler compares live items by a defined comparable shape per kind (label names case-insensitive), infers only from a complete read, combines overrides of repos sharing a board (a departure wins, disagreement reported), and an override without `seen` stays a notice.
 * **Added**: per-repo customization (kit 0.10.0). `server-spec/` defines `overrides` (`skip` and `keep`) in `gtd-context.json`, a ledger of what a reconciler created from which declaration, item fingerprints in `profile_get`, and the upstream change notice that `profile_updates` returns when the profile changes an item a repo skipped or reshaped. Conformance gains O1 to O3; `board-onboard` surfaces the notices.
 * **Added**: the spec and its checks change together (kit 0.9.0). `tests/check_kit.py` checks that every check id in `server-spec/conformance.md` is in the runner and back, and that the fold table matches its fixtures; `tools/spec_pair.py`, run by the `pre-push` hook, fails a branch that changes `server-spec/` without its checks unless a commit carries `Conformance-unchanged: <reason>`; a PR template asks for both.
 * **Added**: the conformance runner drives the connector entrance (J11, JC1 to JC9) as an OAuth client with a loopback redirect; a person approves once in a browser (kit 0.8.0).

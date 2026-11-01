@@ -230,7 +230,8 @@ if sorted(["X1", "JC2", "T10", "O1", "T2", "J1", "RUN"], key=report_order) != \
 # The runner's fingerprint gives the golden values server-spec states.
 spec_md = (ROOT / "server-spec" / "repo-context-and-profiles.md").read_text()
 for item, want in (({"name": "Inbox", "layout": "table", "filter": "status:Inbox"}, "9c5ee7e85d3e"),
-                   ({"name": "Engage \u2014 Now", "layout": "board", "fingerprint": "x"}, "14d526f52c0e")):
+                   ({"name": "Engage \u2014 Now", "layout": "board", "fingerprint": "x",
+                     "manual": ["advisory, not hashed"]}, "14d526f52c0e")):
     if fingerprint(item) != want or f"`{want}`" not in spec_md:
         fail(f"fingerprint golden value {want} disagrees between the runner and the spec")
 
