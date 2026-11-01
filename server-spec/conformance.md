@@ -85,6 +85,24 @@ The same cases are machine-readable in [fold_cases.json](../conformance/fold_cas
 | J8 | Revoke one: that agent's next MCP call is `401` and its renew is `invalid_grant`; other agents still work. Revoke all: every agent and pending request is gone |
 | J9 | `/join/decide`, `/join/revoke` and `/join/revoke-all` refuse without a valid CSRF token and without an approver session; a non-approver account is refused |
 | J10 | No MCP tool name or description offers approve, deny or revoke |
+| J11 | `/join` names which entrance to use and lists every entrance this server offers; `whoami` for a joined agent returns `entrance` |
+
+### Connector entrance (when offered)
+
+A server that offers the connector entrance must also pass these. A runner drives them as
+an OAuth client (dynamic registration, then `/authorize` with PKCE) and as the approver.
+
+| Id | Check |
+| --- | --- |
+| JC1 | `/authorize` sends the browser to `/join/approve?connect=<id>`; the page offers "Sign in as an agent"; with `resource=<mcp_url>/mcp?agent=<name>` the card is prefilled with that name |
+| JC2 | Approving redirects to the client's registered address with `state` unchanged and a code; denying redirects with `error=access_denied` and creates no agent |
+| JC3 | The code works once, only for its client, only with the right PKCE verifier, and not after 5 minutes |
+| JC4 | The token response holds the agent access token and a connector refresh token, never the agent's own refresh token; `whoami` with that access token shows `agent:<name>`, the approved preset, `entrance` `connector`, and the fence applies |
+| JC5 | `/join/agents` lists the agent with entrance `connector` beside device-code agents |
+| JC6 | A connector refresh after the access token ends returns a new access token; two refreshes sent at once both succeed and the agent is not revoked |
+| JC7 | After revoke (one or all) the access token gets `401` and the connector refresh gets `invalid_grant`; the connector refresh token never works past the approval's end, nor for another client |
+| JC8 | Re-joining the same name through the device code revokes the connector agent, and the reverse |
+| JC9 | `/join/decide` for a connect id refuses without a valid CSRF token, without an approver session, and for a non-approver account |
 
 ## Board (Board level)
 
@@ -99,7 +117,7 @@ The same cases are machine-readable in [fold_cases.json](../conformance/fold_cas
 
 | Id | Check |
 | --- | --- |
-| X1 | Across every test above, no log line contains a bearer token, a refresh token, a GitHub token or a token hash, and no response body does either, except the grant that `/join/token` returns on collection or renew (J4, J6) |
+| X1 | Across every test above, no log line contains a bearer token, a refresh token, a GitHub token or a token hash, and no response body does either, except the grant that `/join/token` returns on collection or renew (J4, J6) and the token response of the connector entrance (JC4, JC6) |
 | X2 | Every tool's class matches the class the spec gives it (the preset table in [transport-and-identity](transport-and-identity.md#presets) and the Class columns and group notes in [tools](tools.md)); every tool the spec does not class is `full` |
 | X3 | Over-long free text refuses rather than truncates |
 

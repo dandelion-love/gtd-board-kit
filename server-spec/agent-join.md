@@ -4,6 +4,25 @@ The agent's side, including the exact wire shape of `/join/start` and `/join/tok
 [agent sign-in](../knowledge/model/agent-sign-in.md). This page is what the server must do
 behind it. A server that implements it is at the **Join** level.
 
+## Two entrances, one agent record
+
+There is one join with two entrances. Both end in the **same agent record**: name,
+provider, preset, approver (stable id), approved at, approval end (30 days by default),
+revoked at, last used, and `entrance` (`device-code` or `connector`).
+
+| Entrance | For | Starts at | The agent ends up holding |
+| --- | --- | --- | --- |
+| Device code | Hosts that keep a file | `POST /join/start` | Its own access and refresh tokens, in a user-only file |
+| Connector | Hosts that keep the sign-in for the agent (a hosted MCP connector, any MCP client doing OAuth) | The server's OAuth `/authorize` | Nothing: the host keeps the connector sign-in, the server keeps the agent's rotating refresh token |
+
+Everything after the entrance is shared: the same approver rules, the same preset fence,
+`/join/agents` lists both kinds, revoke and revoke-all end both, re-joining a name through
+either entrance revokes the live record under that name, and `whoami` reports the
+entrance. The device-code entrance is required at the **Join** level. The connector
+entrance is optional and needs the server to run an OAuth sign-in for connectors
+([transport and identity](transport-and-identity.md#three-kinds-of-caller)); a server that
+offers it says so on `/join`.
+
 ## Switch
 
 The join is off unless the operator lists at least one approver. With no approver listed,
@@ -14,13 +33,13 @@ is refused. That one setting is the operator's emergency stop for all joined age
 
 | Route | Method | Who | Does |
 | --- | --- | --- | --- |
-| `/join` | GET | anyone | Plain-text steps for an agent, always current for this server, naming this server's own URLs |
+| `/join` | GET | anyone | Plain-text steps for an agent, always current for this server, naming this server's own URLs. Starts with which entrance to use and lists every entrance this server offers |
 | `/join/client.py` | GET | anyone | The join client (standard-library Python 3.9 or later). A server MAY serve the kit's reference client or its own; either must honour the client contract in agent sign-in |
 | `/join/start` | POST | the agent | Opens a request; returns the device code, the short user code and the verification links |
 | `/join/token` | POST | the agent | Polls a request, or renews with a refresh token |
-| `/join/approve` | GET | approver | Shows one request: name, provider, machine, source address, requested preset, the user code. Signs the approver in first if needed |
-| `/join/decide` | POST | approver | Approve (with a chosen preset, which may be lower than requested) or deny |
-| `/join/agents` | GET | approver | Lists live agents with name, provider, preset, created, last used, approval end; never a hash or token |
+| `/join/approve` | GET | approver | Shows one request: name, provider, machine, source address, requested preset, the user code. Signs the approver in first if needed. With `?connect=<id>` it shows a connector sign-in instead (below) |
+| `/join/decide` | POST | approver | Approve (with a chosen preset, which may be lower than requested) or deny, for either entrance |
+| `/join/agents` | GET | approver | Lists live agents with name, entrance, provider, preset, created, last used, approval end; never a hash or token |
 | `/join/revoke` | POST | approver | Revokes one agent |
 | `/join/revoke-all` | POST | approver | Revokes every agent and every pending request, after an explicit confirmation |
 
@@ -91,6 +110,78 @@ stateDiagram-v2
   anything the server holds on that agent's behalf (for example a linked GitHub sign-in).
 - **Revoke all**: the same for every agent, plus every pending request.
 - Both are idempotent and logged with the approver's id.
+
+## Connector entrance
+
+Optional. The connector entrance is the server's ordinary OAuth 2.1 authorization-code
+sign-in (PKCE, discovered through the RFC 9728 metadata), with the join's approval in the
+middle. Clients need nothing special: a hosted connector that can sign in to any OAuth MCP
+server can use it.
+
+**Naming the agent.** The person gives the connector the address
+`<mcp_url>/mcp?agent=<name>`. If the client sends that address as its RFC 8707 `resource`,
+the server takes the name from it; otherwise the person types the name on the approval
+card. The name follows the same pattern as a device-code join.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Host (connector)
+    participant S as gtd MCP server
+    participant P as Person (browser)
+    C->>S: MCP call without a token
+    S-->>C: 401, resource metadata
+    C->>S: register (if needed), then /authorize with PKCE
+    S-->>P: /join/approve?connect=id
+    P->>S: Sign in as an agent, approver sign-in
+    S-->>P: card: name, provider, client, redirect host, preset
+    P->>S: POST /join/decide (approve, name, preset)
+    S-->>C: redirect with a single-use code
+    C->>S: /token (code + PKCE verifier)
+    S-->>C: agent access token + connector refresh token
+    C->>S: MCP calls as agent:name
+    C->>S: /token (connector refresh token) when the access token ends
+    S->>S: spend the agent refresh token once, keep the new one
+    S-->>C: new agent access token
+```
+
+Requirements:
+
+- **The choice.** `/authorize` sends the browser to `/join/approve?connect=<id>`. The page
+  offers "Sign in as an agent". A server MAY also offer "Sign in as me", the connector
+  identity sign-in from [transport and identity](transport-and-identity.md#three-kinds-of-caller),
+  which stays a person's principal and is not a joined agent. The `connect` id is random,
+  single use, and lives no longer than the OAuth transaction (about 15 minutes).
+- **The card** shows the agent name (prefilled when known, editable), the provider (from
+  the client's registered name), the client's registered name, the host the sign-in will
+  be sent back to, the time, and the preset picker. It warns the person to approve only a
+  connector they just added or reconnected themselves. The approver rules above apply
+  unchanged: stable-id approvers, short session, CSRF token bound to the approver and that
+  connect id.
+- **The code** goes only to the redirect address the client registered, is single use
+  (atomic across replicas), lives at most 5 minutes, is bound to the client and to the
+  PKCE challenge, and carries the `state` back unchanged. A denial redirects with
+  `error=access_denied`.
+- **The tokens.** The token endpoint returns the agent's access token (the same kind and
+  lifetime as a device-code join: opaque, prefixed, 24 hours, clamped to the approval) and
+  a **connector refresh token** (opaque, its own prefix, bound to that OAuth client, never
+  valid past the approval's end).
+- **The agent's refresh token stays on the server.** The server keeps the agent's
+  single-use refresh token, encrypted, with the connector grant, and never returns it to
+  the client. A connector refresh spends it once and keeps the new one. Spending is one
+  atomic step per grant generation, so two refreshes racing from the host return the same
+  new access token and never present the agent refresh token twice (which would revoke
+  the agent). A refresh while the current access token still has minutes left MAY return
+  it unchanged.
+- **The connector refresh token** is not rotated: the host stores it durably and may
+  refresh from several sessions at once. Its protection is the client binding, the
+  approval cap, and revoke.
+- **Revoke.** Revoking the agent (one or all) deletes its connector grants, so the next
+  connector refresh answers `invalid_grant` and the host asks the person to reconnect. A
+  token revocation request (RFC 7009) for the connector refresh token revokes the agent.
+  Re-joining the name through either entrance does the same to the old record.
+- **Store.** The connector grant holds hashes and encrypted values only, like every other
+  credential record.
 
 ## What the operator documents privately
 
