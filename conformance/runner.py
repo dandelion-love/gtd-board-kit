@@ -577,7 +577,7 @@ def check_profiles(rep: Report, c: Client) -> dict:
 
 def fingerprint(item: dict) -> str:
     """The declaration fingerprint (repo-context-and-profiles.md, Fingerprints)."""
-    body = {k: v for k, v in item.items() if k != "fingerprint"}
+    body = {k: v for k, v in item.items() if k not in ("fingerprint", "manual")}
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"),
                                      ensure_ascii=False).encode()).hexdigest()[:12]
 

@@ -135,10 +135,12 @@ any reconciler: a nightly job, an MCP tool such as `project_reconcile`, or a scr
 
 An item's **fingerprint** is the first 12 hex digits of the SHA-256 of its declaration in
 canonical JSON: the item's object as `profile_get` returns it, without its `fingerprint`
-key, serialised with object keys sorted by code point, no whitespace (`,` and `:` as
+key and without the advisory key `manual` (steps for a person, which reconcile never
+applies, so rewording them is no upstream change), serialised with object keys sorted by code point, no whitespace (`,` and `:` as
 separators), non-ASCII characters written as themselves, and encoded as UTF-8. In Python:
 
 ```python
+item = {k: v for k, v in item.items() if k not in ("fingerprint", "manual")}
 hashlib.sha256(json.dumps(item, sort_keys=True, separators=(",", ":"),
                           ensure_ascii=False).encode()).hexdigest()[:12]
 ```
@@ -150,6 +152,22 @@ Golden values: `{"name": "Inbox", "layout": "table", "filter": "status:Inbox"}` 
 Two declarations with the same fingerprint are the same declaration. A server that
 returns `fingerprint` MUST compute it this way, so a fingerprint recorded by one tool can
 be compared by another.
+
+### Comparable shapes
+
+A fingerprint identifies a **declaration**; it is never compared with a live item, which
+the platform reports back normalised and without advisory keys. A reconciler compares a
+live item with a declaration, or with what it last set, by the item's **comparable
+shape**: only what the platform reads back.
+
+| Kind | Name match | Comparable shape |
+| --- | --- | --- |
+| label | case-insensitive | colour as six lowercase hex digits (no `#`), description (missing = empty) |
+| field | exact | type; for a single select, its option names in order |
+| view | exact | layout, filter (trimmed), group-by field names, column field names |
+
+A reconciler MAY compare more of a view (visible fields, sort) when its platform reads
+them back reliably, but then MUST do so both when it records and when it compares.
 
 ### Overrides: the repo's explicit choices
 
@@ -188,8 +206,8 @@ From the ledger, a reconciler infers:
 | Ledger says | Board has | Inferred mode |
 | --- | --- | --- |
 | created | no such item | `skip` (a person deleted it) |
-| created | the item, differing from the declaration it was created from | `keep` (a person reshaped it) |
-| created | the item, as created | none: the item still follows the profile |
+| created | the item, its shape differing from the shape the reconciler last set | `keep` (a person reshaped it) |
+| created | the item, in the shape the reconciler last set | none: the item still follows the profile |
 | nothing | the item, differing from the profile's declaration | `keep`, with no recorded fingerprint (it predates the ledger, so whose change it is is unknown) |
 
 An explicit override wins over an inferred one. An item whose live shape matches the
@@ -197,6 +215,18 @@ profile's current declaration has no inferred mode, whatever the ledger says. An
 that is neither in the ledger nor in `overrides` and is missing from the board is new: a
 reconciler creates it as usual. An inferred `skip` of an item the profile no longer
 declares is no notice (both sides dropped it), and the reconciler forgets it.
+
+So the ledger holds, per item, the fingerprint of the declaration it applied and the
+shape it set (or that shape's fingerprint). A reconciler infers only from a **complete**
+read of the board or repo: when a read fails or may be partial (an unfinished page, an
+error), it infers nothing and writes nothing that depends on the ledger for that target
+in that run. Inferred modes are recomputed every run, never stored as overrides.
+
+**Shared boards.** Fields and views belong to the board, and several repos may name one
+board. A reconciler then combines their overrides for board items: a departure wins over
+`follow` (`keep` over `skip`), the `seen` of the winning entry is used, and a
+disagreement between repos is reported for a person. Labels belong to each repo and are
+never combined.
 
 ### What a reconciler does
 
@@ -217,7 +247,9 @@ declares is no notice (both sides dropped it), and the reconciler forgets it.
 5. When a person decides, the decision is recorded in `overrides`: the same `mode` with
    `seen` set to the current fingerprint (or to `removed`, for a `removed` notice) keeps
    the repo's choice; `follow` (for an inferred mode) or removing the entry (for an
-   explicit one) takes the profile's version. The next
+   explicit one) takes the profile's version. A tool that writes an override always
+   writes `seen`: an override without one stays an upstream change until a person
+   records one. The next
    reconcile then creates a missing item, and reports a differing one as work for a person
    where the platform cannot update it in place. Once the item matches the profile
    again, a `follow` entry can be removed.
