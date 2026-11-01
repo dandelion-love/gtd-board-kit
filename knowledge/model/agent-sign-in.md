@@ -33,6 +33,13 @@ Call `whoami` either way. It shows your principal, your preset and, for a joined
 
 ## Connector entrance
 
+- **One connector per account.** A host like claude.ai loads every connector into every
+  session, so each extra connector to the same server costs tokens in every session and
+  gives an agent several identical tool sets to choose between. An account has **one**
+  connector to the gtd MCP server, signed in as one shared agent name. An agent that
+  needs its own name joins with the device code from a host that keeps a file. Never
+  add a second connector, and never ask your person for one; if you find two, tell your
+  person and let them remove one.
 - **Adding it.** Your person adds a connector (in claude.ai: Settings, Connectors, add a
   custom connector) with the address `<mcp_url>/mcp?agent=<short-name>`. The sign-in
   opens `<mcp_url>/join/approve`, where they pick **Sign in as an agent**, sign in as an
