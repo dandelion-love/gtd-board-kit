@@ -36,11 +36,18 @@ expire after 7 days, so every session that runs lanes re-creates them:
      has ended; if you can't tell, ask your person. One runner per lane.
    - Free: `item_claim` it (`explicit`, the lane's `asked_by`, `pointed_in` = `grant`,
      `lease` from the lane).
-   Then schedule it.
+   Then add `agent-running` to the lane item (`issue_labels`) and schedule it.
 3. Schedule with whatever your runtime has, using only a pointer as the prompt:
    `Run lane <name> as .gtd/BOARD.local.md defines it.` Never copy the lane's rules into
    the schedule: the file is read fresh every tick.
 4. Tell your person in one line which lanes you resumed and which you skipped.
+
+## The issue is the record
+
+Every lane is an issue on the board, and its lifecycle shows the lane's state: open with
+`agent-running` and a live lease while it runs; `blocked` while a long job runs;
+`needs:*` while held; closed when off. Everything a tick does lands on an issue: the lane
+item, an item it claims, or one it captures. No work happens off the board.
 
 ## One tick
 
@@ -48,7 +55,8 @@ expire after 7 days, so every session that runs lanes re-creates them:
    schedule and `item_release` the lane item if the lane is gone, its switch is `off`,
    or the lane item is closed. If the switch is `hold`, or the lane item carries any
    `needs:*` label, do nothing this tick except renew. If `policy` changed since your
-   last tick, say so in the tick's report and follow the new text.
+   last tick, say so in the tick's report and follow the new text. On `off`, also
+   remove `agent-running` from the lane item.
 2. **Heartbeat.** `item_renew` the lane item. The lease is the heartbeat: a lane whose
    lease lapsed is a dead lane, and anyone can see it on the board. The lease must be
    longer than two cadences.
@@ -68,8 +76,8 @@ expire after 7 days, so every session that runs lanes re-creates them:
 ## Long jobs
 
 - A tick never waits on a long job. Start it, record it on the lane item
-  (`item_report(state="waiting", note=…, links=…)`) with where its result and its
-  completion marker will be, and check them on a later tick.
+  (`item_report(state="waiting", note=…, links=…)`, add `blocked`) with where its result
+  and completion marker will be. A later tick checks them and removes `blocked`.
 - A job is done only when its own completion marker or result file says so. An exit
   code of 0 alone proves nothing: background jobs (WSL ones in particular) can die
   with the session and still report 0. No marker means `failed`, and say so.
