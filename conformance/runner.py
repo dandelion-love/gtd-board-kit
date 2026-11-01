@@ -509,7 +509,7 @@ def check_t8(rep: Report, base: str, who: dict | None) -> dict | None:
     if not (isinstance(version, str) and SEMVER.fullmatch(version)):
         problems.append(f"spec_version {version!r} is not MAJOR.MINOR.PATCH")
     names = {lv.value for lv in Level}
-    if not (isinstance(levels, list) and all(lv in names for lv in levels)):
+    if not (isinstance(levels, list) and all(isinstance(lv, str) and lv in names for lv in levels)):
         problems.append(f"conformance {levels!r} holds unknown levels")
     elif levels and Level.CORE.value not in levels:
         problems.append(f"conformance {levels} claims a level without Core")
