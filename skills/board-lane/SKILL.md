@@ -30,7 +30,9 @@ expire after 7 days, so every session that runs lanes re-creates them:
 
 1. `python3 .gtd/kit/tools/lanes.py resume` (or read the file) lists each lane, its
    switch and cadence.
-2. For each lane with switch `auto` or `observe`: check its `item` with `item_get`.
+2. For each lane with switch `auto`, `observe` or `hold` (held lanes keep renew-only
+   ticks, so the heartbeat holds and a person's switch back is seen): check its `item`
+   with `item_get`.
    - Held by another principal with a live lease: another session runs it. Skip.
    - Held by your own principal: `item_renew` it, but only if the session that held it
      has ended; if you can't tell, ask your person. One runner per lane.

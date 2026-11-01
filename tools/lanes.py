@@ -4,8 +4,9 @@
   python3 .gtd/kit/tools/lanes.py resume [FILE]   list lanes to re-schedule, with the pointer prompt
   python3 .gtd/kit/tools/lanes.py check  [FILE]   lint lanes and workflow grants; exit 1 on a problem
 
-Without FILE it reads .gtd/BOARD.local.md from the default branch (origin/HEAD), because
-only what a person merged counts, and falls back to the working copy with a warning.
+Without FILE, `resume` reads .gtd/BOARD.local.md from the default branch (origin/HEAD),
+because only what a person merged counts, and falls back to the working copy with a
+warning. `check` lints the working copy, so a draft is checked before it is merged.
 Safe as a SessionStart hook: `resume` never fails the session. Standard library only.
 """
 from __future__ import annotations
@@ -98,7 +99,11 @@ def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in ("resume", "check"):
         print(__doc__)
         return 2
-    text, where = read_local(sys.argv[2] if len(sys.argv) > 2 else None)
+    path = sys.argv[2] if len(sys.argv) > 2 else (LOCAL if sys.argv[1] == "check" else None)
+    if path and not Path(path).exists():
+        print(f"ok: no {path}")
+        return 0
+    text, where = read_local(path)
     if sys.argv[1] == "check":
         problems = check(text)
         for p in problems:
@@ -112,9 +117,9 @@ def main() -> int:
     print(f"Standing lanes in {where} (board-lane skill, Resume):")
     for lane in lanes:
         switch = lane.get("switch", "?")
-        if switch in ("auto", "observe"):
+        if switch in ("auto", "observe", "hold"):
             print(f"- {lane['name']}: {switch}, every {lane.get('every') or '?'}, item "
-                  f"{lane.get('item') or '?'}. Schedule prompt: {PROMPT.format(name=lane['name'])}")
+                  f"{lane.get('item') or '?'}{' (renew-only ticks)' if switch == 'hold' else ''}. Schedule prompt: {PROMPT.format(name=lane['name'])}")
         else:
             print(f"- {lane['name']}: {switch}; do not schedule")
     for p in check(text):
