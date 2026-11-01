@@ -67,14 +67,32 @@ def parse(block: str) -> dict | None:
         except yaml.YAMLError:
             return None
         return data if isinstance(data, dict) else None
+    # Fallback: top-level `key: scalar` lines only. Anything it cannot read with certainty
+    # (an unclosed flow list or map, unbalanced quotes) makes the block unparseable, so the
+    # lint fails rather than passing a bundle it did not really check.
     data: dict = {}
     for line in block.splitlines():
         if not line.strip() or line.lstrip().startswith("#") or line[0] in " -\t":
             continue
         key, sep, value = line.partition(":")
-        if not sep:
+        if not sep or not re.fullmatch(r"[\w.-]+", key.strip()):
             return None
-        data[key.strip()] = value.strip().strip("'\"")
+        value = value.strip()
+        if value and value[0] in "'\"":
+            q = value[0]
+            end = value.find(q, 1)
+            if end == -1 or (value[end + 1:].strip() and not value[end + 1:].strip().startswith("#")):
+                return None
+            value = value[1:end]
+        else:
+            value = re.split(r"\s+#", value, maxsplit=1)[0].strip()
+            if value and value[0] in "[{":
+                close = "]" if value[0] == "[" else "}"
+                if not value.endswith(close) or value.count(value[0]) != value.count(close):
+                    return None
+            elif value in ("", "~", "null", "Null", "NULL"):
+                value = None
+        data[key.strip()] = value
     return data
 
 
@@ -119,7 +137,7 @@ def lint(bundle: Path) -> tuple[list[str], list[str]]:
                     warns.append(f"{rel}: declares okf_version {declared}, the kit pins {pin}")
             continue
         if path.name == "log.md":
-            dates = re.findall(r"(?m)^## (\S+)\s*$", body if block is None else text)
+            dates = [d.strip() for d in re.findall(r"(?m)^##[ \t]+(.+?)[ \t]*$", body if block is None else text)]
             bad = [d for d in dates if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", d)]
             if bad:
                 errors.append(f"{rel}: log headings must be ## YYYY-MM-DD, found {bad[:3]}")
