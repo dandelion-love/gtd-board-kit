@@ -39,6 +39,7 @@ the runner never prints them. Check X1 fails if a token it sent comes back in an
 | `--token-b-env` | C2, C3, C6 with a second principal | as above |
 | `--project owner/number` | P7, B1 to B4, C12, and the Size part of C5 | adds the sandbox issues to the board and writes fields on them |
 | `--join-start` | J2 and J3 with a real request | opens one join request; it expires unapproved after ten minutes |
+| `--connector NAME` | JC1 to JC9, when `/join` lists the connector entrance | registers two OAuth clients with a loopback redirect, joins agent `NAME` at `desk` after a person approves it in a browser, and revokes it at the end when the server advertises `revocation_endpoint` (otherwise revoke it at `/join/agents`) |
 | `--fold-cmd CMD` | C13 against **your** fold instead of the reference | runs `CMD` locally |
 
 Use a **scratch repo and board** that nothing else watches. The runner lists the issues it
@@ -48,11 +49,21 @@ The repo token must be at the `work` preset or higher, because the claim checks 
 `--profile` names the sandbox repo's profile when the runner should not take the first
 one `profile_list` returns.
 
+## The connector entrance
+
+With `--connector NAME` the runner acts as an OAuth client: it registers with a loopback
+redirect, opens `/authorize` with PKCE and `resource=<server>/mcp?agent=NAME`, checks
+that it lands on `/join/approve?connect=...`, and prints that link. **A person opens it,
+signs in as an approver, chooses to sign in as an agent, and approves at preset `desk`.**
+The runner catches the redirect on localhost (it waits `--connector-wait` seconds, 600 by
+default), then redeems the code, calls `whoami`, races two refreshes and checks the client
+binding without further help. Run it on the machine whose browser does the approval.
+
 ## Reading the result
 
 Each check id prints one line: `pass`, `FAIL` with the reason, `skip` with what it needs,
-or `manual` with the steps a person takes. Manual checks (T4, C4, C6b, C10, J1, J4 to J9)
-need a person, a second account or a wait the runner should not take; run them by hand
+or `manual` with the steps a person takes. Manual checks (T4, C4, C6b, C10, J1, J4 to J9,
+and parts of JC2, JC3 and JC5 to JC9) need a person, a second account or a wait the runner should not take; run them by hand
 from their description.
 
 A server meets a level when every check of that level and the levels below it passes,

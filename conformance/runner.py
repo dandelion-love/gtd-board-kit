@@ -25,16 +25,21 @@ to do. Exit status: 0 every run check passed, 1 a check failed, 2 usage or conne
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import os
+import queue
 import re
 import subprocess
 import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -64,7 +69,7 @@ CORE_TOOLS = ("whoami", "profile_list", "profile_get", "project_get", "project_i
               "project_item_find", "project_views_list", "list_next_actions", "issue_list",
               "issue_blocked_by_list", "item_get", "item_claim", "item_renew", "item_release",
               "item_report", "capture", "issue_comment", "issue_labels")
-WHOAMI_FIELDS = ("principal", "signed_in_by", "preset", "fenced", "provider", "expires_at",
+WHOAMI_FIELDS = ("principal", "signed_in_by", "preset", "fenced", "provider", "entrance", "expires_at",
                  "join_url", "conformance", "spec_version")
 PROFILE_FIELDS = ("name", "labels", "needs", "owner_needs", "pickup_sizes", "status_for_label")
 BASE_LABELS = ("run-agent", "agent-running", "waiting-for-review", "agent-failed", "blocked",
@@ -697,6 +702,286 @@ def check_join(rep: Report, base: str, start: bool, claims_join: bool | None) ->
                   "pending; the request expires on its own")
 
 
+# ---------------------------------------------------------------------------
+# Join: entrances (J11) and the connector entrance (JC1 to JC9)
+# ---------------------------------------------------------------------------
+
+def join_entrances(base: str) -> set[str] | None:
+    """The entrances /join lists on its `Entrances:` line, or None when there is no such line."""
+    s, _, text = http("GET", f"{base}/join")
+    lines = re.findall(r"^\s*Entrances:\s*(.+)$", text, re.MULTILINE) if s == 200 else []
+    if len(lines) != 1:
+        return None  # J11 wants exactly one such line
+    return {e.strip().lower() for e in lines[0].split(",") if e.strip()}
+
+
+def check_j11(rep: Report, entrances: set[str] | None, claims_join: bool | None, who: dict | None) -> None:
+    if entrances is None and not claims_join:
+        rep.skip("J11", "the join routes are off on this server (no Join level)")
+        return
+    joined = (who or {}).get("signed_in_by") == "joined"
+    entrance_ok = not joined or (who or {}).get("entrance") in (entrances or set())
+    rep.check("J11", bool(entrances) and "device-code" in entrances and entrance_ok,
+              f"/join entrances {sorted(entrances) if entrances else 'not listed'}; "
+              f"whoami entrance {(who or {}).get('entrance')!r}",
+              f"entrances {', '.join(sorted(entrances or ()))}"
+              + (f"; whoami entrance {who.get('entrance')}" if joined else ""))
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+def http_noredirect(url: str, form: dict | None = None) -> tuple[int, dict]:
+    """GET (or a form POST) that reports a redirect instead of following it."""
+    data = urllib.parse.urlencode(form).encode() if form is not None else None
+    try:
+        with urllib.request.build_opener(_NoRedirect).open(url, data=data, timeout=60) as r:
+            return r.status, {k.lower(): v for k, v in r.headers.items()}
+    except urllib.error.HTTPError as e:
+        return e.code, {k.lower(): v for k, v in e.headers.items()}
+
+
+def _b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+class Loopback:
+    """A one-shot redirect target on localhost (RFC 8252) that keeps the query it receives."""
+
+    def __init__(self) -> None:
+        got: queue.Queue = queue.Queue()
+
+        class H(BaseHTTPRequestHandler):
+            def log_message(self, *a: Any) -> None:
+                pass
+
+            def do_GET(self) -> None:
+                got.put(urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query))
+                body = b"The conformance runner has the answer. You can close this tab."
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        self.server = HTTPServer(("localhost", 0), H)
+        self.uri = f"http://localhost:{self.server.server_address[1]}/callback"
+        self.got = got
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def wait(self, seconds: float) -> dict | None:
+        try:
+            return self.got.get(timeout=seconds)
+        except queue.Empty:
+            return None
+
+    def close(self) -> None:
+        self.server.shutdown()
+
+
+def oauth_metadata(base: str) -> dict:
+    """RFC 9728 resource metadata, then RFC 8414 authorization-server metadata."""
+    res = {}
+    for url in (f"{base}/.well-known/oauth-protected-resource/mcp", f"{base}/.well-known/oauth-protected-resource"):
+        s, _, text = http("GET", url)
+        if s == 200:
+            res = json.loads(text)
+            break
+    issuer = ((res.get("authorization_servers") or [base])[0]).rstrip("/")
+    for url in (f"{issuer}/.well-known/oauth-authorization-server", f"{base}/.well-known/oauth-authorization-server"):
+        s, _, text = http("GET", url)
+        if s == 200:
+            return json.loads(text)
+    raise CheckError("no OAuth authorization-server metadata")
+
+
+def token_call(meta: dict, form: dict) -> tuple[int, dict]:
+    s, _, text = http("POST", meta["token_endpoint"], form, form=True)
+    try:
+        return s, json.loads(text)
+    except json.JSONDecodeError:
+        return s, {"error": text[:80]}
+
+
+JC_MANUAL = {
+    "JC2": "deny a second connector sign-in: the client gets error=access_denied with its state, and no agent appears",
+    "JC3": "leave a code unredeemed for more than 5 minutes: the token endpoint refuses it",
+    "JC5": "open /join/agents as an approver: the connector agent is listed with entrance connector",
+    "JC6": "present a replaced connector refresh token after the grace window: invalid_grant and the agent is "
+           "revoked; a day later (access token ended), a refresh returns a new access token that works",
+    "JC7": "after the approval's end the connector refresh answers invalid_grant",
+    "JC8": "re-join the same name with the device code: the connector agent's token and refresh stop working; "
+           "and the reverse",
+    "JC9": "sign in as a non-approver account and POST /join/decide for a connect id: refused",
+}
+JC_IDS = [f"JC{i}" for i in range(1, 10)]
+
+
+def check_connector(rep: Report, base: str, entrances: set[str] | None, name: str | None,
+                    wait: float, seen: list[str], secrets: list[str]) -> None:
+    if not entrances or "connector" not in entrances:
+        for cid in JC_IDS:
+            rep.skip(cid, "the connector entrance is not offered on /join")
+        return
+    if not name:
+        for cid in JC_IDS:
+            rep.skip(cid, "pass --connector NAME (a person approves one sign-in in a browser)")
+        return
+    for cid, how in JC_MANUAL.items():
+        rep.manual(cid, how)
+    meta = oauth_metadata(base)
+    if not meta.get("registration_endpoint"):
+        rep.fail("JC1", "the authorization server offers no dynamic registration")
+        return
+    cb = Loopback()
+    try:
+        _connector_run(rep, base, meta, cb, name, wait, seen, secrets)
+    finally:
+        cb.close()
+
+
+def _register(meta: dict, redirect: str, label: str) -> str:
+    s, _, text = http("POST", meta["registration_endpoint"], {
+        "client_name": f"gtd-conformance {label}", "redirect_uris": [redirect],
+        "grant_types": ["authorization_code", "refresh_token"], "response_types": ["code"],
+        "token_endpoint_auth_method": "none"})
+    if s not in (200, 201):
+        raise CheckError(f"registration with a loopback redirect refused: {s} {text[:100]}")
+    return json.loads(text)["client_id"]
+
+
+def _connector_run(rep: Report, base: str, meta: dict, cb: Loopback, name: str, wait: float,
+                   seen: list[str], secrets: list[str]) -> None:
+    client_a = _register(meta, cb.uri, "a")
+    client_b = _register(meta, cb.uri, "b")
+    verifier = _b64url(os.urandom(48))
+    state = _b64url(os.urandom(12))
+    query = {"response_type": "code", "client_id": client_a, "redirect_uri": cb.uri, "state": state,
+             "code_challenge": _b64url(hashlib.sha256(verifier.encode()).digest()),
+             "code_challenge_method": "S256", "resource": f"{base}/mcp?agent={name}"}
+    if meta.get("scopes_supported"):
+        query["scope"] = " ".join(meta["scopes_supported"])
+    s, hdrs = http_noredirect(f"{meta['authorization_endpoint']}?{urllib.parse.urlencode(query)}")
+    location = urllib.parse.urljoin(base + "/", hdrs.get("location", ""))
+    loc = urllib.parse.urlparse(location)
+    connect = (urllib.parse.parse_qs(loc.query).get("connect") or [""])[0]
+    _, _, page = http("GET", location) if connect else (0, {}, "")
+    # The page may sign the approver in first (agent-join.md), so the name is checked only
+    # when it is shown before sign-in; otherwise the approving person checks it.
+    shown = "agent name shown before sign-in" if name in page else "approver checks the prefilled name"
+    rep.check("JC1", s in (302, 303, 307) and loc.path.endswith("/join/approve") and bool(connect),
+              f"/authorize gave {s} to {loc.path or '-'}; connect id {'present' if connect else 'missing'}",
+              f"loopback registered; to /join/approve?connect=...; {shown}")
+    if not connect:
+        return
+
+    # JC9 (automated part): no session, no CSRF token, or a forged one.
+    refused = []
+    for form in ({"connect": connect, "decision": "approve", "name": name, "preset": "desk"},
+                 {"connect": connect, "decision": "approve", "name": name, "preset": "desk", "csrf": "forged"}):
+        s9, h9 = http_noredirect(f"{base}/join/decide", form)
+        to_client = h9.get("location", "").startswith(cb.uri)
+        refused.append(s9 >= 400 or (s9 in (302, 303) and not to_client))
+    early = cb.wait(0.5)
+    rep.check("JC9", all(refused) and early is None, "a decide without an approver session was not refused",
+              "no session and forged CSRF refused (non-approver: by hand)")
+
+    print(f"\nACTION: open this link in a browser, sign in as an approver, choose to sign in as an agent,\n"
+          f"and approve '{name}' at preset desk; check that the card shows that name. The runner waits {int(wait)} s.\n\n  {location}\n",
+          file=sys.stderr, flush=True)
+    answer = cb.wait(wait)
+    if answer is None:
+        for cid in ("JC2", "JC3", "JC4", "JC6", "JC7"):
+            rep.fail(cid, "no approval reached the loopback redirect in time")
+        return
+    code = (answer.get("code") or [""])[0]
+    rep.check("JC2", bool(code) and answer.get("state") == [state],
+              f"redirect gave {sorted(answer)}; state {'unchanged' if answer.get('state') == [state] else 'changed'}",
+              "code and state unchanged (deny: by hand)")
+    if not code:
+        return
+
+    form = {"grant_type": "authorization_code", "code": code, "redirect_uri": cb.uri}
+    s_other, _ = token_call(meta, {**form, "client_id": client_b, "code_verifier": verifier})
+    s_bad, _ = token_call(meta, {**form, "client_id": client_a, "code_verifier": verifier[::-1]})
+    s_ok, grant = token_call(meta, {**form, "client_id": client_a, "code_verifier": verifier})
+    s_again, _ = token_call(meta, {**form, "client_id": client_a, "code_verifier": verifier})
+    rep.check("JC3", s_other >= 400 and s_bad >= 400 and s_ok == 200 and s_again >= 400,
+              f"other client {s_other}, wrong verifier {s_bad}, right {s_ok}, again {s_again}",
+              "once, own client, right verifier (expiry: by hand)")
+    access, refresh = grant.get("access_token"), grant.get("refresh_token")
+    if s_ok != 200 or not access or not refresh:
+        return
+    secrets += [access, refresh]
+    extra = [k for k in grant if "token" in k and k not in ("access_token", "refresh_token", "token_type")]
+    c = Client(base, access, seen)
+    c.initialize()
+    ok, who, text = c.call("whoami")
+    tools = {t["name"] for t in c.tools()}
+    who = who or {}
+    rep.check("JC4", ok and not extra and who.get("principal") == f"agent:{name}"
+              and who.get("entrance") == "connector" and who.get("preset") == "desk"
+              and who.get("fenced") is True and "item_claim" not in tools,
+              f"extra token fields {extra}; whoami {who.get('principal')} entrance {who.get('entrance')} "
+              f"preset {who.get('preset')} fenced {who.get('fenced')}; work tools listed {'item_claim' in tools}"
+              f"{'' if ok else '; ' + text[:60]}",
+              f"agent:{name} at desk, entrance connector, fenced")
+
+    # JC6 (automated part): a refresh rotates the connector refresh token; two racing
+    # refreshes with the same token get the same answer and the agent stays live.
+    rform = {"grant_type": "refresh_token", "refresh_token": refresh, "client_id": client_a}
+    results: list[tuple[int, dict]] = []
+    threads = [threading.Thread(target=lambda: results.append(token_call(meta, rform))) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    grants = [g for s6, g in results if s6 == 200]
+    fresh = [g.get("access_token") for g in grants]
+    new_refresh = [g.get("refresh_token") for g in grants]
+    secrets += [t for t in fresh + new_refresh if t]
+    same = len(grants) == 2 and fresh[0] == fresh[1] and new_refresh[0] == new_refresh[1]
+    rotated = bool(new_refresh) and all(r and r != refresh for r in new_refresh)
+    live = []
+    for t in set(filter(None, fresh)):
+        try:
+            cl = Client(base, t, seen)
+            cl.initialize()
+            live.append(cl.call("whoami")[0])
+        except CheckError:
+            live.append(False)
+    rep.check("JC6", same and rotated and bool(live) and all(live),
+              f"racing refreshes gave {[s6 for s6, _ in results]}; same answer {same}; "
+              f"refresh token rotated {rotated}; access working {live}",
+              "rotates, racing refreshes agree, agent live (grace-window replay, after 24 h: by hand)")
+    if grants:
+        access, refresh = fresh[0] or access, new_refresh[0] or refresh
+    rform = {**rform, "refresh_token": refresh}  # chain with the latest token
+
+    # JC7 (automated part): client binding, then RFC 7009 revocation ends the agent.
+    s_b, g_b = token_call(meta, {**rform, "client_id": client_b})
+    if not meta.get("revocation_endpoint"):
+        rep.check("JC7", s_b >= 400, f"another client's refresh gave {s_b}",
+                  "bound to its client; no revocation endpoint, so revoke at /join/agents by hand")
+        print(f"note: revoke agent:{name} at {base}/join/agents", file=sys.stderr)
+        return
+    http("POST", meta["revocation_endpoint"],
+         {"token": refresh, "token_type_hint": "refresh_token", "client_id": client_a}, form=True)
+    s_after, g_after = token_call(meta, rform)
+    try:
+        cl = Client(base, access, seen)
+        cl.initialize()
+        still = cl.call("whoami")[0]
+    except CheckError:
+        still = False
+    rep.check("JC7", s_b >= 400 and s_after >= 400 and g_after.get("error") == "invalid_grant" and not still,
+              f"other client {s_b} {g_b.get('error')}; after revoke refresh {s_after} {g_after.get('error')}, "
+              f"access token {'still works' if still else 'refused'}",
+              "bound to its client; revoked via RFC 7009 (approval end: by hand)")
+
+
 MANUAL = {
     "T4": "sign in through the connector as an identity not on the allowlist; every call must be refused",
     "C4": "claim with lease 1m, wait two minutes, claim as a second principal: the record names takeover_of",
@@ -722,6 +1007,11 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--project", help="owner/number board linked to the sandbox repo")
     ap.add_argument("--profile", help="the sandbox repo's profile (default: the first profile_list returns)")
     ap.add_argument("--join-start", action="store_true", help="open one join request for J2 and J3")
+    ap.add_argument("--connector", metavar="NAME",
+                    help="join agent NAME through the connector entrance for JC1 to JC9; "
+                         "a person approves once in a browser")
+    ap.add_argument("--connector-wait", type=float, default=600,
+                    help="seconds to wait for that approval (default 600)")
     ap.add_argument("--fold-cmd", help="a command that folds {now, comments} from stdin to JSON on stdout")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
@@ -750,6 +1040,7 @@ def main(argv: list[str]) -> int:
             return 2
         t1 = token(a.token_env)
         claims_join = None
+        who = None
         if t1:
             c = Client(base, t1, seen)
             try:
@@ -782,6 +1073,12 @@ def main(argv: list[str]) -> int:
                           f"invalid results: {'; '.join(c.schema_errs[:4]) or '-'}",
                           f"{len(c.schemas)} tools; every structured result of the run validated")
         check_join(rep, base, a.join_start, claims_join)
+        entrances = join_entrances(base)
+        check_j11(rep, entrances, claims_join, who)
+        try:
+            check_connector(rep, base, entrances, a.connector, a.connector_wait, seen, secrets)
+        except CheckError as e:
+            rep.fail("JC1", f"stopped: {e}")
     for cid, how in MANUAL.items():
         rep.manual(cid, how)
     if secrets:
