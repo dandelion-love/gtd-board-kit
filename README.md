@@ -12,6 +12,7 @@ data, tokens or board contents.
 | Path | What |
 | --- | --- |
 | `BOARD.md` | The rules every agent reads first (under 3 KB) |
+| `ONBOARDING.md`, `skills/board-onboard` | Connect a repo to its board, step by step; any agent can read it from the public URL |
 | `skills/board-pickup` | Find an item this agent may take (read-only) |
 | `skills/board-claim` | Claim it, work it on `gtd/issue-<n>`, hand back a PR |
 | `skills/board-report` | Report progress, renew, release, record failure |
@@ -21,7 +22,18 @@ data, tokens or board contents.
 | `tools/public_guard.py`, `.githooks/` | The guard that keeps private data out: `pre-commit`, `commit-msg`, `pre-push` |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` | Rules for any agent working on the kit, and Claude Code hooks that run the guard |
 
-## Add it to a work repo
+## Onboard a repo (the one-line handoff)
+
+Point any agent at a work repo with:
+
+> Read https://raw.githubusercontent.com/dandelion-love/gtd-board-kit/main/ONBOARDING.md
+> and follow it for this repo.
+
+It installs the kit, gets MCP access, drafts the repo's `.gtd/BOARD.local.md` from the
+repo and the board, and opens a PR, one step at a time with its person. Nothing about the
+repo leaves the repo.
+
+## Add it to a work repo by hand
 
 On a branch in the work repo's root:
 

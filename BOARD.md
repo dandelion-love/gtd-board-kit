@@ -38,6 +38,7 @@ repo's own, and replaces the kit skill of the same name.
 
 ## Skills
 
+- `board-onboard`: set up or check this repo's board connection.
 - `board-pickup`: find an item you may take.
 - `board-claim`: claim it, work it, hand back a PR.
 - `board-report`: report progress, renew, release, finish.
