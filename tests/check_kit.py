@@ -198,7 +198,7 @@ if lint.returncode != 0:
 # fixture table matches fold_cases.json.
 sys.path.insert(0, str(ROOT / "conformance"))
 sys.dont_write_bytecode = True
-from runner import CHECK_ID, Family, family_of, fingerprint, report_order  # noqa: E402
+from runner import CHECK_ID, HEADINGS, Family, family_of, fingerprint, report_order  # noqa: E402
 ID = CHECK_ID.pattern
 conf_md = (ROOT / "server-spec" / "conformance.md").read_text()
 spec_ids = set(re.findall(rf"^\| ({ID}) \|", conf_md, re.M))
@@ -215,8 +215,14 @@ if fold_table != fold_json:
 
 # Every check id in the table belongs to a Family, and the report sorts by family order.
 for cid in spec_ids:
-    if family_of(cid) is Family.RUN:
+    try:
+        if family_of(cid) is Family.RUN:
+            raise ValueError(cid)
+    except ValueError:
         fail(f"conformance check {cid} has no Family in conformance/runner.py")
+for fam in Family:
+    if fam is not Family.RUN and not re.search(rf"^##+ {re.escape(HEADINGS[fam])}\b", conf_md, re.M):
+        fail(f"Family.{fam.name}'s heading {HEADINGS.get(fam)!r} is not in server-spec/conformance.md")
 if sorted(["X1", "JC2", "T10", "O1", "T2", "J1", "RUN"], key=report_order) != \
         ["T2", "T10", "O1", "J1", "JC2", "X1", "RUN"]:
     fail("conformance/runner.py report_order does not follow Family order")

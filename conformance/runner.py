@@ -63,6 +63,13 @@ class Family(Enum):
     RUN = "RUN"             # the runner itself
 
 
+#: Each family's heading in server-spec/conformance.md (tests/check_kit.py checks them).
+HEADINGS = {
+    Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
+    Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
+    Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
+}
+
 #: A check id: a family prefix, a number, and an optional letter.
 CHECK_ID = re.compile(r"(?:%s)\d+b?" % "|".join(
     sorted((f.value for f in Family if f is not Family.RUN), key=len, reverse=True)))
