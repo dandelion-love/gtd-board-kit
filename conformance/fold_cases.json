@@ -1,0 +1,98 @@
+{
+  "about": "Golden cases for the claim fold (server-spec conformance C13). Times are minutes after base; 'now' is when the fold runs. Each record becomes one comment in this order, carrying the marker from server-spec/claim-records.md.",
+  "base": "2026-01-01T00:00:00Z",
+  "now": 200,
+  "cases": [
+    {
+      "name": "a",
+      "says": "a live claim holds",
+      "records": [{"event": "claim", "by": "agent:a", "t": 0, "lease_until": 250}],
+      "expect": {"holder": "agent:a", "lease_until": 250, "stale": false, "last_report": null, "handoff_to": null, "lost_claims": 0}
+    },
+    {
+      "name": "b",
+      "says": "first claim wins; the second is lost",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 120},
+        {"event": "claim", "by": "agent:b", "t": 1, "lease_until": 121}
+      ],
+      "expect": {"holder": "agent:a", "lease_until": 120, "stale": true, "last_report": null, "handoff_to": null, "lost_claims": 1}
+    },
+    {
+      "name": "c",
+      "says": "a takeover after the lease ends wins",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 120},
+        {"event": "claim", "by": "agent:b", "t": 130, "lease_until": 250, "takeover_of": "agent:a"}
+      ],
+      "expect": {"holder": "agent:b", "lease_until": 250, "stale": false, "last_report": null, "handoff_to": null, "lost_claims": 0}
+    },
+    {
+      "name": "d",
+      "says": "a takeover before the lease ends is lost",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 120},
+        {"event": "claim", "by": "agent:b", "t": 100, "lease_until": 300, "takeover_of": "agent:a"}
+      ],
+      "expect": {"holder": "agent:a", "lease_until": 120, "stale": true, "last_report": null, "handoff_to": null, "lost_claims": 1}
+    },
+    {
+      "name": "e",
+      "says": "a dropped report releases",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 150},
+        {"event": "report", "by": "agent:a", "t": 10, "state": "progress", "note": "step one"},
+        {"event": "report", "by": "agent:a", "t": 20, "state": "dropped", "note": "not needed"}
+      ],
+      "expect": {"holder": null, "lease_until": null, "stale": false, "last_report": null, "handoff_to": null, "lost_claims": 0}
+    },
+    {
+      "name": "f",
+      "says": "a release hands off",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 150},
+        {"event": "release", "by": "agent:a", "t": 30, "done": "x", "remaining": "y", "next": "z", "handoff_to": "any"}
+      ],
+      "expect": {"holder": null, "lease_until": null, "stale": false, "last_report": null, "handoff_to": "any", "lost_claims": 0}
+    },
+    {
+      "name": "g",
+      "says": "only the holder renews",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 150},
+        {"event": "renew", "by": "agent:b", "t": 10, "lease_until": 400}
+      ],
+      "expect": {"holder": "agent:a", "lease_until": 150, "stale": true, "last_report": null, "handoff_to": null, "lost_claims": 0}
+    },
+    {
+      "name": "h",
+      "says": "anyone may ask; only the holder reports a state",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 300},
+        {"event": "report", "by": "agent:b", "t": 10, "state": "ready", "attention": "Which way?", "needs": "owner"}
+      ],
+      "expect": {"holder": "agent:a", "lease_until": 300, "stale": false, "last_report": null, "handoff_to": null, "lost_claims": 0, "attention_by": "agent:b"}
+    },
+    {
+      "name": "i",
+      "says": "the holder's state report counts",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 300},
+        {"event": "report", "by": "agent:a", "t": 10, "state": "blocked", "note": "waits on a run"}
+      ],
+      "expect": {"holder": "agent:a", "lease_until": 300, "stale": false, "last_report": "blocked", "handoff_to": null, "lost_claims": 0}
+    },
+    {
+      "name": "j",
+      "says": "a comment that is not exactly one valid record is conversation",
+      "raw_comments": [
+        "plain text",
+        "<!-- gtd-desk v1 {\"event\": \"claim\", \"by\": \"agent:x\", \"v\": 1} --> <!-- gtd-desk v1 {\"event\": \"claim\", \"by\": \"agent:y\", \"v\": 1} -->",
+        "<!-- gtd-desk v2 {\"event\": \"claim\", \"by\": \"agent:x\", \"v\": 2} -->",
+        "<!-- gtd-desk v1 {not json} -->"
+      ],
+      "records": [{"event": "claim", "by": "agent:a", "t": 0, "lease_until": 300}],
+      "expect": {"holder": "agent:a", "lease_until": 300, "stale": false, "last_report": null, "handoff_to": null, "lost_claims": 0}
+    }
+  ]
+}

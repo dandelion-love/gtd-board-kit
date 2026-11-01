@@ -21,6 +21,7 @@ data, tokens or board contents.
 | `okf/`, `skills/okf-knowledge`, `tools/okf_lint.py` | The pinned Open Knowledge Format spec, the authoring skill, and its linter |
 | `knowledge/` | The kit's own design notes, as an OKF bundle |
 | `server-spec/` | For builders: what a gtd MCP server must do so this kit works against it, cut into buildable units with conformance checks |
+| `conformance/` | A ready-to-run, black-box runner for those checks: point it at any server URL and get pass or fail per check |
 | `install/` | `add-to-repo.ps1` / `.sh`, `install-user.ps1`, the SessionStart hook, the `BOARD.local.md` starter |
 | `tests/check_kit.py` | Size budgets, frontmatter, versions, links, and the public guard over the tree |
 | `tools/public_guard.py`, `.githooks/` | The guard that keeps private data out: `pre-commit`, `commit-msg`, `pre-push` |
@@ -81,6 +82,8 @@ record format on issues. [`server-spec/`](server-spec/README.md) specifies all o
 without naming any deployment: transport and identity, the agent join, profiles and
 labels, claim records and their fold, every tool's contract, security rules, numbered
 conformance checks, and a work plan a coding agent can build one unit at a time.
+[`conformance/`](conformance/README.md) runs those checks against any server over HTTP,
+whatever it is written in.
 
 ## Customise per repo
 
