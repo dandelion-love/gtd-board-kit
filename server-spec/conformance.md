@@ -6,10 +6,15 @@ level when every check of that level and the levels below it passes. Run them ag
 are fast and need no network or account; run the Join checks against the HTTP app in
 process.
 
+The kit ships a ready-to-run, black-box runner for these checks:
+[conformance/](../conformance/README.md). It needs only Python and the server's URL, and
+reports pass, fail, skip or manual for every id below.
+
 ## Transport and identity (Core)
 
 | Id | Check |
 | --- | --- |
+| T0 | At the `full` preset (or the highest the caller has), `tools/list` includes every Core tool the kit calls (the Core rows of [tools](tools.md)); a server that lacks one does not claim Core in `whoami` |
 | T1 | An unauthenticated `POST /mcp` gets `401` with a `WWW-Authenticate` header naming the protected resource metadata URL, and that URL serves RFC 9728 JSON with `resource` = `<mcp_url>/mcp` |
 | T2 | `initialize`, `tools/list` and `tools/call whoami` work statelessly: three requests with no session id, each authenticated, each succeed |
 | T3 | Every tool in `tools/list` has an input schema and an output schema; every call's structured content validates against its output schema |
@@ -61,6 +66,10 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 | f | claim A to 150; release A `handoff_to` any | no holder, `handoff_to` any |
 | g | claim A to 150; renew B to 400 | holder A, lease 150, stale |
 | h | claim A to 300; report B `attention` | holder A, attention from B, `last_report` null |
+| i | claim A to 300; report A `blocked` | holder A, `last_report` blocked |
+| j | four non-record comments (plain text, two markers, `v2`, bad JSON); claim A to 300 | holder A only |
+
+The same cases are machine-readable in [fold_cases.json](../conformance/fold_cases.json).
 
 ## Join (Join level)
 
