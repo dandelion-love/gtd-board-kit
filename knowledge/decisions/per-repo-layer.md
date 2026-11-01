@@ -13,6 +13,8 @@ generated: { by: claude-code/cloud, at: 2026-11-01T04:00:00Z }
   wins where they differ. It can never relax "board only through the MCP server" or the
   hard limits, except by a [workflow grant](/decisions/workflow-grants.md), the one
   opening the hard limits allow.
+- It is the concrete implementation of the kit's contract: see
+  [the kit is the interface](/decisions/kit-is-the-interface.md).
 - It also declares the repo's [standing lanes](/decisions/standing-lanes.md).
 - A real folder at `.claude/skills/<name>` replaces the kit skill of that name.
 - Onboarding (`ONBOARDING.md`) drafts the layer from the repo and the board at run time,

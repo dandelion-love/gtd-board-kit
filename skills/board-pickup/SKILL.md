@@ -42,8 +42,8 @@ through the gtd MCP server; if its tools are missing, stop and say so (BOARD.md 
 
 ## 4. Choose and hand off
 
-Prefer `run-agent` over `agent-ready`, then higher Priority, then smaller Size, then the
-oldest. Tell your person which item you picked and why in one line, then use
+Prefer `run-agent` over `agent-ready`, then higher Priority, then board order (the
+queue view a person arranged), then smaller Size, then the oldest. Tell your person which item you picked and why in one line, then use
 `board-claim`. With `run-agent` the basis is `explicit` (`asked_by` is whoever added the
 label, or your person); with only `agent-ready` it is `inferred`.
 

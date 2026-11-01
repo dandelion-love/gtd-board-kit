@@ -31,6 +31,15 @@ for anything specific to this repo. Delete any section you don't need.
 
 <!-- Fields beyond the profile and who writes them; columns an agent must never set by hand. -->
 
+## Queue and ETA
+
+<!-- The kit's meaning: the queue is the card order of a view with no sort; the ETA is a
+     date field a person may overwrite, and then theirs wins. Name the concrete ones here. -->
+
+- Queue view: <!-- view name; each lane may name its own with queue: -->
+- ETA field: Target date
+- Start field: Start date
+
 ## What agents may pick up here
 
 <!-- Tighten or loosen the kit's pickup rule, e.g. which item types an agent may pull. -->
@@ -57,6 +66,7 @@ for anything specific to this repo. Delete any section you don't need.
 - policy: 1
 - switch: observe
 - item: <!-- owner/repo#n: the lane's own board item; its lease is the heartbeat -->
+- queue: <!-- the board view whose card order is this lane's queue -->
 - every: 1h
 - lease: 3h
 - may:

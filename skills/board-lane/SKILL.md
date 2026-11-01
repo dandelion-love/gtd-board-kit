@@ -64,7 +64,8 @@ item, an item it claims, or one it captures. No work happens off the board.
    longer than two cadences.
 3. **Recover before acting.** Check the repo, git history, the board and any marker
    files before repeating an outside action: a previous tick may have done it.
-4. **Work.** Do only what `may` lists, never what `never` lists. Each concrete item gets
+4. **Work.** Take items in the order of the lane's `queue` view and keep their ETA
+   (`board-report`, Queue order and ETA). Do only what `may` lists, never `never`. Each concrete item gets
    its own `item_claim` and the normal `board-claim` path (branch, PR, never merge).
    Under `observe`, do the reading and write `item_report(state="progress",
    note="would: <what you would have done>")` on the lane item, and change nothing else.
