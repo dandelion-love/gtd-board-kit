@@ -1,0 +1,14 @@
+#!/bin/sh
+# This repository is PUBLIC. Scan everything a push would publish: files and commit messages.
+guard="$(git rev-parse --show-toplevel)/tools/public_guard.py"
+zero=$(printf '%040d' 0)
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue          # deleting a ref publishes nothing
+  if [ "$remote_sha" = "$zero" ]; then
+    python3 "$guard" --new "$local_sha" || status=1
+  else
+    python3 "$guard" --range "$remote_sha..$local_sha" || status=1
+  fi
+done
+exit $status
