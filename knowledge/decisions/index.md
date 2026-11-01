@@ -6,3 +6,4 @@
 * [Standing lanes are written rules a person switches on](standing-lanes.md) - Recurring pre-approved work, its switch and its heartbeat
 * [A repo may grant workflow edits by name](workflow-grants.md) - The one way the workflow ban opens
 * [OKF is pinned by the kit](okf-pinned-by-the-kit.md) - Knowledge docs follow one OKF version, moved with the kit
+* [Work items live on the board; a local file is only a cache](work-items-live-on-the-board.md) - The issue is the record, a markdown copy is never committed
