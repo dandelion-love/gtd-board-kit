@@ -34,7 +34,7 @@ reports pass, fail, skip or manual for every id below.
 | P3 | Every profile's `status_for_label` maps `agent-running`, `waiting-for-review`, `agent-failed` and every `needs:*` label, and names only columns in `board.status` |
 | P4 | `issue_labels` adds and removes a profile label and an `area:x` label; refuses a label outside the profile and lists the real ones; refuses adding `run-agent`; never changes Status |
 | P5 | A repo or board outside the allowlist is refused before any GitHub call (the fake sees no request) |
-| P6 | `list_next_actions` with a label returns only open issues with that label, never a PR |
+| P6 | `list_next_actions` with a label returns only open issues with that label, never a PR. GitHub's label-filtered lists can lag a label write by seconds, so the runner re-reads for up to 30 seconds before failing |
 | P7 | `project_items` returns items in the board's manual order and pages with a cursor |
 
 ## Claims (Core)
@@ -49,7 +49,7 @@ reports pass, fail, skip or manual for every id below.
 | C6 | `item_renew`, `item_release` and a `state` report by a non-holder refuse |
 | C6b | After a person closes a held issue, the holder's `item_release` succeeds and `item_claim` by anyone refuses |
 | C7 | `item_release` needs `done`, `remaining`, `next`; afterwards `item_get` shows no holder and the `handoff_to` |
-| C8 | `item_report` with `attention` and `needs=<owner_needs>` adds that `needs:*` label; without `needs` it refuses and lists the values; `state=dropped` releases |
+| C8 | `item_report` with `attention` and `needs=<owner_needs>` adds that `needs:*` label; without `needs` it refuses and lists the values; `state=dropped` releases. The label read retries for up to 30 seconds, as in P6 |
 | C9 | A non-record comment after the holder's last record appears in `follow_ups`; a comment with two markers is not a record |
 | C10 | With record authors set, a record pasted by another login is ignored by the fold |
 | C11 | `issue_comment` with a record marker in the body refuses |
@@ -132,7 +132,7 @@ A server that lists `profile_updates` in `tools/list` must also pass these.
 | Id | Check |
 | --- | --- |
 | X1 | Across every test above, no log line contains a bearer token, a refresh token, a GitHub token or a token hash, and no response body does either, except the grant that `/join/token` returns on collection or renew (J4, J6) and the token response of the connector entrance (JC4, JC6) |
-| X2 | Every tool's class matches the class the spec gives it (the preset table in [transport-and-identity](transport-and-identity.md#presets) and the Class columns and group notes in [tools](tools.md)); every tool the spec does not class is `full` |
+| X2 | Every tool's class matches the class the spec gives it (the preset table in [transport-and-identity](transport-and-identity.md#presets) and the Class columns and group notes in [tools](tools.md)); every tool the spec does not class has the class it declares in `_meta` `gtd-board-kit/class` ([presets](transport-and-identity.md#presets)), else `full`; a declared class is one of the four presets and agrees with the spec's class where the spec gives one |
 | X3 | Over-long free text refuses rather than truncates |
 
 ## Running against the kit

@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-02
+
+* **Added**: declared tool classes (kit 0.13.0). A server may class a tool of its own, one the spec does not name, by declaring `"gtd-board-kit/class"` in the tool's `_meta` in `tools/list`; the fence treats it like a spec class, an undeclared tool stays `full`, and a declaration on a spec tool must agree with the spec. X2 checks declared classes. P6 and C8 re-read a lagging label-filtered list for up to 30 seconds before failing.
+
 ## 2026-11-01
 
 * **Added**: one connector per account (kit 0.12.0). Agent sign-in says an account keeps one gtd MCP connector, signed in as one shared agent, because a host loads every connector into every session; an agent that needs its own name uses the device-code entrance, and no agent adds or asks for a second connector.

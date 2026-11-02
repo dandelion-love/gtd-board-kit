@@ -55,6 +55,12 @@ A preset is a ceiling on which tools a joined agent may see and call. They are o
 
 - Every tool belongs to exactly one class. A new tool defaults to `full` until someone
   classes it lower on purpose.
+- A server MAY offer tools of its own that the spec does not name. Such a tool is `full`
+  unless the server **declares** a lower class in the tool's `_meta` in `tools/list`, as
+  `"gtd-board-kit/class": "<class>"` (one of `desk`, `read`, `work`, `full`). The fence
+  treats a declared class like a spec class. A tool the spec classes takes the spec's class;
+  if it also declares one, the two MUST agree. Declare a class only for a tool that does
+  what the class means (a `read` tool never writes).
 - A tool above the caller's preset is **hidden** from `tools/list` and, if called anyway,
   refused with an error that names the preset it needs.
 - Fencing happens in one place (middleware), before the tool runs, never inside tools.
