@@ -55,6 +55,7 @@ reports pass, fail, skip or manual for every id below.
 | C11 | `issue_comment` with a record marker in the body refuses |
 | C12 | With a board, the claim tools write `Agent` and `Last report` and nothing else; a failing board write returns a warning and the record still posts |
 | C13 | Fold golden tests: the fixtures in this folder's table below give the stated `holder`, `lease_until`, `stale`, `last_report`, `handoff_to` |
+| C14 | One caller claims two issues with the same `branch`: both succeed and each `item_get` shows the caller as holder with `mandate.branch` equal to it; releasing the first leaves the second held with its own lease; a `branch` of `bad..name` refuses |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
 

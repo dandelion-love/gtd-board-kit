@@ -13,7 +13,7 @@ What it needs, and which checks each unlocks:
     --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
     + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, J10, X2 (partly)
-    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, X1, X3. It CREATES issues there
+    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
@@ -838,6 +838,32 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     item = (out or {}).get("item") or {}
     rep.check("C7", not ok_m and ok and item.get("holder") is None and item.get("handoff_to") == "any",
               f"missing fields refused {not ok_m}; release {ok} {text[:80]}")
+
+    # C14 several items, one branch: one claim per item, each with its own lease
+    branch = f"rc/conformance-{sb.run}"
+    a, b = sb.issue("branch a"), sb.issue("branch b")
+    ok_bad, _, _ = c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance",
+                                               branch="bad..name"))
+    ok_a, out_a, t_a = c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance",
+                                                   lease="30m", branch=branch))
+    ok_b, out_b, t_b = c.call("item_claim", sb.args(b, basis="explicit", asked_by="conformance",
+                                                   lease="45m", branch=branch))
+    # Read both back through item_get: the branch must come from the fold, not the echo.
+    reads = [c.call("item_get", sb.args(num))[1] for num in (a, b)]
+    holder_me = ((out_a or {}).get("item") or {}).get("holder")
+    on_branch = bool(holder_me) and all(
+        ((o or {}).get("item") or {}).get("holder") == holder_me and
+        (((o or {}).get("item") or {}).get("mandate") or {}).get("branch") == branch
+        for o in [out_a, out_b, *reads])
+    ok_r, _, _ = c.call("item_release", sb.args(a, done="checked", remaining="none", next="close"))
+    _, out, _ = c.call("item_get", sb.args(b))
+    left = (out or {}).get("item") or {}
+    lease_b = (((out_b or {}).get("item") or {}).get("lease_until"))
+    rep.check("C14", not ok_bad and ok_a and ok_b and on_branch and ok_r and
+              left.get("holder") and left.get("lease_until") == lease_b,
+              f"bad branch refused {not ok_bad}; claims {ok_a} {ok_b} ({(t_a or t_b)[:60]}); "
+              f"branch recorded {on_branch}; release {ok_r}; second still held {bool(left.get('holder'))}")
+    c.call("item_release", sb.args(b, done="checked", remaining="none", next="close"))
 
     # C3 race
     if c2:

@@ -59,7 +59,7 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 | `--server` | T1, T8, T9 (from the well-known document's levels); J2 and J3 skip unless the server claims Join | none |
 | `--token-env` | T0, T2, T3, T5, T7, T8 compared with `whoami`, J10, P1 to P3, X1 | none (reads only) |
 | `--preset-token PRESET=ENV` (repeat) | T6, X2 for each preset you pass | none |
-| `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, X3 | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them |
+| `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, C14, X3 | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them |
 | `--token-b-env` | C2, C3, C6 with a second principal | as above |
 | `--project owner/number` | P7, B1 to B4, C12, and the Size part of C5 | adds the sandbox issues to the board and writes fields on them |
 | `--join-start` | J2 and J3 with a real request | opens one join request; it expires unapproved after ten minutes |
