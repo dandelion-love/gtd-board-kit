@@ -21,12 +21,10 @@ malformed event or an internal error allows the call.
 
 Modes (each reads one hook event as JSON on stdin):
   --claude-hook   Claude Code (wired by install/settings.snippet.json)
-  --codex-hook    Codex, from <repo>/.codex/hooks.json:
-                    {"hooks": {
-                      "SessionStart": [{"hooks": [{"type": "command", "command":
-                        "python3 \\"$(git rev-parse --show-toplevel)/.gtd/kit/tools/agent_guard.py\\" --codex-hook"}]}],
-                      "PreToolUse": [{"matcher": "Bash|apply_patch|mcp__.*", "hooks": [{"type": "command",
-                        "command": "python3 \\"$(git rev-parse --show-toplevel)/.gtd/kit/tools/agent_guard.py\\" --codex-hook"}]}]}}
+  --codex-hook    Codex (wired by install/codex-hooks.snippet.json into <repo>/.codex/hooks.json)
+
+Both snippets run the guard as `g=<kit>/tools/agent_guard.py; [ -f "$g" ] && python3 "$g"
+<mode> || true`, so a missing submodule or a missing python3 never blocks a tool call.
 
 A denial is printed as {"hookSpecificOutput": {"hookEventName": "PreToolUse",
 "permissionDecision": "deny", ...}} with exit 0, the form both agents read.
