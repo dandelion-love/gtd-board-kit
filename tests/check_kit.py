@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS = ["board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "okf-knowledge"]
+SKILLS = ["board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "board-decompose", "okf-knowledge"]
 BOARD_BUDGET = 3000      # bytes; BOARD.md is read in full by every agent
 SKILL_BUDGET = 6000      # bytes per SKILL.md
 DESC_BUDGET = 1024       # characters; the Agent Skills limit for description
