@@ -70,7 +70,14 @@ curl -fsSL https://raw.githubusercontent.com/dandelion-love/gtd-board-kit/main/i
 It adds the submodule pinned to a full commit, links the kit's skills into
 `.claude/skills`, `.codex/skills` and `.agents/skills`, adds Claude Code hooks (initialise
 the submodule in fresh cloud clones, run the agent guard) and the same guard for Codex in
-`.codex/hooks.json`, and adds one line to `CLAUDE.md` and `AGENTS.md`. It commits nothing. Review, commit, open a PR, and let a person merge it.
+`.codex/hooks.json`, and adds one line to `CLAUDE.md` and `AGENTS.md`. It commits nothing.
+Review, commit, open a PR, and let a person merge it.
+
+The guard blocks an agent from opening its own PR by default (`GTD_GUARD_PR_OPEN=on`):
+agents hand back through the gtd server's `pr_open`. If the repo's server does not offer
+`pr_open` yet, `board-claim`'s fallback (the agent opens the PR with its own GitHub tool)
+works only after a person sets `GTD_GUARD_PR_OPEN=off` in the agent's environment. Turn it
+back on once the server offers `pr_open`.
 
 The repo also needs `.github/gtd-context.json` with its `profile` and `project`, and the
 agent needs the gtd MCP server. There is one join with two entrances: a host that keeps
