@@ -128,6 +128,19 @@ A server that lists `profile_updates` in `tools/list` must also pass these.
 | O2 | `profile_updates` for the sandbox repo returns `profile`, `overrides`, `inferred` and `updates`; every notice has the fields of the [upstream change notice](repo-context-and-profiles.md#upstream-change-notice), and `current` equals that item's fingerprint in `profile_get` |
 | O3 | With an override whose `seen` is stale, a reconcile plan reports the item as an upstream change and plans no write to it; with `skip` and no `seen`, the item is not created; recolouring a label the reconciler made (its name in another case too) is kept on the next run; nothing is ever deleted (*manual*: needs a scratch repo whose `gtd-context.json` a person edits) |
 
+## Pull requests (when offered)
+
+A server that lists `pr_open` in `tools/list` must also pass these
+([opening pull requests](tools.md#opening-pull-requests)). PR1 and PR2 open nothing. PR3 needs
+a branch already pushed to the sandbox repo (the runner's `--pr-head`) and leaves one PR
+open for a person to close.
+
+| Id | Check |
+| --- | --- |
+| PR1 | Holding a claim on a sandbox issue, `pr_open` refuses a cross-repository `head` (`owner:branch`), a `head` equal to `base`, and a `head` that is not a branch of the repo |
+| PR2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`. Each refusal gives that reason, not only a missing branch |
+| PR3 | With a claim on a sandbox issue and a pushed `head`, `pr_open` opens the PR: `author` is not the caller's GitHub login and ends in `[bot]`, `by` equals the caller's `whoami` principal, and the returned `body` ends with exactly one `gtd-pr v1` marker whose `by` and `issues` match. Without `closes` it reports `closes` false and the body has no `Closes #` line. A second `pr_open` for the same `head` and `base` refuses and gives the open PR's URL |
+
 ## Security (all levels)
 
 | Id | Check |

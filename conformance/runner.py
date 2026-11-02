@@ -57,6 +57,7 @@ class Family(Enum):
     CLAIMS = "C"            # Claims (Core)
     BOARD = "B"             # Board (Board level)
     CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
+    PULL_REQUESTS = "PR"    # Pull requests (when pr_open is offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -67,7 +68,7 @@ class Family(Enum):
 HEADINGS = {
     Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
     Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
-    Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
+    Family.PULL_REQUESTS: "Pull requests", Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
 #: A check id: a family prefix, a number, and an optional letter.
@@ -88,6 +89,7 @@ LEVEL_OF = {
     Family.TRANSPORT: Level.CORE, Family.PROFILES: Level.CORE, Family.CLAIMS: Level.CORE,
     Family.SECURITY: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
+    Family.PULL_REQUESTS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -126,7 +128,7 @@ CLASS.update(dict.fromkeys((
     "project_draft_add", "project_draft_update", "project_draft_convert", "issue_update",
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
-    "run_state_post", "channel_comment_post"), "work"))
+    "run_state_post", "channel_comment_post", "pr_open"), "work"))
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -967,6 +969,94 @@ def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
     c.call("item_release", sb.args(m, done="mirror", remaining="none", next="close"))
 
 
+#: The provenance marker ``pr_open`` writes at the end of a PR body (tools.md).
+PR_MARKER_RE = re.compile(r"<!--\s*gtd-pr\s+v1\s+(\{.*?\})\s*-->", re.DOTALL)
+
+
+def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None,
+              head: str | None) -> None:
+    """PR1 to PR3: ``pr_open`` refusals, then (with a pushed ``head``) one real PR."""
+    if "pr_open" not in tools:
+        for cid in ("PR1", "PR2", "PR3"):
+            rep.na(cid, "pr_open is not offered")
+        return
+    owner = sb.repo.split("/")[0]
+    n = sb.issue("pr_open")
+    ok, _, text = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
+    if not ok:
+        for cid in ("PR1", "PR2", "PR3"):
+            rep.skip(cid, f"could not claim the sandbox issue: {text[:100]}")
+        return
+
+    def pr(**more: Any) -> tuple[bool, Any, str]:
+        args = {"repo": sb.repo, "title": f"[conformance {sb.run}] pr_open",
+                "body": "Opened by the gtd-board-kit conformance runner. Safe to close.",
+                "issues": [n], **more}
+        return c.call("pr_open", args)
+
+    missing = f"gtd-conformance-no-such-branch-{sb.run}"
+    bad = []
+    for label, args in (("cross-repository head", {"head": f"{owner}-other:{missing}"}),
+                        ("head equal to base", {"head": "main", "base": "main"}),
+                        ("missing branch", {"head": missing})):
+        ok, _, _ = pr(**args)
+        if ok:
+            bad.append(label)
+    rep.check("PR1", not bad, f"not refused: {', '.join(bad)}", "three bad heads refused")
+
+    other = sb.issue("pr_open unclaimed")
+    bad = []
+    # A refusal counts only when it gives the reason PR2 checks: every probe uses a missing
+    # branch, so a server without these checks would otherwise pass on the branch alone.
+    ok, _, text = pr(head=missing, issues=[])
+    if ok or "issues" not in text:
+        bad.append("empty issues was not refused for its issues")
+    ok, _, text = pr(head=missing, issues=[n, other])
+    if ok or str(other) not in text:
+        bad.append(f"an unclaimed issue (#{other}) was not refused by name")
+    ok, _, text = pr(head=missing, body='x <!-- gtd-pr v1 {"by": "agent:x", "issues": [1], "v": 1} -->')
+    if ok or "gtd-pr" not in text:
+        bad.append("a body with a gtd-pr marker was not refused for the marker")
+    rep.check("PR2", not bad, "; ".join(bad), "empty issues, an unclaimed issue and a marker refused")
+
+    if not head:
+        rep.manual("PR3", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+    else:
+        ok, out, text = pr(head=head)
+        out = out if isinstance(out, dict) else {}
+        principal = (who or {}).get("principal")
+        probs = []
+        if not ok:
+            probs.append(f"pr_open: {text[:120]}")
+        else:
+            author = str(out.get("author") or "")
+            if not author.endswith("[bot]"):
+                probs.append(f"author {author!r} is not an App")
+            if out.get("by") != principal:
+                probs.append(f"by {out.get('by')!r} is not {principal!r}")
+            ok2, _, text2 = c.call("pr_open", {"repo": sb.repo, "head": head, "title": "again",
+                                               "body": "second", "issues": [n]})
+            if ok2:
+                probs.append("a second pr_open for the same head was not refused")
+            elif out.get("url") and out["url"] not in text2:
+                probs.append("the second refusal does not give the open PR's URL")
+            body = str(out.get("body") or "")
+            marks = PR_MARKER_RE.findall(body)
+            try:
+                got = json.loads(marks[0]) if len(marks) == 1 else None
+            except json.JSONDecodeError:
+                got = None
+            if not got or not body.rstrip().endswith("-->"):
+                probs.append("the body does not end with exactly one gtd-pr marker")
+            elif got.get("by") != principal or got.get("issues") != [n]:
+                probs.append(f"marker by/issues {got.get('by')!r}/{got.get('issues')!r}")
+            if out.get("closes") is not False or "Closes #" in body:
+                probs.append("a PR opened without closes would close its issues")
+            print(f"note: close PR {out.get('url')} by hand", file=sys.stderr)
+        rep.check("PR3", not probs, "; ".join(probs), f"opened {out.get('url')} as {out.get('author')}")
+    c.call("item_release", sb.args(n, done="pr_open checks", remaining="none", next="close"))
+
+
 def check_join(rep: Report, base: str, start: bool, claims_join: bool | None) -> None:
     s, _, text = http("POST", f"{base}/join/start", {"name": "X", "provider": "conformance", "preset": "read"})
     if s == 404 and not claims_join:
@@ -1306,6 +1396,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--repo", help="owner/repo sandbox; the run creates issues there")
     ap.add_argument("--project", help="owner/number board linked to the sandbox repo")
     ap.add_argument("--profile", help="the sandbox repo's profile (default: the first profile_list returns)")
+    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 (opens one PR)")
     ap.add_argument("--join-start", action="store_true", help="open one join request for J2 and J3")
     ap.add_argument("--connector", metavar="NAME",
                     help="join agent NAME through the connector entrance for JC1 to JC9; "
@@ -1362,6 +1453,7 @@ def main(argv: list[str]) -> int:
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
                     if a.project:
                         check_board(rep, c, sb, profiles.get(name) or {})
+                    check_prs(rep, c, sb, _tools, who, a.pr_head)
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
             except CheckError as e:
