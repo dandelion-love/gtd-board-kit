@@ -55,6 +55,14 @@ if (-not (Test-Path .claude/settings.json)) {
   Write-Host "NOTE: .claude/settings.json exists; merge $KitDir/install/settings.snippet.json into it by hand."
 }
 
+if (-not (Test-Path .codex/hooks.json)) {
+  New-Item -ItemType Directory -Force .codex | Out-Null
+  Copy-Item "$KitDir/install/codex-hooks.snippet.json" .codex/hooks.json
+  Invoke-Git add .codex/hooks.json
+} else {
+  Write-Host "NOTE: .codex/hooks.json exists; merge $KitDir/install/codex-hooks.snippet.json into it by hand."
+}
+
 if (-not (Test-Path .gtd/BOARD.local.md)) {
   Copy-Item "$KitDir/install/BOARD.local.template.md" .gtd/BOARD.local.md
   Invoke-Git add .gtd/BOARD.local.md

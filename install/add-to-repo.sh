@@ -5,9 +5,10 @@
 #
 # Run from the work repo's root, on a branch (never the default branch). It adds the
 # submodule at .gtd/kit pinned to the given commit (default: the kit's main), links the
-# skills into .claude/skills, .codex/skills and .agents/skills, adds a SessionStart hook
-# if the repo has no .claude/settings.json, starts .gtd/BOARD.local.md (the repo's own
-# layer) if missing, and points CLAUDE.md / AGENTS.md at both. It commits nothing:
+# skills into .claude/skills, .codex/skills and .agents/skills, adds the Claude hooks if
+# the repo has no .claude/settings.json and the Codex hooks if it has no
+# .codex/hooks.json, starts .gtd/BOARD.local.md (the repo's own layer) if missing, and
+# points CLAUDE.md / AGENTS.md at both. It commits nothing:
 # review `git status`, commit, and open a PR.
 set -euo pipefail
 
@@ -51,6 +52,14 @@ if [ ! -e .claude/settings.json ]; then
   git add .claude/settings.json
 else
   echo "NOTE: .claude/settings.json exists; merge $KIT_DIR/install/settings.snippet.json into it by hand."
+fi
+
+if [ ! -e .codex/hooks.json ]; then
+  mkdir -p .codex
+  cp "$KIT_DIR/install/codex-hooks.snippet.json" .codex/hooks.json
+  git add .codex/hooks.json
+else
+  echo "NOTE: .codex/hooks.json exists; merge $KIT_DIR/install/codex-hooks.snippet.json into it by hand."
 fi
 
 if [ ! -e .gtd/BOARD.local.md ]; then
