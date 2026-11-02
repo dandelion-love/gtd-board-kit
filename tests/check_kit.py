@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS = ["board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "okf-knowledge"]
+SKILLS = ["board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "board-decompose", "okf-knowledge"]
 BOARD_BUDGET = 3000      # bytes; BOARD.md is read in full by every agent
 SKILL_BUDGET = 6000      # bytes per SKILL.md
 DESC_BUDGET = 1024       # characters; the Agent Skills limit for description
@@ -212,6 +212,10 @@ fold_table = set(re.findall(r"^\| ([a-z]) \|", conf_md, re.M))
 fold_json = {c["name"] for c in json.loads((ROOT / "conformance" / "fold_cases.json").read_text())["cases"]}
 if fold_table != fold_json:
     fail(f"C13 fixture table {sorted(fold_table)} differs from fold_cases.json {sorted(fold_json)}")
+ready_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", conf_md, re.M)
+ready_json = [c["name"] for c in json.loads((ROOT / "conformance" / "ready_cases.json").read_text())["cases"]]
+if ready_table != ready_json:
+    fail(f"R1 case table {ready_table} differs from ready_cases.json {ready_json}")
 
 # Every check id in the table belongs to a Family, and the report sorts by family order.
 for cid in spec_ids:
@@ -256,6 +260,12 @@ for files, msg, want in (
 prc = subprocess.run([sys.executable, str(ROOT / "tests" / "test_pr_check.py")], capture_output=True, text=True)
 if prc.returncode != 0:
     fail("tests/test_pr_check.py failed:\n" + prc.stderr.strip()[-2000:])
+
+# tools/agent_guard.py: the Claude and Codex hook rules (tests/test_agent_guard.py).
+r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_agent_guard.py")],
+                   capture_output=True, text=True)
+if r.returncode != 0:
+    fail("tests/test_agent_guard.py failed:\n" + r.stderr.strip()[-2000:])
 
 if errors:
     print("\n".join(f"FAIL {e}" for e in errors))

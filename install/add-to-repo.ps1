@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $KitUrl = "https://github.com/dandelion-love/gtd-board-kit"
 $KitDir = ".gtd/kit"
-$Skills = @("board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "okf-knowledge")
+$Skills = @("board-onboard", "board-pickup", "board-claim", "board-decompose", "board-report", "board-needs-person", "board-lane", "okf-knowledge")
 
 # Not named "Git": PowerShell names are case-insensitive and functions beat executables,
 # so a function called Git would call itself instead of git.exe.
@@ -31,7 +31,7 @@ Invoke-Git add .gitmodules $KitDir
 # Symlinks written straight into the index (mode 120000), so no Developer Mode is needed.
 # Without core.symlinks the working copy shows small text files; the commit is still right.
 $tmp = [System.IO.Path]::GetTempFileName()
-foreach ($tool in @(".claude", ".codex")) {
+foreach ($tool in @(".claude", ".codex", ".agents")) {
   foreach ($s in $Skills) {
     $path = "$tool/skills/$s"
     if ((Test-Path $path) -and -not ((Get-Item $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and (Test-Path $path -PathType Container)) {

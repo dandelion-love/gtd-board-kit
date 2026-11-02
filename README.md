@@ -25,6 +25,7 @@ data, tokens or board contents.
 | `install/` | `add-to-repo.ps1` / `.sh`, `install-user.ps1`, the SessionStart hook, the `BOARD.local.md` starter |
 | `tests/check_kit.py` | Size budgets, frontmatter, versions, links, and the public guard over the tree |
 | `tools/public_guard.py`, `.githooks/` | The guard that keeps private data out: `pre-commit`, `commit-msg`, `pre-push` |
+| `tools/agent_guard.py` | Claude Code and Codex hooks for work repos: deny an own PR create while `pr_open` exists and workflow edits without a merged grant; a SessionStart reminder |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` | Rules for any agent working on the kit, and Claude Code hooks that run the guard |
 
 ## Knowledge docs: OKF, pinned by the kit
@@ -67,7 +68,7 @@ curl -fsSL https://raw.githubusercontent.com/dandelion-love/gtd-board-kit/main/i
 ```
 
 It adds the submodule pinned to a full commit, links the kit's skills into
-`.claude/skills` and `.codex/skills`, adds a SessionStart hook that initialises the
+`.claude/skills`, `.codex/skills` and `.agents/skills`, adds a SessionStart hook that initialises the
 submodule in fresh cloud clones, and adds one line to `CLAUDE.md` and `AGENTS.md`. It
 commits nothing. Review, commit, open a PR, and let a person merge it.
 
@@ -105,7 +106,7 @@ Each repo layers its own rules on top of the kit without touching it:
 - **Workflow grants** in `.gtd/BOARD.local.md`: the one way rule 9 opens. Each grant
   names the workflow files, who granted it, when, and a link. Agents still branch, open
   a PR and never merge. No grant: never.
-- A real folder at `.claude/skills/<name>` (and `.codex/skills/<name>`) is the repo's own
+- A real folder at `.claude/skills/<name>` (and `.codex/skills/<name>`, `.agents/skills/<name>`) is the repo's own
   skill. One named like a kit skill replaces it; the installer leaves it alone.
 - The label-to-Status bridge already takes a local map at
   `.github/gtd-label-status-map.json`.

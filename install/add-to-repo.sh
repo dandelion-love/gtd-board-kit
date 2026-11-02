@@ -5,15 +5,15 @@
 #
 # Run from the work repo's root, on a branch (never the default branch). It adds the
 # submodule at .gtd/kit pinned to the given commit (default: the kit's main), links the
-# skills into .claude/skills and .codex/skills, adds a SessionStart hook if the repo has no
-# .claude/settings.json, starts .gtd/BOARD.local.md (the repo's own layer) if missing, and
-# points CLAUDE.md / AGENTS.md at both. It commits nothing:
+# skills into .claude/skills, .codex/skills and .agents/skills, adds a SessionStart hook
+# if the repo has no .claude/settings.json, starts .gtd/BOARD.local.md (the repo's own
+# layer) if missing, and points CLAUDE.md / AGENTS.md at both. It commits nothing:
 # review `git status`, commit, and open a PR.
 set -euo pipefail
 
 KIT_URL="https://github.com/dandelion-love/gtd-board-kit"
 KIT_DIR=".gtd/kit"
-SKILLS=(board-onboard board-pickup board-claim board-report board-needs-person board-lane okf-knowledge)
+SKILLS=(board-onboard board-pickup board-claim board-decompose board-report board-needs-person board-lane okf-knowledge)
 PIN="${1:-}"
 
 [ -d .git ] || { echo "run this from the work repo's root" >&2; exit 1; }
@@ -31,7 +31,7 @@ git -C "$KIT_DIR" checkout --quiet --detach "$PIN"
 git add .gitmodules "$KIT_DIR"
 
 # Symlinks written straight into the index, so this works the same on every OS.
-for tool in .claude .codex; do
+for tool in .claude .codex .agents; do
   for s in "${SKILLS[@]}"; do
     path="$tool/skills/$s"
     if [ -e "$path" ] && [ ! -L "$path" ]; then
