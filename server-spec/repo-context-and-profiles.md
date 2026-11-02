@@ -47,7 +47,8 @@ are called is the deployment's choice.
 | `pickup_sizes` | list of strings | Size options an unpointed (`inferred`) pickup may take. Default `XS`, `S`, `M` |
 | `status_for_label` | list of rules | The label-to-Status map ([below](#the-label-to-status-map)) |
 
-A server MAY return more (item types, done checks, file sources). The repo's
+A server MAY return more (item types, done checks, file sources); item types follow
+[Kinds](#kinds). The repo's
 `.gtd/BOARD.local.md` can narrow or rename on top of a profile; that is the agent's
 business, not the server's.
 
@@ -79,6 +80,51 @@ names (a repo can rename them in `.gtd/BOARD.local.md`):
 | `Agent` | text | Mirror of the current holder's runtime, written by the claim tools |
 | `Last report` | text | Mirror of the latest report, written by the claim tools |
 | `Start date`, `Target date` | date | The ETA ([queue and ETA](../knowledge/model/queue-and-eta.md)) |
+
+### Kinds
+
+What an item **is** is its Kind ([how work decomposes](../knowledge/decisions/decomposition-standard.md)).
+These are the standard Kinds. A profile uses the ones its repos need and MAY add domain
+Kinds of its own (an experiment, a benchmark):
+
+| Kind | Level | Done when |
+| --- | --- | --- |
+| `epic` | Top; holds stories | Every child is closed and its own outcome check passed, confirmed by a person |
+| `story` | Under an epic | Its acceptance criteria are met and its PR merged by a person |
+| `chore` | Story level: technical work with its own PR (an enabler, tech debt) | Its PR merged and the technical outcome shown |
+| `bug` | Story level | A failing repro now passes and the fix merged |
+| `spike` | Story level, timeboxed | A finding merged and the next step decided |
+| `research` | Story level, or an epic when it needs several stories | Sourced knowledge concepts merged and reviewed by a person |
+| `finding` | The issue that records a result | A person reviewed it |
+
+A **step** is not a Kind: it is a checklist item (or sub-issue) inside a story, with no PR
+of its own.
+
+**Retired Kinds.** A profile MUST NOT declare these, as an item type or as a label:
+
+| Retired | What replaces it |
+| --- | --- |
+| `task` | `chore` when it has its own PR, otherwise a step in its story |
+| `question` | `attention` plus a `needs:<who>` label on the item it blocks ([report vocabulary](../knowledge/model/report-vocabulary.md)); its own `chore` or `spike` only when answering it is work |
+| `decision` | A Decision concept in the repo's knowledge bundle, added by the PR of the story that made it and linked from its epic |
+
+**Carriers.** A Kind is an organization Issue Type named after it in title case (`Chore`).
+A repo without Issue Types (a personal account) uses a `kind:<kind>` label instead; a repo
+that has Issue Types never carries both.
+
+When `profile_get` returns `item_types` (a list of `{name, issue_type?, ...}`, each the
+vocabulary of one kind of item), no entry's `name` or `issue_type` may be a retired Kind,
+compared without case.
+
+**Moving a repo off the retired Kinds** happens when it next repins the kit. Issues of
+Issue Type `Task` (or label `kind:task`) move to `Chore` (`kind:chore`), or become steps of
+the story they belong to. An open question moves onto the item it blocks as `attention`
+plus `needs:<who>`, and the question issue closes with a link. A decision issue's content
+moves into a Decision concept, and the issue closes with a link. A reconciler never
+deletes an Issue Type or a label ([what a reconciler does](#what-a-reconciler-does)), so
+a person disables the retired Issue Types once no open issue uses them. The repo's
+[per-repo layer](../knowledge/decisions/per-repo-layer.md) may keep an old name for a
+while, and says so.
 
 ## The label-to-Status map
 

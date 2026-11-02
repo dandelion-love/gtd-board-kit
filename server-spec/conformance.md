@@ -36,6 +36,7 @@ reports pass, fail, skip or manual for every id below.
 | P5 | A repo or board outside the allowlist is refused before any GitHub call (the fake sees no request) |
 | P6 | `list_next_actions` with a label returns only open issues with that label, never a PR. GitHub's label-filtered lists can lag a label write by seconds, so the runner re-reads for up to 30 seconds before failing |
 | P7 | `project_items` returns items in the board's manual order and pages with a cursor |
+| P8 | No profile declares a [retired Kind](repo-context-and-profiles.md#kinds): no `kind:task`, `kind:question` or `kind:decision` label, and, when `profile_get` returns `item_types`, no entry whose `name` or `issue_type` is `task`, `question` or `decision` (any case) |
 
 ## Claims (Core)
 

@@ -12,7 +12,7 @@ What it needs, and which checks each unlocks:
     nothing                 C13 (the fold fixtures, against the reference fold or --fold-cmd)
     --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
-    + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, J10, X2 (partly)
+    + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, P8, J10, X2 (partly)
     + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
@@ -187,6 +187,36 @@ PROFILE_FIELDS = ("name", "labels", "needs", "owner_needs", "pickup_sizes", "sta
 BASE_LABELS = ("run-agent", "agent-running", "waiting-for-review", "agent-failed", "blocked",
                "accepted", "needs:triage", "agent:any", "agent:human", "agent-ready",
                "agent-proposed")
+
+
+class RetiredKind(Enum):
+    """Kinds a profile must not declare (repo-context-and-profiles.md, Kinds; check P8)."""
+    TASK = "task"
+    QUESTION = "question"
+    DECISION = "decision"
+
+
+KIND_LABEL_PREFIX = "kind:"
+
+
+def retired_kinds_in(profile: dict) -> list[str]:
+    """The retired Kinds a profile declares, as labels or item types (check P8)."""
+    retired = {k.value for k in RetiredKind}
+    found = []
+    for lbl in profile.get("labels") or []:
+        name = str(lbl.get("name") if isinstance(lbl, dict) else lbl or "")
+        if name.lower().startswith(KIND_LABEL_PREFIX) and \
+                name[len(KIND_LABEL_PREFIX):].lower() in retired:
+            found.append(f"label {name}")
+    for t in profile.get("item_types") or []:
+        if not isinstance(t, dict):
+            continue
+        for key in ("name", "issue_type"):
+            if str(t.get(key) or "").lower() in retired:
+                found.append(f"item type {t.get('name')} ({key} {t.get(key)})")
+    return found
+
+
 IDENTITY_ARGS = {"principal", "author", "identity", "caller", "as_user", "by", "actor"}
 IDENTITY_EXEMPT = {"run_state_post"}  # its `by` is provenance text (tools.md, Run state)
 
@@ -642,7 +672,7 @@ def check_profiles(rep: Report, c: Client) -> dict:
         rep.fail("P1", f"profile_list: {text[:120]}")
         return {}
     names = [p["name"] if isinstance(p, dict) else p for p in (lst or {}).get("profiles") or []]
-    profiles, p1, p2, p3 = {}, [], [], []
+    profiles, p1, p2, p3, p8 = {}, [], [], [], []
     for name in names:
         ok, p, text = c.call("profile_get", {"name": name})
         if not ok:
@@ -663,9 +693,13 @@ def check_profiles(rep: Report, c: Client) -> dict:
         must = ["agent-running", "waiting-for-review", "agent-failed"] + [f"needs:{n}" for n in needs]
         if [m for m in must if m not in mapped] or (cols and {r.get("status") for r in rules} - cols):
             p3.append(name)
+        retired = retired_kinds_in(p)
+        if retired:
+            p8.append(f"{name}: {', '.join(retired)}")
     rep.check("P1", names and not p1, "; ".join(p1) or "no profiles", f"{len(names)} profiles")
     rep.check("P2", not p2, f"needs or owner_needs inconsistent in {', '.join(p2)}")
     rep.check("P3", not p3, f"status_for_label incomplete or off-board in {', '.join(p3)}")
+    rep.check("P8", not p8, f"retired Kinds declared: {'; '.join(p8)}")
     return profiles
 
 
