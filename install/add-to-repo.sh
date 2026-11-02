@@ -35,6 +35,8 @@ git add .gitmodules "$KIT_DIR"
 for tool in .claude .codex .agents; do
   for s in "${SKILLS[@]}"; do
     path="$tool/skills/$s"
+    # An older pin may predate a skill; link only what the pinned kit has.
+    [ -d "$KIT_DIR/skills/$s" ] || { echo "skip    $path (not in this kit pin)"; continue; }
     if [ -e "$path" ] && [ ! -L "$path" ]; then
       echo "keep    $path (the repo's own skill overrides the kit's)"; continue
     fi
@@ -54,7 +56,9 @@ else
   echo "NOTE: .claude/settings.json exists; merge $KIT_DIR/install/settings.snippet.json into it by hand."
 fi
 
-if [ ! -e .codex/hooks.json ]; then
+if [ ! -e "$KIT_DIR/install/codex-hooks.snippet.json" ]; then
+  echo "NOTE: this kit pin has no Codex hooks; skipped .codex/hooks.json."
+elif [ ! -e .codex/hooks.json ]; then
   mkdir -p .codex
   cp "$KIT_DIR/install/codex-hooks.snippet.json" .codex/hooks.json
   git add .codex/hooks.json

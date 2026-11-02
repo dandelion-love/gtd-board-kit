@@ -34,6 +34,10 @@ $tmp = [System.IO.Path]::GetTempFileName()
 foreach ($tool in @(".claude", ".codex", ".agents")) {
   foreach ($s in $Skills) {
     $path = "$tool/skills/$s"
+    # An older pin may predate a skill; link only what the pinned kit has.
+    if (-not (Test-Path "$KitDir/skills/$s" -PathType Container)) {
+      Write-Host "skip    $path (not in this kit pin)"; continue
+    }
     if ((Test-Path $path) -and -not ((Get-Item $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and (Test-Path $path -PathType Container)) {
       Write-Host "keep    $path (the repo's own skill overrides the kit's)"; continue
     }
@@ -55,7 +59,9 @@ if (-not (Test-Path .claude/settings.json)) {
   Write-Host "NOTE: .claude/settings.json exists; merge $KitDir/install/settings.snippet.json into it by hand."
 }
 
-if (-not (Test-Path .codex/hooks.json)) {
+if (-not (Test-Path "$KitDir/install/codex-hooks.snippet.json")) {
+  Write-Host "NOTE: this kit pin has no Codex hooks; skipped .codex/hooks.json."
+} elseif (-not (Test-Path .codex/hooks.json)) {
   New-Item -ItemType Directory -Force .codex | Out-Null
   Copy-Item "$KitDir/install/codex-hooks.snippet.json" .codex/hooks.json
   Invoke-Git add .codex/hooks.json
