@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.3.0
+  version: 0.4.0
 ---
 
 # Claim an item and work it
@@ -40,7 +40,7 @@ them on one integration (release-candidate) branch.
   commits off the branch and release it.
 - The owning session merges other agents' story branches into the combined branch
   without claiming them; a fix commit there for a story needs that story's claim.
-- The PR lists every story it carries (`Closes #<n>` each). Before opening it, check
+- The PR lists every story it carries in `pr_open`'s `issues`. Before opening it, check
   each: you hold it (`item_get`), or it reached the combined branch through its own
   merged PR. A released item shows no report, so the merged PR is the evidence.
 
@@ -84,11 +84,21 @@ and grants nothing.
 
 ## 4. Hand back
 
-1. Open the PR with `Closes #<number>` (or `Refs #<number>` if it should stay open).
-2. `issue_labels(add=["waiting-for-review"], remove=["agent-running"], …)` and, without a
+1. Push the branch. If the server lists `pr_open`, open the PR with it:
+   `pr_open(repo, head=<branch>, base, title, body, issues=[every story it carries], closes)`.
+   The server opens it as its own App, so your person can approve it.
+   - `closes=true` only when the work is verified (tests run, evidence in the body) and
+     `base` is the default branch. Into a combined branch: `closes=false`.
+   - Put no `Closes #<n>` and no `gtd-pr` marker in `body`; the server writes both.
+   - Refused for a missing claim: claim that story or take it out. Never route around a
+     `pr_open` refusal with another tool.
+2. Only when the server does not offer `pr_open`: open the PR with your own GitHub tool,
+   `Closes #<number>` (or `Refs #<number>`) for each story, and say in the ready report
+   that it was opened outside `pr_open`.
+3. `issue_labels(add=["waiting-for-review"], remove=["agent-running"], …)` and, without a
    bridge, set Status to the review column.
-3. `item_report(state="ready", note="PR open: <one line>", links=[<PR url>])`.
-4. `item_release(repo, number, done, remaining, next, project)`. Keep holding instead
+4. `item_report(state="ready", note="PR open: <one line>", links=[<PR url>])`.
+5. `item_release(repo, number, done, remaining, next, project)`. Keep holding instead
    only if you will answer review comments yourself, and renew.
 
 Never merge, approve or close the issue yourself: a person's merge completes it.
