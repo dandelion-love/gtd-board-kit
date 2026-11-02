@@ -44,6 +44,9 @@ class Repo:
         git("commit", "-qm", "base", cwd=self.root)
         git("push", "-q", "origin", "HEAD", cwd=self.root)
         git("remote", "set-head", "origin", "-a", cwd=self.root)
+        # A GitHub-shaped origin URL (refs stay local), so MCP writes can name this checkout as owner/repo.
+        git("remote", "set-url", "origin", "https://github.com/acme/work.git",
+            cwd=self.root)
 
     def close(self) -> None:
         self.tmp.cleanup()
@@ -162,6 +165,14 @@ class GuardTest(unittest.TestCase):
         self.assertAllowed(CODEX, "Bash", {"command": "echo x > .github/workflows/granted.yml"})
         self.assertDenied(CLAUDE, "Write", {"file_path": ".github/workflows/other.yml"})
         self.assertDenied(CLAUDE, "Bash", {"command": "rm -rf .github/workflows"})
+
+    def test_mcp_grant_only_for_this_checkout(self):
+        granted_path = {"path": ".github/workflows/granted.yml", "content": "x"}
+        self.assertAllowed(CLAUDE, "mcp__github__create_or_update_file",
+                           {"owner": "acme", "repo": "work", **granted_path})
+        self.assertDenied(CLAUDE, "mcp__github__create_or_update_file",
+                          {"owner": "acme", "repo": "other", **granted_path})
+        self.assertDenied(CODEX, "mcp__github__create_or_update_file", granted_path)
 
     # SessionStart and failing open.
     def test_session_start_reminder(self):
