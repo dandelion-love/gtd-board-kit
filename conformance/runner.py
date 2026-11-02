@@ -848,9 +848,13 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
                                                    lease="30m", branch=branch))
     ok_b, out_b, t_b = c.call("item_claim", sb.args(b, basis="explicit", asked_by="conformance",
                                                    lease="45m", branch=branch))
-    on_branch = all(((o or {}).get("item") or {}).get("holder") and
-                    (((o or {}).get("item") or {}).get("mandate") or {}).get("branch") == branch
-                    for o in (out_a, out_b))
+    # Read both back through item_get: the branch must come from the fold, not the echo.
+    reads = [c.call("item_get", sb.args(num))[1] for num in (a, b)]
+    holder_me = ((out_a or {}).get("item") or {}).get("holder")
+    on_branch = bool(holder_me) and all(
+        ((o or {}).get("item") or {}).get("holder") == holder_me and
+        (((o or {}).get("item") or {}).get("mandate") or {}).get("branch") == branch
+        for o in [out_a, out_b, *reads])
     ok_r, _, _ = c.call("item_release", sb.args(a, done="checked", remaining="none", next="close"))
     _, out, _ = c.call("item_get", sb.args(b))
     left = (out or {}).get("item") or {}

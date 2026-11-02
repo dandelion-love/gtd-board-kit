@@ -40,8 +40,9 @@ them on one integration (release-candidate) branch.
   commits off the branch and release it.
 - The owning session merges other agents' story branches into the combined branch
   without claiming them; a fix commit there for a story needs that story's claim.
-- The PR lists every story it carries (`Closes #<n>` each). Before opening it,
-  `item_get` each: you hold it, or its holder released it with `ready`.
+- The PR lists every story it carries (`Closes #<n>` each). Before opening it, check
+  each: you hold it (`item_get`), or it reached the combined branch through its own
+  merged PR. A released item shows no report, so the merged PR is the evidence.
 
 ## 2. Show it on the board
 
