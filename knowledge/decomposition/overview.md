@@ -54,6 +54,8 @@ later decision; it does not set a kit rule. Each claim is sourced in the linked 
 
 # Decisions left to the owner
 
+The owner has since settled these in [How work decomposes](/decisions/decomposition-standard.md); the leans below are the research's drafts.
+
 | # | Decision | Draft lean |
 | --- | --- | --- |
 | 1 | Task under Story, or beside it | under: a checklist item or sub-issue; own issue only with its own PR |

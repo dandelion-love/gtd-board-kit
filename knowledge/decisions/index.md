@@ -7,3 +7,4 @@
 * [A repo may grant workflow edits by name](workflow-grants.md) - The one way the workflow ban opens
 * [OKF is pinned by the kit](okf-pinned-by-the-kit.md) - Knowledge docs follow one OKF version, moved with the kit
 * [Work items live on the board; a local file is only a cache](work-items-live-on-the-board.md) - The issue is the record, a markdown copy is never committed
+* [How work decomposes into epics, stories and steps](decomposition-standard.md) - Levels, Kinds, ready and done, the unit of agent work, PR authorship and gates
