@@ -63,8 +63,8 @@ draft with `issue_update`, keep the person's text unchanged, and say so in your 
 <one or two lines: what changes, for whom, and why; link the epic>
 
 ## Acceptance criteria
-- [ ] <one checkable statement>
-- [ ] If <bad input or failure>, then <visible result>
+- [ ] AC1: <one checkable statement>
+- [ ] AC2: If <bad input or failure>, then <visible result>
 
 ## Steps
 - [ ] <a step inside this story; no PR of its own>
@@ -75,8 +75,8 @@ Blocked by #<n>
 - Use exactly one `## Acceptance criteria` heading. Default to a rule list, one
   checkable line each; write an event as a When / If-then line; include at least one
   error or rejection case. A spike states its timebox and the question it answers.
-- Each criterion names its evidence (a test, a command and its output, a screenshot), so
-  the PR can show one Evidence row per criterion.
+- Number them `AC1`, `AC2`, ... and have each name its evidence (a test, a command and
+  its output, a screenshot), so the PR shows one Evidence row per id (the PR check).
 - A `Blocked by` line only alongside a native link (step 5); prose alone fails the ready
   check.
 
