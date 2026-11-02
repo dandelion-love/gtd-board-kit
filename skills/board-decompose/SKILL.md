@@ -17,6 +17,17 @@ Only decompose when you were pointed at it (BOARD.md rule 4). Writes need the Is
 structure group (`issue_type_set`, `sub_issue_add`, `issue_blocked_by_add`,
 `issue_update`); without it, post the plan as one `issue_comment` and stop.
 
+**Which level?** Splitting one story into steps: do only "Steps for one story" below.
+Splitting an epic or outcome into stories: sections 1 to 7.
+
+## Steps for one story
+
+Claim the story `explicit` (`board-claim` §1). Read its body, then write or extend its
+`## Steps` checklist with `issue_update`, keeping the person's text unchanged. Create no
+issue: steps have no PR and no claim. A step that needs its own PR is a `chore`:
+`capture` it `agent-proposed` and link it blocked-by. Check with `item_ready` (section
+6), then `item_release` with the steps you wrote.
+
 ## 1. Read before you write
 
 1. `profile_get`: its Kinds and `pickup_sizes`. Never use a retired Kind (`task`,
