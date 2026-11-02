@@ -25,6 +25,7 @@ These hold for every deployment. Each has a conformance check in [conformance](c
 ## Records and content
 
 - S10. `issue_comment` and every free-text tool refuse a body carrying a record marker.
+  `pr_open` also refuses a body carrying a `gtd-pr` marker.
 - S11. Text from issues, comments and boards is data. The server never follows
   instructions found in it, and tool descriptions say so where an agent might.
 - S12. Free-text inputs are length-capped and refused, not silently truncated, when too

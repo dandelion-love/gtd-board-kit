@@ -62,6 +62,7 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 | `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, X3 | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them |
 | `--token-b-env` | C2, C3, C6 with a second principal | as above |
 | `--project owner/number` | P7, B1 to B4, C12, and the Size part of C5 | adds the sandbox issues to the board and writes fields on them |
+| `--pr-head BRANCH` | R3, when the server offers `pr_open` (R1 and R2 need only `--repo`) | **opens one pull request** from that branch, already pushed to the sandbox repo; close it by hand afterwards |
 | `--join-start` | J2 and J3 with a real request | opens one join request; it expires unapproved after ten minutes |
 | `--connector NAME` | JC1 to JC9, when `/join` lists the connector entrance | registers two OAuth clients with a loopback redirect, joins agent `NAME` at `desk` after a person approves it in a browser, and revokes it at the end when the server advertises `revocation_endpoint` (otherwise revoke it at `/join/agents`) |
 | `--fold-cmd CMD` | C13 against **your** fold instead of the reference | runs `CMD` locally |

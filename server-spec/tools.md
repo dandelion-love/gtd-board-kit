@@ -106,6 +106,68 @@ that offers the capability uses the name.
 | Run state | `run_state_post` (work), `run_state_read` (read) | Long runs on compute hosts post `start`, `phase`, `end`, `hold`, `release`, `spend` events to a run-state channel issue named in the repo's layer. `by` here is provenance text, not identity: the record is still stamped with the principal |
 | Channels | `channels_list`, `channel_comments_read` (read), `channel_comment_post` (work) | Long-lived discussion issues a repo names as channels |
 | Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps |
+| Pull requests | `pr_open` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it. See [opening pull requests](#opening-pull-requests) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
+
+## Opening pull requests
+
+An author can never approve their own pull request on GitHub. When an agent opens a PR
+with a GitHub tool signed in as the owner, the owner is the author and cannot be its
+required reviewer. `pr_open` lets the server open the PR instead: GitHub records the
+server's own App as the author, and the PR records which principal asked for it. The
+agent's identity comes from its sign-in, so no agent needs a GitHub App of its own.
+
+The agent still pushes its branch first, with whatever git access its host gives it.
+`pr_open` only opens the PR.
+
+| Argument | Type | Notes |
+| --- | --- | --- |
+| `repo` | string | `owner/repo`, checked against the allowlist |
+| `head` | string | A branch in `repo`. A cross-repository head (`owner:branch`) refuses |
+| `base` | string, optional | The branch to merge into. Defaults to the repo's default branch |
+| `title` | string | At most 256 characters |
+| `body` | string | At most 60000 characters. The server adds the provenance block below |
+| `issues` | integer list | The issues this PR works on, at least one. The caller must hold a live claim on each ([claim-records](claim-records.md)) |
+| `draft` | boolean, optional | Default false |
+
+The server MUST, in this order, refuse before it creates anything when:
+
+1. `repo` is not allowed (P5);
+2. `title` or `body` is too long (X3), or `body` already holds a `gtd-pr` marker (below);
+3. `issues` is empty, or the caller does not hold an unexpired lease on one of them. The
+   refusal names each such issue and says to claim it first;
+4. `head` is cross-repository, equals `base`, is not a branch of `repo`, or already has an
+   open PR into `base` (the refusal gives that PR's URL).
+
+Then it opens the PR **with its own GitHub App credential, never the caller's**, even on a
+server that otherwise acts as the caller. A server without such a credential does not offer
+`pr_open`. The body it writes is the caller's `body`, a blank line, then this block:
+
+```text
+---
+Opened through the gtd MCP server for **agent:example**. Works on #<first issue>, #<second issue>.
+
+<!-- gtd-pr v1 {"by": "agent:example", "issues": [12, 15], "t": "2026-01-01T12:00:00Z", "v": 1} -->
+```
+
+- `by` is the caller's principal from its token (S1); there is no argument for it.
+- The visible line says `Closes #n` for each issue instead of `Works on #n` when `base`
+  is the repo's default branch, so merging closes the stories.
+- The JSON follows the record rules in [claim-records](claim-records.md#record-format):
+  `<` and `>` escaped, keys sorted.
+
+It returns `number`, `url`, `author` (the login GitHub shows as author), `by`, `head`,
+`base`, `draft`, `issues` and `body` (the body as written, with the block).
+
+`pr_open` is `work`, so a `work` agent can use it. It changes nothing else: no labels, no
+Status, no claim records; the agent reports with the `item_*` tools as usual.
+
+Two GitHub settings decide whether the owner can then approve:
+
+- The owner reviews as themselves, which works because the App is the author.
+- A branch rule that requires approval of the most recent push refuses a reviewer who made
+  that push. If the agent's host pushes with the owner's own credential, the owner cannot
+  approve under that rule. Turn the rule off, or have the agent push with an identity that
+  is not the owner's.
