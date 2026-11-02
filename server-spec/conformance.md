@@ -36,6 +36,7 @@ reports pass, fail, skip or manual for every id below.
 | P5 | A repo or board outside the allowlist is refused before any GitHub call (the fake sees no request) |
 | P6 | `list_next_actions` with a label returns only open issues with that label, never a PR. GitHub's label-filtered lists can lag a label write by seconds, so the runner re-reads for up to 30 seconds before failing |
 | P7 | `project_items` returns items in the board's manual order and pages with a cursor |
+| P8 | No profile declares a [retired Kind](repo-context-and-profiles.md#kinds): no `kind:task`, `kind:question` or `kind:decision` label, and, when `profile_get` returns `item_types`, no entry whose `name` or `issue_type` is `task`, `question` or `decision` (any case) |
 
 ## Claims (Core)
 
@@ -55,6 +56,7 @@ reports pass, fail, skip or manual for every id below.
 | C11 | `issue_comment` with a record marker in the body refuses |
 | C12 | With a board, the claim tools write `Agent` and `Last report` and nothing else; a failing board write returns a warning and the record still posts |
 | C13 | Fold golden tests: the fixtures in this folder's table below give the stated `holder`, `lease_until`, `stale`, `last_report`, `handoff_to` |
+| C14 | One caller claims two issues with the same `branch`: both succeed and each `item_get` shows the caller as holder with `mandate.branch` equal to it; releasing the first leaves the second held with its own lease; a `branch` of `bad..name` refuses |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
 
@@ -126,6 +128,19 @@ A server that lists `profile_updates` in `tools/list` must also pass these.
 | O1 | Every label, field and view in every `profile_get` carries a `fingerprint` equal to the one recomputed from the item as [fingerprints](repo-context-and-profiles.md#fingerprints) defines (without `fingerprint` and `manual`) |
 | O2 | `profile_updates` for the sandbox repo returns `profile`, `overrides`, `inferred` and `updates`; every notice has the fields of the [upstream change notice](repo-context-and-profiles.md#upstream-change-notice), and `current` equals that item's fingerprint in `profile_get` |
 | O3 | With an override whose `seen` is stale, a reconcile plan reports the item as an upstream change and plans no write to it; with `skip` and no `seen`, the item is not created; recolouring a label the reconciler made (its name in another case too) is kept on the next run; nothing is ever deleted (*manual*: needs a scratch repo whose `gtd-context.json` a person edits) |
+
+## Pull requests (when offered)
+
+A server that lists `pr_open` in `tools/list` must also pass these
+([opening pull requests](tools.md#opening-pull-requests)). PR1 and PR2 open nothing. PR3 needs
+a branch already pushed to the sandbox repo (the runner's `--pr-head`) and leaves one PR
+open for a person to close.
+
+| Id | Check |
+| --- | --- |
+| PR1 | Holding a claim on a sandbox issue, `pr_open` refuses a cross-repository `head` (`owner:branch`), a `head` equal to `base`, and a `head` that is not a branch of the repo |
+| PR2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`. Each refusal gives that reason, not only a missing branch |
+| PR3 | With a claim on a sandbox issue and a pushed `head`, `pr_open` opens the PR: `author` is not the caller's GitHub login and ends in `[bot]`, `by` equals the caller's `whoami` principal, and the returned `body` ends with exactly one `gtd-pr v1` marker whose `by` and `issues` match. Without `closes` it reports `closes` false and the body has no `Closes #` line. A second `pr_open` for the same `head` and `base` refuses and gives the open PR's URL |
 
 ## Ready check (when offered)
 

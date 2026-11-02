@@ -3,7 +3,7 @@ name: board-needs-person
 description: Ask a person for a decision, a spec, access or a ruling on a board item, mark it on the board with the right needs:* label, and stop work on it, through the gtd MCP server. Use whenever you would otherwise guess at something only a person can settle.
 metadata:
   author: gtd-board-kit
-  version: 0.2.0
+  version: 0.2.1
 ---
 
 # Ask a person, then stop
@@ -38,6 +38,8 @@ item_report(repo, number, attention="<the question>", needs="<needs>",
 - Omit `state` if you do not hold the item: anyone may ask, only the holder reports.
 - If the item is not a GitHub issue you can report on, `issue_comment` the question and
   add the label with `issue_labels`.
+- Never open a separate issue for the question: `question` is not a Kind. Open its own
+  `chore` or `spike` only when answering it is real work, and link it as a blocker.
 
 ## Then stop
 

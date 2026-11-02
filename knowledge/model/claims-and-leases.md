@@ -19,6 +19,10 @@ generated: { by: claude-code/cloud, at: 2026-11-01T04:00:00Z }
 - **Scope is fixed** to the item as claimed. New work becomes a new item. A
   [standing lane](/decisions/standing-lanes.md) fixes a class of work instead, and each
   item it takes is still claimed with its own fixed scope.
+- **Claim every item you work.** An agent may work several stories at once, and the
+  session that owns them may combine them on one integration branch. Each story still
+  has its own claim and lease; no claim covers several items, and no commit lands for
+  a story its committer does not hold. A claim may record the `branch` its work lands on.
 - A lane's own item is held for as long as the lane runs; its lease is the heartbeat.
 - **Renew** before the lease ends; **release** with what is done, what remains and the
   next step.

@@ -29,7 +29,7 @@ makes the "build it now" move ([BOARD.md](../BOARD.md) rule 4).
   `blocker-cycle`, the issues in the cycle).
 - `blockers` lists the issue's **open** native blockers (blocked-by links), each with
   `repo`, `number`, `title`, `state`, whatever the verdict.
-- `kind` is the issue's Kind (its organisation Issue Type, else a `kind:<kind>` label), or
+- `kind` is the issue's [Kind](repo-context-and-profiles.md#kinds) (its organisation Issue Type, else a `kind:<kind>` label), or
   null; `size` is the board's Size value, or null.
 
 It **refuses** a pull request ("check its issue instead"), a closed issue, and an issue

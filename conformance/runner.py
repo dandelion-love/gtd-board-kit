@@ -12,8 +12,8 @@ What it needs, and which checks each unlocks:
     nothing                 C13 (the fold fixtures, against the reference fold or --fold-cmd)
     --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
-    + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, J10, X2 (partly)
-    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, X1, X3. It CREATES issues there
+    + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, P8, J10, X2 (partly)
+    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
@@ -61,6 +61,7 @@ class Family(Enum):
     BOARD = "B"             # Board (Board level)
     CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
     READINESS = "R"         # Ready check (when item_ready is offered)
+    PULL_REQUESTS = "PR"    # Pull requests (when pr_open is offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -71,7 +72,7 @@ class Family(Enum):
 HEADINGS = {
     Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
     Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
-    Family.READINESS: "Ready check",
+    Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -93,7 +94,7 @@ LEVEL_OF = {
     Family.TRANSPORT: Level.CORE, Family.PROFILES: Level.CORE, Family.CLAIMS: Level.CORE,
     Family.SECURITY: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
-    Family.READINESS: Level.EXTENDED,
+    Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -132,7 +133,7 @@ CLASS.update(dict.fromkeys((
     "project_draft_add", "project_draft_update", "project_draft_convert", "issue_update",
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
-    "run_state_post", "channel_comment_post"), "work"))
+    "run_state_post", "channel_comment_post", "pr_open"), "work"))
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -191,6 +192,36 @@ PROFILE_FIELDS = ("name", "labels", "needs", "owner_needs", "pickup_sizes", "sta
 BASE_LABELS = ("run-agent", "agent-running", "waiting-for-review", "agent-failed", "blocked",
                "accepted", "needs:triage", "agent:any", "agent:human", "agent-ready",
                "agent-proposed")
+
+
+class RetiredKind(Enum):
+    """Kinds a profile must not declare (repo-context-and-profiles.md, Kinds; check P8)."""
+    TASK = "task"
+    QUESTION = "question"
+    DECISION = "decision"
+
+
+KIND_LABEL_PREFIX = "kind:"
+
+
+def retired_kinds_in(profile: dict) -> list[str]:
+    """The retired Kinds a profile declares, as labels or item types (check P8)."""
+    retired = {k.value for k in RetiredKind}
+    found = []
+    for lbl in profile.get("labels") or []:
+        name = str(lbl.get("name") if isinstance(lbl, dict) else lbl or "")
+        if name.lower().startswith(KIND_LABEL_PREFIX) and \
+                name[len(KIND_LABEL_PREFIX):].lower() in retired:
+            found.append(f"label {name}")
+    for t in profile.get("item_types") or []:
+        if not isinstance(t, dict):
+            continue
+        for key in ("name", "issue_type"):
+            if str(t.get(key) or "").lower() in retired:
+                found.append(f"item type {t.get('name')} ({key} {t.get(key)})")
+    return found
+
+
 IDENTITY_ARGS = {"principal", "author", "identity", "caller", "as_user", "by", "actor"}
 IDENTITY_EXEMPT = {"run_state_post"}  # its `by` is provenance text (tools.md, Run state)
 
@@ -820,7 +851,7 @@ def check_profiles(rep: Report, c: Client) -> dict:
         rep.fail("P1", f"profile_list: {text[:120]}")
         return {}
     names = [p["name"] if isinstance(p, dict) else p for p in (lst or {}).get("profiles") or []]
-    profiles, p1, p2, p3 = {}, [], [], []
+    profiles, p1, p2, p3, p8 = {}, [], [], [], []
     for name in names:
         ok, p, text = c.call("profile_get", {"name": name})
         if not ok:
@@ -841,9 +872,13 @@ def check_profiles(rep: Report, c: Client) -> dict:
         must = ["agent-running", "waiting-for-review", "agent-failed"] + [f"needs:{n}" for n in needs]
         if [m for m in must if m not in mapped] or (cols and {r.get("status") for r in rules} - cols):
             p3.append(name)
+        retired = retired_kinds_in(p)
+        if retired:
+            p8.append(f"{name}: {', '.join(retired)}")
     rep.check("P1", names and not p1, "; ".join(p1) or "no profiles", f"{len(names)} profiles")
     rep.check("P2", not p2, f"needs or owner_needs inconsistent in {', '.join(p2)}")
     rep.check("P3", not p3, f"status_for_label incomplete or off-board in {', '.join(p3)}")
+    rep.check("P8", not p8, f"retired Kinds declared: {'; '.join(p8)}")
     return profiles
 
 
@@ -1019,6 +1054,32 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     item = (out or {}).get("item") or {}
     rep.check("C7", not ok_m and ok and item.get("holder") is None and item.get("handoff_to") == "any",
               f"missing fields refused {not ok_m}; release {ok} {text[:80]}")
+
+    # C14 several items, one branch: one claim per item, each with its own lease
+    branch = f"rc/conformance-{sb.run}"
+    a, b = sb.issue("branch a"), sb.issue("branch b")
+    ok_bad, _, _ = c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance",
+                                               branch="bad..name"))
+    ok_a, out_a, t_a = c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance",
+                                                   lease="30m", branch=branch))
+    ok_b, out_b, t_b = c.call("item_claim", sb.args(b, basis="explicit", asked_by="conformance",
+                                                   lease="45m", branch=branch))
+    # Read both back through item_get: the branch must come from the fold, not the echo.
+    reads = [c.call("item_get", sb.args(num))[1] for num in (a, b)]
+    holder_me = ((out_a or {}).get("item") or {}).get("holder")
+    on_branch = bool(holder_me) and all(
+        ((o or {}).get("item") or {}).get("holder") == holder_me and
+        (((o or {}).get("item") or {}).get("mandate") or {}).get("branch") == branch
+        for o in [out_a, out_b, *reads])
+    ok_r, _, _ = c.call("item_release", sb.args(a, done="checked", remaining="none", next="close"))
+    _, out, _ = c.call("item_get", sb.args(b))
+    left = (out or {}).get("item") or {}
+    lease_b = (((out_b or {}).get("item") or {}).get("lease_until"))
+    rep.check("C14", not ok_bad and ok_a and ok_b and on_branch and ok_r and
+              left.get("holder") and left.get("lease_until") == lease_b,
+              f"bad branch refused {not ok_bad}; claims {ok_a} {ok_b} ({(t_a or t_b)[:60]}); "
+              f"branch recorded {on_branch}; release {ok_r}; second still held {bool(left.get('holder'))}")
+    c.call("item_release", sb.args(b, done="checked", remaining="none", next="close"))
 
     # C3 race
     if c2:
@@ -1240,6 +1301,94 @@ def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
               f"board fields after claim and report: Agent={fields.get('Agent')!r}, "
               f"Last report={fields.get('Last report')!r}")
     c.call("item_release", sb.args(m, done="mirror", remaining="none", next="close"))
+
+
+#: The provenance marker ``pr_open`` writes at the end of a PR body (tools.md).
+PR_MARKER_RE = re.compile(r"<!--\s*gtd-pr\s+v1\s+(\{.*?\})\s*-->", re.DOTALL)
+
+
+def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None,
+              head: str | None) -> None:
+    """PR1 to PR3: ``pr_open`` refusals, then (with a pushed ``head``) one real PR."""
+    if "pr_open" not in tools:
+        for cid in ("PR1", "PR2", "PR3"):
+            rep.na(cid, "pr_open is not offered")
+        return
+    owner = sb.repo.split("/")[0]
+    n = sb.issue("pr_open")
+    ok, _, text = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
+    if not ok:
+        for cid in ("PR1", "PR2", "PR3"):
+            rep.skip(cid, f"could not claim the sandbox issue: {text[:100]}")
+        return
+
+    def pr(**more: Any) -> tuple[bool, Any, str]:
+        args = {"repo": sb.repo, "title": f"[conformance {sb.run}] pr_open",
+                "body": "Opened by the gtd-board-kit conformance runner. Safe to close.",
+                "issues": [n], **more}
+        return c.call("pr_open", args)
+
+    missing = f"gtd-conformance-no-such-branch-{sb.run}"
+    bad = []
+    for label, args in (("cross-repository head", {"head": f"{owner}-other:{missing}"}),
+                        ("head equal to base", {"head": "main", "base": "main"}),
+                        ("missing branch", {"head": missing})):
+        ok, _, _ = pr(**args)
+        if ok:
+            bad.append(label)
+    rep.check("PR1", not bad, f"not refused: {', '.join(bad)}", "three bad heads refused")
+
+    other = sb.issue("pr_open unclaimed")
+    bad = []
+    # A refusal counts only when it gives the reason PR2 checks: every probe uses a missing
+    # branch, so a server without these checks would otherwise pass on the branch alone.
+    ok, _, text = pr(head=missing, issues=[])
+    if ok or "issues" not in text:
+        bad.append("empty issues was not refused for its issues")
+    ok, _, text = pr(head=missing, issues=[n, other])
+    if ok or str(other) not in text:
+        bad.append(f"an unclaimed issue (#{other}) was not refused by name")
+    ok, _, text = pr(head=missing, body='x <!-- gtd-pr v1 {"by": "agent:x", "issues": [1], "v": 1} -->')
+    if ok or "gtd-pr" not in text:
+        bad.append("a body with a gtd-pr marker was not refused for the marker")
+    rep.check("PR2", not bad, "; ".join(bad), "empty issues, an unclaimed issue and a marker refused")
+
+    if not head:
+        rep.manual("PR3", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+    else:
+        ok, out, text = pr(head=head)
+        out = out if isinstance(out, dict) else {}
+        principal = (who or {}).get("principal")
+        probs = []
+        if not ok:
+            probs.append(f"pr_open: {text[:120]}")
+        else:
+            author = str(out.get("author") or "")
+            if not author.endswith("[bot]"):
+                probs.append(f"author {author!r} is not an App")
+            if out.get("by") != principal:
+                probs.append(f"by {out.get('by')!r} is not {principal!r}")
+            ok2, _, text2 = c.call("pr_open", {"repo": sb.repo, "head": head, "title": "again",
+                                               "body": "second", "issues": [n]})
+            if ok2:
+                probs.append("a second pr_open for the same head was not refused")
+            elif out.get("url") and out["url"] not in text2:
+                probs.append("the second refusal does not give the open PR's URL")
+            body = str(out.get("body") or "")
+            marks = PR_MARKER_RE.findall(body)
+            try:
+                got = json.loads(marks[0]) if len(marks) == 1 else None
+            except json.JSONDecodeError:
+                got = None
+            if not got or not body.rstrip().endswith("-->"):
+                probs.append("the body does not end with exactly one gtd-pr marker")
+            elif got.get("by") != principal or got.get("issues") != [n]:
+                probs.append(f"marker by/issues {got.get('by')!r}/{got.get('issues')!r}")
+            if out.get("closes") is not False or "Closes #" in body:
+                probs.append("a PR opened without closes would close its issues")
+            print(f"note: close PR {out.get('url')} by hand", file=sys.stderr)
+        rep.check("PR3", not probs, "; ".join(probs), f"opened {out.get('url')} as {out.get('author')}")
+    c.call("item_release", sb.args(n, done="pr_open checks", remaining="none", next="close"))
 
 
 def check_join(rep: Report, base: str, start: bool, claims_join: bool | None) -> None:
@@ -1581,6 +1730,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--repo", help="owner/repo sandbox; the run creates issues there")
     ap.add_argument("--project", help="owner/number board linked to the sandbox repo")
     ap.add_argument("--profile", help="the sandbox repo's profile (default: the first profile_list returns)")
+    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 (opens one PR)")
     ap.add_argument("--join-start", action="store_true", help="open one join request for J2 and J3")
     ap.add_argument("--connector", metavar="NAME",
                     help="join agent NAME through the connector entrance for JC1 to JC9; "
@@ -1641,6 +1791,7 @@ def main(argv: list[str]) -> int:
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
                     if a.project:
                         check_board(rep, c, sb, profiles.get(name) or {})
+                    check_prs(rep, c, sb, _tools, who, a.pr_head)
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",

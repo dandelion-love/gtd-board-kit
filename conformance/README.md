@@ -57,11 +57,12 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 | --- | --- | --- |
 | none | C13, R1 | none |
 | `--server` | T1, T8, T9 (from the well-known document's levels); J2 and J3 skip unless the server claims Join | none |
-| `--token-env` | T0, T2, T3, T5, T7, T8 compared with `whoami`, J10, P1 to P3, X1 | none (reads only) |
+| `--token-env` | T0, T2, T3, T5, T7, T8 compared with `whoami`, J10, P1 to P3, P8, X1 | none (reads only) |
 | `--preset-token PRESET=ENV` (repeat) | T6, X2 for each preset you pass | none |
-| `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, X3; R2 to R7 when `item_ready` is offered | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them; for R5 and R7, links two as blockers of each other and closes one, when `issue_blocked_by_add` and `issue_close` are offered |
+| `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, C14, X3; R2 to R7 when `item_ready` is offered | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them; for R5 and R7, links two as blockers of each other and closes one, when `issue_blocked_by_add` and `issue_close` are offered |
 | `--token-b-env` | C2, C3, C6 with a second principal | as above |
 | `--project owner/number` | P7, B1 to B4, C12, and the Size part of C5 | adds the sandbox issues to the board and writes fields on them |
+| `--pr-head BRANCH` | PR3, when the server offers `pr_open` (PR1 and PR2 need only `--repo`) | **opens one pull request** from that branch, already pushed to the sandbox repo; close it by hand afterwards |
 | `--join-start` | J2 and J3 with a real request | opens one join request; it expires unapproved after ten minutes |
 | `--connector NAME` | JC1 to JC9, when `/join` lists the connector entrance | registers two OAuth clients with a loopback redirect, joins agent `NAME` at `desk` after a person approves it in a browser, and revokes it at the end when the server advertises `revocation_endpoint` (otherwise revoke it at `/join/agents`) |
 | `--fold-cmd CMD` | C13 against **your** fold instead of the reference | runs `CMD` locally |
