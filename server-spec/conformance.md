@@ -116,7 +116,7 @@ session or a long wait (marked *manual*) may be run by hand.
 | --- | --- |
 | B1 | `project_set_status` with an unknown column refuses and lists the live ones |
 | B2 | `project_set_field` sets and clears text, number, date and single-select fields by name |
-| B3 | `project_item_move` with no `after_*` puts the item first; with one, right after it |
+| B3 | `project_item_move` with no `after_*` puts the item first; with one, right after it. GitHub Projects can serve the old order for a while after a move, so the runner re-reads `project_items` for up to 30 seconds before failing, as in P6 |
 | B4 | Writes to an issue not yet on the board add it first |
 
 ## Customization (when offered)

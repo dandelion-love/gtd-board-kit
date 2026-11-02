@@ -160,5 +160,5 @@ Issue structure tools and you give no `--kind-cmd`, K1 is listed as manual.
   refused call reached GitHub (P5 checks the refusal only).
 - Optional tool groups are not checked beyond their class (X2), except Customization (O1 to O3) and Readiness (R1 to R8) and the Kind and parent rules (K1 to K4).
 - A server's own tools, outside the spec, are checked by the class they declare in `_meta` `gtd-board-kit/class`, else as `full` (X2).
-- P6 and C8 re-read a label-filtered list for up to 30 seconds after a write, because those lists can lag.
+- P6 and C8 re-read a label-filtered list, and B3 the board's order, for up to 30 seconds after a write, because those reads can lag.
 - It does not clean up after itself; it never deletes issues, and closes only the one R7 makes.

@@ -1521,8 +1521,11 @@ def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
     rep.check("B2", ok and ok3 and ((found or {}).get("fields") or {}).get("Target date") == "2030-01-01",
               "date field set/read/clear did not round-trip", "date field only; text, number, select by hand")
     ok, _, text = c.call("project_item_move", {"repo": sb.repo, "number": n, "project": proj})
-    ok2, out, _ = c.call("project_items", {"project": proj, "limit": 1})
-    first = ((out or {}).get("items") or [{}])[0]
+    # GitHub Projects can serve the old order for a while after a move (as P6), so re-read.
+    top = lambda res: ((res[1] or {}).get("items") or [{}])[0]
+    res = settle(lambda: c.call("project_items", {"project": proj, "limit": 1}),
+                 lambda res: not ok or top(res).get("number") == n)
+    first = top(res)
     rep.check("B3", ok and first.get("number") == n, f"move to top: {text[:80]}; first is {first.get('number')}")
     m = sb.issue("mirror")
     c.call("item_claim", sb.args(m, basis="explicit", asked_by="conformance", lease="30m"))
