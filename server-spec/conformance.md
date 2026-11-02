@@ -137,7 +137,7 @@ open for a person to close.
 | Id | Check |
 | --- | --- |
 | R1 | Holding a claim on a sandbox issue, `pr_open` refuses a cross-repository `head` (`owner:branch`), a `head` equal to `base`, and a `head` that is not a branch of the repo |
-| R2 | `pr_open` refuses an empty `issues`; refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker |
+| R2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`. Each refusal gives that reason, not only a missing branch |
 | R3 | With a claim on a sandbox issue and a pushed `head`, `pr_open` opens the PR: `author` is not the caller's GitHub login and ends in `[bot]`, `by` equals the caller's `whoami` principal, and the returned `body` ends with exactly one `gtd-pr v1` marker whose `by` and `issues` match. A second `pr_open` for the same `head` and `base` refuses and gives the open PR's URL |
 
 ## Security (all levels)

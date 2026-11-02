@@ -980,15 +980,17 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
 
     other = sb.issue("pr_open unclaimed")
     bad = []
-    ok, _, _ = pr(head=missing, issues=[])
-    if ok:
-        bad.append("empty issues")
+    # A refusal counts only when it gives the reason R2 checks: every probe uses a missing
+    # branch, so a server without these checks would otherwise pass on the branch alone.
+    ok, _, text = pr(head=missing, issues=[])
+    if ok or "issues" not in text:
+        bad.append("empty issues was not refused for its issues")
     ok, _, text = pr(head=missing, issues=[n, other])
     if ok or str(other) not in text:
         bad.append(f"an unclaimed issue (#{other}) was not refused by name")
-    ok, _, _ = pr(head=missing, body='x <!-- gtd-pr v1 {"by": "agent:x", "issues": [1], "v": 1} -->')
-    if ok:
-        bad.append("a body with a gtd-pr marker")
+    ok, _, text = pr(head=missing, body='x <!-- gtd-pr v1 {"by": "agent:x", "issues": [1], "v": 1} -->')
+    if ok or "gtd-pr" not in text:
+        bad.append("a body with a gtd-pr marker was not refused for the marker")
     rep.check("R2", not bad, "; ".join(bad), "empty issues, an unclaimed issue and a marker refused")
 
     if not head:
@@ -1014,7 +1016,10 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
                 probs.append("the second refusal does not give the open PR's URL")
             body = str(out.get("body") or "")
             marks = PR_MARKER_RE.findall(body)
-            got = json.loads(marks[0]) if len(marks) == 1 else None
+            try:
+                got = json.loads(marks[0]) if len(marks) == 1 else None
+            except json.JSONDecodeError:
+                got = None
             if not got or not body.rstrip().endswith("-->"):
                 probs.append("the body does not end with exactly one gtd-pr marker")
             elif got.get("by") != principal or got.get("issues") != [n]:
