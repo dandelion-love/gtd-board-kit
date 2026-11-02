@@ -18,9 +18,11 @@ What it needs, and which checks each unlocks:
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
     profile_updates offered O1 (with a token), O2 (with --repo); O3 is manual
-    item_ready offered      R1 (with --ready-cmd), R2 to R7 (with --repo; R2 and R6 in full
+    item_ready offered      R1 (with --ready-cmd), R2 to R8 (with --repo; R2 and R6 in full
                             with --project)
-    no --server             C13 and R1, against the reference fold and ready check
+    sub_issue_add offered   K1 (with --kind-cmd), K2 to K4 (with --repo whose owner has the
+                            Issue Types Epic, Story, Chore, Spike and Finding)
+    no --server             C13, R1 and K1, against the reference fold, ready check and Kind rules
 
 Tokens are read from environment variables, never from the command line, and are never
 printed. Checks that need a person (J4 to J9, C4, C10, T4) are listed as manual with what
@@ -62,6 +64,7 @@ class Family(Enum):
     CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
     READINESS = "R"         # Ready check (when item_ready is offered)
     PULL_REQUESTS = "PR"    # Pull requests (when pr_open is offered)
+    KINDS = "K"             # Kind and parent rules (when the Issue structure tools are offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -73,6 +76,7 @@ HEADINGS = {
     Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
     Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
+    Family.KINDS: "Kind and parent rules",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -95,6 +99,7 @@ LEVEL_OF = {
     Family.SECURITY: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
+    Family.KINDS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -220,6 +225,78 @@ def retired_kinds_in(profile: dict) -> list[str]:
             if str(t.get(key) or "").lower() in retired:
                 found.append(f"item type {t.get('name')} ({key} {t.get(key)})")
     return found
+
+
+class StandardKind(Enum):
+    """The standard Kinds (repo-context-and-profiles.md, Kinds)."""
+    EPIC = "epic"
+    STORY = "story"
+    CHORE = "chore"
+    BUG = "bug"
+    SPIKE = "spike"
+    RESEARCH = "research"
+    FINDING = "finding"
+
+
+class KindRule(Enum):
+    """The parent rules, in the order a type write checks them (check K1)."""
+    RETIRED = "retired-kind"
+    EPIC_TOP = "epic-is-top"
+    EPIC_STORIES = "epic-holds-stories"
+    HOLDS_STEPS = "holds-steps"
+    FINDING_NOTHING = "finding-holds-nothing"
+
+
+#: Parents whose sub-issues are steps, and the standard Kind each may still hold.
+STEP_PARENTS = {StandardKind.STORY: (), StandardKind.CHORE: (), StandardKind.BUG: (),
+                StandardKind.SPIKE: (StandardKind.FINDING,)}
+
+
+def _standard(kind: str | None) -> StandardKind | None:
+    try:
+        return StandardKind(str(kind or "").strip().lower())
+    except ValueError:
+        return None
+
+
+def kind_link_rule(parent: str | None, child: str | None) -> str | None:
+    """The rule a sub-issue link from ``parent`` to ``child`` breaks, or None. Kinds are
+    Issue Type names or ``kind:`` label values, any case; None is no Kind."""
+    p, c = _standard(parent), _standard(child)
+    if c is StandardKind.EPIC:
+        return KindRule.EPIC_TOP.value
+    if p is StandardKind.EPIC and (c is StandardKind.FINDING or not str(child or "").strip()):
+        return KindRule.EPIC_STORIES.value
+    if p in STEP_PARENTS and c is not None and c not in STEP_PARENTS[p]:
+        return KindRule.HOLDS_STEPS.value
+    if p is StandardKind.FINDING:
+        return KindRule.FINDING_NOTHING.value
+    return None
+
+
+def kind_type_rule(kind: str | None, parent: str | None, children: list) -> str | None:
+    """The rule setting ``kind`` (None clears it) on an issue breaks, given its parent's
+    Kind (None: no parent; ``""``: a parent with no Kind) and its sub-issues' Kinds."""
+    if str(kind or "").strip().lower() in {k.value for k in RetiredKind}:
+        return KindRule.RETIRED.value
+    if parent is not None:
+        rule = kind_link_rule(parent, kind)
+        if rule:
+            return rule
+    for child in children or []:
+        rule = kind_link_rule(kind, child)
+        if rule:
+            return rule
+    return None
+
+
+def reference_kind(case: dict) -> dict:
+    """K1: one case of conformance/kind_cases.json, answered by the reference rules."""
+    if case.get("op") == "type":
+        rule = kind_type_rule(case.get("kind"), case.get("parent"), case.get("children") or [])
+    else:
+        rule = kind_link_rule(case.get("parent"), case.get("child"))
+    return {"allowed": rule is None, "rule": rule}
 
 
 IDENTITY_ARGS = {"principal", "author", "identity", "caller", "as_user", "by", "actor"}
@@ -681,6 +758,32 @@ def check_ready_cases(rep: Report, ready_cmd: str | None) -> None:
     rep.check("R1", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
 
 
+KIND_CASE_KEYS = ("op", "parent", "child", "kind", "children")
+
+
+def check_kind_cases(rep: Report, kind_cmd: str | None) -> None:
+    """K1: the golden Kind cases, against the reference or a server's own logic (--kind-cmd)."""
+    fixtures = json.loads((HERE / "kind_cases.json").read_text())
+    bad = []
+    for case in fixtures["cases"]:
+        inp = {k: case[k] for k in KIND_CASE_KEYS if k in case}
+        if kind_cmd:
+            proc = subprocess.run(kind_cmd, shell=True, input=json.dumps(inp),
+                                  capture_output=True, text=True, timeout=60, check=False)
+            try:
+                got = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                bad.append(f"{case['name']}: no JSON from --kind-cmd")
+                continue
+        else:
+            got = reference_kind(inp)
+        exp = case["expect"]
+        if bool(got.get("allowed")) != exp["allowed"] or got.get("rule") != exp["rule"]:
+            bad.append(f"{case['name']} ({case['what']}): {got.get('allowed')} {got.get('rule')}")
+    who = "--kind-cmd" if kind_cmd else "the reference Kind rules"
+    rep.check("K1", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
+
+
 # ---------------------------------------------------------------------------
 # Server checks
 # ---------------------------------------------------------------------------
@@ -1129,7 +1232,7 @@ READY_AC = "## Acceptance criteria\n\n- AC1: the conformance runner sees this cr
 def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
                     ready_cmd: str | None) -> None:
     """R1 to R7: item_ready, when the server offers it (server-spec/ready-check.md)."""
-    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7")
+    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8")
     if "item_ready" not in tools:
         for cid in ids:
             rep.na(cid, "item_ready is not offered")
@@ -1240,6 +1343,127 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         ok, _, _ = ready(n)
         rep.check("R7", not ok, "a closed issue was not refused", "closed issue refused; PR and epic by hand")
     rep.manual("R7", "item_ready on a pull request number and on an issue of Kind epic: both refuse")
+
+    # R8: the claim returns the same verdict, warns when not ready, and never refuses on it.
+    def claim_ready(n: int) -> list[str]:
+        _, want, _ = ready(n)
+        ok, out, text = c.call("item_claim", sb.args(n, asked_by="conformance", basis="explicit", lease="90m"))
+        if not ok:
+            return [f"#{n}: claim refused: {text[:80]}"]
+        got = (out or {}).get("ready")
+        c.call("item_release", sb.args(n, done="conformance R8", remaining="none", next="close"))
+        if not isinstance(got, dict):
+            return [f"#{n}: no ready in the claim"]
+        num = lambda bs: sorted(b.get("number") if isinstance(b, dict) else b for b in bs or [])
+        probs = []
+        if got.get("verdict") != want.get("verdict") or rules(got) != rules(want) or \
+                num(got.get("blockers")) != num(want.get("blockers")):
+            probs.append(f"#{n}: claim says {got.get('verdict')} {rules(got)}, "
+                         f"item_ready {want.get('verdict')} {rules(want)}")
+        warned = any(str(want.get("verdict")) in str(w) for w in (out or {}).get("warnings") or [])
+        if want.get("verdict") != "ready" and not warned:
+            probs.append(f"#{n}: {want.get('verdict')} but no warning names it")
+        if want.get("verdict") == "ready" and any("not ready" in str(w) for w in out.get("warnings") or []):
+            probs.append(f"#{n}: ready but warned not ready")
+        return probs
+
+    n1 = sb.issue("claim not ready", body="Make the thing work.\n")
+    n2 = sb.issue("claim ready", body=READY_AC)
+    sized(n2, sizes[0] if sizes else None)
+    probs = claim_ready(n1) + claim_ready(n2)
+    rep.check("R8", not probs, "; ".join(probs[:3]), "verdict matches item_ready; not ready warns, never refuses")
+
+
+KIND_TYPES = ("Epic", "Story", "Chore", "Spike", "Finding")
+
+
+def check_kinds(rep: Report, c: Client, tools: dict, sb: Sandbox | None, kind_cmd: str | None) -> None:
+    """K1 to K4: Kind and parent rules, when the server offers the Issue structure tools."""
+    ids = ("K1", "K2", "K3", "K4")
+    if "sub_issue_add" not in tools and "issue_type_set" not in tools:
+        for cid in ids:
+            rep.na(cid, "the Issue structure tools are not offered")
+        return
+    if kind_cmd:
+        check_kind_cases(rep, kind_cmd)
+    else:
+        rep.manual("K1", "run the golden Kind cases against the server's own rules: --kind-cmd CMD")
+    if sb is None:
+        for cid in ids[1:]:
+            rep.skip(cid, "needs --repo")
+        return
+
+    def set_type(n: int, name: str | None) -> tuple[bool, str]:
+        args = {"repo": sb.repo, "number": n, **({"issue_type": name} if name else {"clear": True})}
+        ok, _, text = c.call("issue_type_set", args)
+        return ok, text
+
+    def link(parent: int, child: int) -> tuple[bool, str]:
+        ok, _, text = c.call("sub_issue_add", {"repo": sb.repo, "parent": parent, "child": child})
+        return ok, text
+
+    def children(parent: int) -> list:
+        _, out, _ = c.call("sub_issues_list", {"repo": sb.repo, "number": parent})
+        return [x.get("number") for x in (out or {}).get("children") or [] if isinstance(x, dict)]
+
+    # K2: a retired Kind refuses, naming the rule, whether or not the owner has that type.
+    n = sb.issue("retired kind")
+    wrong = []
+    for name in ("Task", "question", "DECISION"):
+        ok, text = set_type(n, name)
+        if ok or "retired-kind" not in text:
+            wrong.append(f"{name}: {'set' if ok else text[:60]}")
+    rep.check("K2", not wrong, "; ".join(wrong), "Task, question and DECISION refused as retired-kind")
+
+    made = {}
+    for name in KIND_TYPES:
+        made[name] = sb.issue(f"kind {name.lower()}")
+        ok, text = set_type(made[name], name)
+        if not ok:
+            for cid in ids[2:]:
+                rep.skip(cid, f"the sandbox owner has no Issue Type {name} ({text[:60]}); "
+                              f"K3 and K4 need {', '.join(KIND_TYPES)}")
+            return
+    epic, story, chore, finding = made["Epic"], made["Story"], made["Chore"], made["Finding"]
+    step, step2 = sb.issue("step"), sb.issue("step 2")
+
+    # K3: allowed links succeed; each forbidden one refuses, names its rule, links nothing.
+    probs = []
+    for parent, child, rule in ((epic, story, None), (epic, step, "epic-holds-stories"),
+                                (story, chore, "holds-steps"), (story, step, None),
+                                (story, epic, "epic-is-top"), (finding, step2, "finding-holds-nothing")):
+        ok, text = link(parent, child)
+        if rule is None and not ok:
+            probs.append(f"#{parent} > #{child} refused: {text[:60]}")
+        elif rule and (ok or rule not in text or child in children(parent)):
+            probs.append(f"#{parent} > #{child}: wanted {rule}, got {'a link' if ok else text[:60]}")
+    rep.check("K3", not probs, "; ".join(probs[:3]), "two links made; four refused, each naming its rule")
+
+    # K4: issue_type_set checks the new Kind against the parent and the sub-issues.
+    probs = []
+    for n, name, rule in ((story, "Finding", "epic-holds-stories"), (step, "Chore", "holds-steps"),
+                          (story, "Epic", "epic-is-top")):
+        ok, text = set_type(n, name)
+        if ok or rule not in text:
+            probs.append(f"#{n} to {name}: wanted {rule}, got {'set' if ok else text[:60]}")
+    # Child side alone: a story with no parent over a step may not become a finding.
+    lone, step3 = sb.issue("lone story"), sb.issue("step 3")
+    ok_s, text_s = set_type(lone, "Story")
+    ok_l, text_l = link(lone, step3)
+    if not ok_s or not ok_l:
+        probs.append(f"setup: {text_s[:40] if not ok_s else ''} {text_l[:40] if not ok_l else ''}")
+    else:
+        ok, text = set_type(lone, "Finding")
+        if ok or "finding-holds-nothing" not in text:
+            probs.append(f"#{lone} (no parent, a step under it) to Finding: wanted finding-holds-nothing, "
+                         f"got {'set' if ok else text[:60]}")
+    if "item_ready" in tools:
+        for n in (story, lone):
+            _, out, _ = c.call("item_ready", sb.args(n))
+            if isinstance(out, dict) and out.get("kind") not in (None, "story"):
+                probs.append(f"a refused write changed #{n}'s Kind to {out.get('kind')}")
+    rep.check("K4", not probs, "; ".join(probs[:3]),
+              "four type changes refused (parent side and sub-issue side), each naming its rule")
 
 
 def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
@@ -1739,6 +1963,7 @@ def main(argv: list[str]) -> int:
                     help="seconds to wait for that approval (default 600)")
     ap.add_argument("--fold-cmd", help="a command that folds {now, comments} from stdin to JSON on stdout")
     ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
+    ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
 
@@ -1746,6 +1971,7 @@ def main(argv: list[str]) -> int:
     check_fold(rep, a.fold_cmd)
     if not a.server:
         check_ready_cases(rep, a.ready_cmd)
+        check_kind_cases(rep, a.kind_cmd)
     seen: list[str] = []
     secrets: list[str] = []
 
@@ -1793,6 +2019,7 @@ def main(argv: list[str]) -> int:
                         check_board(rep, c, sb, profiles.get(name) or {})
                     check_prs(rep, c, sb, _tools, who, a.pr_head)
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
+                check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)

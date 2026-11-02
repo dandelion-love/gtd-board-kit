@@ -11,6 +11,9 @@ or `agent:<x>`, and a `ready` answer never lets an agent take an item it could n
 before: the claim rules in [tools](tools.md#claims-and-reports) still hold. A person still
 makes the "build it now" move ([BOARD.md](../BOARD.md) rule 4).
 
+`item_claim` runs the same check and returns its answer with the claim, as a warning
+only: it never refuses on it ([the ready verdict on a claim](tools.md#claims-and-reports)).
+
 ## The tool
 
 `item_ready` is the **Readiness** optional group ([tools](tools.md#optional-groups)).

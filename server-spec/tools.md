@@ -45,7 +45,7 @@ Semantics and records are in [claim-records](claim-records.md). All five take `r
 refuse a pull request ("claim its issue instead"). `item_claim`, `item_renew` and
 `item_report` refuse a closed issue; `item_get` and `item_release` work on one, so a holder
 can still let go of an item a person closed to stop it (a standing lane's fast stop). Each write returns the folded item as `item_get` does, plus `event`,
-`comment_url`, `board` (`{project, written}`) and `warnings`.
+`comment_url`, `board` (`{project, written}`) and `warnings`; `item_claim` also returns `ready` (below).
 
 | Tool | Class | Further arguments | Refuses when |
 | --- | --- | --- | --- |
@@ -62,6 +62,18 @@ branch itself. A valid name is 1 to 200 characters of letters, digits, `.`, `_`,
 `/`; it does not start with `-` or `/`, end with `/`, `.` or `.lock`, or contain `..` or
 `//`. Each call claims **one** item; claiming several stories for one branch is one call
 per story (see [claim records](claim-records.md#several-items-one-branch)).
+
+**The ready verdict on a claim.** A server that offers `item_ready`
+([ready check](ready-check.md)) runs it on the issue before it writes the claim and returns
+the answer as `ready`: `{verdict, missing, blockers}`, the same values `item_ready` gives
+for that issue and board. A verdict other than `ready` adds one line to `warnings` naming
+the verdict and the failed rules (`not ready: needs-refinement (acceptance-criteria)`).
+The claim **never refuses on the verdict**, for `explicit` or `inferred`: a person who
+pointed an agent at an item has made the call, and an `inferred` claim already has its
+label and Size rules above. `ready` is null when the server does not offer `item_ready`,
+when `item_ready` would refuse the issue (an epic), or when the check fails; a failed check
+adds a warning and the claim goes ahead. Only `item_claim` returns it; `item_renew` does
+not re-run the check.
 
 `item_report` with `attention` also adds the label `needs:<needs>` to the issue (adding is
 idempotent; it never removes one). A failed label write is a warning, the record stands.
@@ -105,7 +117,7 @@ that offers the capability uses the name.
 
 | Group | Tools | What for |
 | --- | --- | --- |
-| Issue structure | `issue_update`, `issue_close`, `issue_reopen`, `issue_assign`, `issue_milestone`, `issue_type_set`, `issue_parent`, `sub_issue_add`, `sub_issue_remove`, `sub_issues_list`, `issue_blocked_by_add`, `issue_blocked_by_remove` (work, lists read). `issue_close` takes `repo`, `number`, `reason?` (`completed` or `not_planned`); the blocked-by pair takes `repo`, `number`, `blocker`, `blocker_repo?` | Editing issues beyond labels |
+| Issue structure | `issue_update`, `issue_close`, `issue_reopen`, `issue_assign`, `issue_milestone`, `issue_type_set`, `issue_parent`, `sub_issue_add`, `sub_issue_remove`, `sub_issues_list`, `issue_blocked_by_add`, `issue_blocked_by_remove` (work, lists read). `issue_close` takes `repo`, `number`, `reason?` (`completed` or `not_planned`); the blocked-by pair takes `repo`, `number`, `blocker`, `blocker_repo?`; `sub_issue_add` takes `repo`, `parent`, `child`, `child_repo?`, `replace_parent?`; `issue_type_set` takes `repo`, `number`, `issue_type` or `clear`; `issue_parent` (read) returns an issue's parent or null. `sub_issue_add` and `issue_type_set` refuse a write that breaks a [parent rule](repo-context-and-profiles.md#kinds), naming the rule | Editing issues beyond labels |
 | Readiness | `item_ready` (read): `repo`, `number`, `project?` | Whether a story is ready to build: `ready`, `needs-refinement` (with what is missing) or `ready-blocked`, by the rules in [ready check](ready-check.md). Writes nothing |
 | Board lifecycle | `project_create`, `project_update`, `project_template`, `project_copy`, `project_link_repo`, `project_views`, `project_reconcile`, `project_field_update`, `project_field_delete`, `project_item_remove`, `project_workflows`, `project_workflow_delete` (full) | Making and shaping boards from a profile |
 | Repo setup | `repo_reconcile_labels`, `work_items_plan`, `work_items_sync` (full; plan is read) | Making a repo's labels and issues match its profile and its files |
