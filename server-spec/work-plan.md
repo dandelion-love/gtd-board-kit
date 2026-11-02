@@ -27,6 +27,7 @@ flowchart TD
   U9 --> U12
   U10 --> U12
   U11 --> U12
+  U6 --> U13[U13 Ready check, optional]
 ```
 
 | Unit | Implements | Delivers | Proven by |
@@ -42,6 +43,7 @@ flowchart TD
 | **U9 Board tools** | [tools](tools.md#level-board) | `project_add_item`, `project_set_status`, `project_set_field`, `project_item_move`, `project_item_archive`, `project_status_update`, the draft tools; `project_report` | B1 to B4 |
 | **U10 Agent join** | [agent-join](agent-join.md), S3 to S5, S15, S17 | The `/join/*` routes and pages, the auth store, token issue, hash lookup, renew with reuse detection, revoke and revoke-all, approver sign-in, CSRF; the joined-agent verifier U2 stubbed. Optionally the connector entrance: wrap the connector OAuth sign-in so `/authorize` goes through `/join/approve`, issue codes and connector refresh tokens, keep the agent refresh token server-side | J1 to J11; JC1 to JC9 when offered |
 | **U11 Label-to-Status bridge** | [repo-context-and-profiles](repo-context-and-profiles.md#the-label-to-status-map) | A bridge a repo can run (a workflow plus a script, or a webhook consumer) that applies the map with its six rules | its own tests for the six rules |
+| **U13 Ready check** (optional) | [ready-check](ready-check.md) | `item_ready`: the five rules as pure functions over an issue and its blocker graph (testable against the golden cases), and the tool that reads the graph and writes nothing | R1 to R7 |
 | **U12 Conformance and smoke** | [conformance](conformance.md) | The full suite green in CI; a scratch repo with the kit, a joined agent, and the smoke test in "Running against the kit" | all checks of the levels claimed, and T9 |
 
 ## Brief for a coding agent taking a unit
