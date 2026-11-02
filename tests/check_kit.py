@@ -212,10 +212,20 @@ fold_table = set(re.findall(r"^\| ([a-z]) \|", conf_md, re.M))
 fold_json = {c["name"] for c in json.loads((ROOT / "conformance" / "fold_cases.json").read_text())["cases"]}
 if fold_table != fold_json:
     fail(f"C13 fixture table {sorted(fold_table)} differs from fold_cases.json {sorted(fold_json)}")
-ready_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", conf_md, re.M)
+def section(heading: str) -> str:
+    """The text of one `## heading` section of conformance.md."""
+    m = re.search(rf"^## {re.escape(heading)}.*?(?=^## )", conf_md, re.M | re.S)
+    return m.group(0) if m else ""
+
+
+ready_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Ready check"), re.M)
 ready_json = [c["name"] for c in json.loads((ROOT / "conformance" / "ready_cases.json").read_text())["cases"]]
 if ready_table != ready_json:
     fail(f"R1 case table {ready_table} differs from ready_cases.json {ready_json}")
+kind_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Kind and parent rules"), re.M)
+kind_json = [c["name"] for c in json.loads((ROOT / "conformance" / "kind_cases.json").read_text())["cases"]]
+if kind_table != kind_json:
+    fail(f"K1 case table {kind_table} differs from kind_cases.json {kind_json}")
 
 # Every check id in the table belongs to a Family, and the report sorts by family order.
 for cid in spec_ids:

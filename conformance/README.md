@@ -9,7 +9,7 @@ It needs Python 3.10 or later and nothing else (standard library only).
 ## Quick start
 
 ```bash
-# 1. Offline: the claim-fold (C13) and ready-check (R1) golden cases, against the references.
+# 1. Offline: the claim-fold (C13), ready-check (R1) and Kind-rule (K1) golden cases, against the references.
 python3 conformance/runner.py
 
 # 2. Unauthenticated: the 401 challenge and resource metadata (T1).
@@ -55,11 +55,11 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 
 | Option | Unlocks | Side effects |
 | --- | --- | --- |
-| none | C13, R1 | none |
+| none | C13, R1, K1 | none |
 | `--server` | T1, T8, T9 (from the well-known document's levels); J2 and J3 skip unless the server claims Join | none |
 | `--token-env` | T0, T2, T3, T5, T7, T8 compared with `whoami`, J10, P1 to P3, P8, X1 | none (reads only) |
 | `--preset-token PRESET=ENV` (repeat) | T6, X2 for each preset you pass | none |
-| `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, C14, X3; R2 to R7 when `item_ready` is offered | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them; for R5 and R7, links two as blockers of each other and closes one, when `issue_blocked_by_add` and `issue_close` are offered |
+| `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, C14, X3; R2 to R8 when `item_ready` is offered; K2 to K4 when `sub_issue_add` or `issue_type_set` is offered (K3 and K4 need the Issue Types `Epic`, `Story`, `Chore`, `Spike` and `Finding` on the repo's owner) | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them; for R5 and R7, links two as blockers of each other and closes one, when `issue_blocked_by_add` and `issue_close` are offered; for K3 and K4, sets Issue Types and links sub-issues |
 | `--token-b-env` | C2, C3, C6 with a second principal | as above |
 | `--project owner/number` | P7, B1 to B4, C12, and the Size part of C5 | adds the sandbox issues to the board and writes fields on them |
 | `--pr-head BRANCH` | PR3, when the server offers `pr_open` (PR1 and PR2 need only `--repo`) | **opens one pull request** from that branch, already pushed to the sandbox repo; close it by hand afterwards |
@@ -67,6 +67,7 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 | `--connector NAME` | JC1 to JC9, when `/join` lists the connector entrance | registers two OAuth clients with a loopback redirect, joins agent `NAME` at `desk` after a person approves it in a browser, and revokes it at the end when the server advertises `revocation_endpoint` (otherwise revoke it at `/join/agents`) |
 | `--fold-cmd CMD` | C13 against **your** fold instead of the reference | runs `CMD` locally |
 | `--ready-cmd CMD` | R1 against **your** ready check; without `--server`, R1 runs against the reference | runs `CMD` locally |
+| `--kind-cmd CMD` | K1 against **your** Kind rules; without `--server`, K1 runs against the reference | runs `CMD` locally |
 
 Use a **scratch repo and board** that nothing else watches. The runner lists the issues it
 made at the end; close or delete them afterwards.
@@ -134,11 +135,30 @@ The command answers with `verdict`, `missing` (rule names, or `{rule, detail}` o
 statement of the rules in [ready check](../server-spec/ready-check.md). If the server
 offers `item_ready` and you give no `--ready-cmd`, R1 is listed as manual.
 
+## Testing your Kind rules offline
+
+K1 feeds each case in [kind_cases.json](kind_cases.json) to a command on stdin. A link case
+asks whether `parent` may hold `child`; a type case asks whether an issue with that
+`parent` and those `children` may take `kind` (null clears the type). Each Kind is an Issue
+Type name or a `kind:` label value, any case, or null for none. In a type case `parent` is
+null when the issue has no parent and `""` when its parent has no Kind:
+
+```json
+{"op": "link", "parent": "Epic", "child": "Story"}
+{"op": "type", "kind": "Finding", "parent": "Epic", "children": [null]}
+```
+
+The command answers `{"allowed": true|false, "rule": null|"<rule>"}`, with the first rule
+broken in the order `retired-kind`, then the issue as a child, then each sub-issue in
+order. The runner's `kind_link_rule` and `kind_type_rule` are a readable statement of the
+[parent rules](../server-spec/repo-context-and-profiles.md#kinds). If the server offers the
+Issue structure tools and you give no `--kind-cmd`, K1 is listed as manual.
+
 ## Limits
 
 - It is black-box. It cannot see your logs (X1 covers response bodies only) or whether a
   refused call reached GitHub (P5 checks the refusal only).
-- Optional tool groups are not checked beyond their class (X2), except Customization (O1 to O3) and Readiness (R1 to R7).
+- Optional tool groups are not checked beyond their class (X2), except Customization (O1 to O3) and Readiness (R1 to R8) and the Kind and parent rules (K1 to K4).
 - A server's own tools, outside the spec, are checked by the class they declare in `_meta` `gtd-board-kit/class`, else as `full` (X2).
 - P6 and C8 re-read a label-filtered list for up to 30 seconds after a write, because those lists can lag.
 - It does not clean up after itself; it never deletes issues, and closes only the one R7 makes.
