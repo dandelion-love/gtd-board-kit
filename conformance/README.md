@@ -120,4 +120,6 @@ The runner's own `reference_fold` is a readable statement of the rules in
 - It is black-box. It cannot see your logs (X1 covers response bodies only) or whether a
   refused call reached GitHub (P5 checks the refusal only).
 - Optional tool groups are not checked beyond their class (X2).
+- A server's own tools, outside the spec, are checked by the class they declare in `_meta` `gtd-board-kit/class`, else as `full` (X2).
+- P6 and C8 re-read a label-filtered list for up to 30 seconds after a write, because those lists can lag.
 - It does not clean up after itself; it never closes or deletes issues.

@@ -127,6 +127,54 @@ CLASS.update(dict.fromkeys((
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post"), "work"))
+#: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
+#: classes `full` by prefix. A declaration can never lower one of these.
+SPEC_FULL = frozenset((
+    "project_create", "project_update", "project_template", "project_copy", "project_link_repo",
+    "project_views", "project_reconcile", "project_field_update", "project_field_delete",
+    "project_item_remove", "project_workflows", "project_workflow_delete",
+    "repo_reconcile_labels", "work_items_sync", "actions_run", "actions_rerun", "actions_cancel",
+    "org_issue_types", "org_issue_type_set", "repo_variables", "repo_variable_set",
+    "repo_variable_delete"))
+SPEC_FULL_PREFIXES = ("webhook_",)
+
+
+def spec_class(name: str) -> str | None:
+    """The class the spec gives ``name``, or None for a tool the spec does not name."""
+    if name in CLASS:
+        return CLASS[name]
+    if name in SPEC_FULL or name.startswith(SPEC_FULL_PREFIXES):
+        return "full"
+    return None
+
+
+#: Where a server declares the class of a tool of its own (transport-and-identity.md, Presets).
+CLASS_META = "gtd-board-kit/class"
+#: How long a list read may lag a label write (GitHub's label-filtered lists), P6 and C8.
+LIST_LAG_SECONDS, LIST_LAG_STEP = 30, 3
+
+
+def tool_class(tool: dict) -> tuple[str, str | None]:
+    """(class, problem): the spec's class, else the declared one, else ``full``."""
+    declared = (tool.get("_meta") or {}).get(CLASS_META)
+    spec = spec_class(tool.get("name") or "")
+    if declared is not None and declared not in PRESETS:
+        return spec or "full", f"declares class {declared!r}, not a preset"
+    if spec and declared is not None and declared != spec:
+        return spec, f"declares {declared}, the spec gives {spec}"
+    return spec or declared or "full", None
+
+
+def settle(read, ok_when, timeout: float = LIST_LAG_SECONDS, step: float = LIST_LAG_STEP):
+    """Call ``read`` until ``ok_when(result)`` or ``timeout`` passes; the last result."""
+    deadline = time.monotonic() + timeout
+    while True:
+        res = read()
+        if ok_when(res) or time.monotonic() >= deadline:
+            return res
+        time.sleep(step)
+
+
 CORE_TOOLS = ("whoami", "profile_list", "profile_get", "project_get", "project_items",
               "project_item_find", "project_views_list", "list_next_actions", "issue_list",
               "issue_blocked_by_list", "item_get", "item_claim", "item_renew", "item_release",
@@ -480,12 +528,15 @@ def check_presets(rep: Report, base: str, preset_tokens: dict[str, str], seen: l
     for preset, token in preset_tokens.items():
         c = Client(base, token, seen)
         c.initialize()
-        names = {t["name"] for t in c.tools()}
+        listed = c.tools()
+        names = {t["name"] for t in listed}
         rank = PRESETS.index(preset)
-        for n in names:
-            cls = CLASS.get(n, "full")
+        for t in listed:
+            cls, problem = tool_class(t)
+            if problem:
+                bad_x2.append(f"{t['name']} {problem}")
             if PRESETS.index(cls) > rank:
-                bad_x2.append(f"{n} ({cls}) visible at {preset}")
+                bad_x2.append(f"{t['name']} ({cls}) visible at {preset}")
         hidden = [n for n, cls in CLASS.items() if PRESETS.index(cls) <= rank and n in CORE_TOOLS
                   and n not in names]
         if hidden:
@@ -721,8 +772,15 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
 
     # P6 next actions
     tag = sb.issue("next action", labels=["agent-ready"])
-    ok, out, text = c.call("list_next_actions", {"repo": repo, "context": "agent-ready", "limit": 100})
-    rows = out if isinstance(out, list) else (out or {}).get("result") or (out or {}).get("items") or []
+
+    def next_rows(res):
+        out = res[1]
+        return out if isinstance(out, list) else (out or {}).get("result") or (out or {}).get("items") or []
+
+    ok, out, text = settle(
+        lambda: c.call("list_next_actions", {"repo": repo, "context": "agent-ready", "limit": 100}),
+        lambda res: not res[0] or any(r.get("number") == tag for r in next_rows(res)))
+    rows = next_rows((ok, out, text))
     rep.check("P6", ok and any(r.get("number") == tag for r in rows) and
               all("agent-ready" in (r.get("labels") or []) for r in rows),
               f"list_next_actions: {text[:120] if not ok else 'missing or unlabelled rows'}")
@@ -760,8 +818,14 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     # C8 attention, X3 over-long
     ok_none, _, _t_none = c.call("item_report", sb.args(n, attention="Which way?"))
     ok, out, text = c.call("item_report", sb.args(n, attention="Which way?", needs=owner_needs))
-    ok_lbl, lbl_out, _ = c.call("issue_list", {"repo": repo, "labels": [f"needs:{owner_needs}"], "limit": 100})
-    listed = [i.get("number") for i in ((lbl_out or {}).get("issues") or (lbl_out or {}).get("items") or [])]
+
+    def numbers(res):
+        out = res[1] or {}
+        return [i.get("number") for i in (out.get("issues") or out.get("items") or [])]
+
+    lbl = settle(lambda: c.call("issue_list", {"repo": repo, "labels": [f"needs:{owner_needs}"], "limit": 100}),
+                 lambda res: not ok or not res[0] or n in numbers(res))
+    ok_lbl, listed = lbl[0], numbers(lbl)
     rep.check("C8", not ok_none and ok and (n in listed or not ok_lbl),
               f"no needs refused {not ok_none}; with needs {ok} {text[:80]}; labelled {n in listed}")
     ok, _, _ = c.call("item_report", sb.args(n, note="x" * 5000))
