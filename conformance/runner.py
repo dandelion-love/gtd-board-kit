@@ -1024,6 +1024,8 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
                 probs.append("the body does not end with exactly one gtd-pr marker")
             elif got.get("by") != principal or got.get("issues") != [n]:
                 probs.append(f"marker by/issues {got.get('by')!r}/{got.get('issues')!r}")
+            if out.get("closes") is not False or "Closes #" in body:
+                probs.append("a PR opened without closes would close its issues")
             print(f"note: close PR {out.get('url')} by hand", file=sys.stderr)
         rep.check("PR3", not probs, "; ".join(probs), f"opened {out.get('url')} as {out.get('author')}")
     c.call("item_release", sb.args(n, done="pr_open checks", remaining="none", next="close"))

@@ -131,6 +131,7 @@ The agent still pushes its branch first, with whatever git access its host gives
 | `body` | string | At most 60000 characters. The server adds the provenance block below |
 | `issues` | integer list | The issues this PR works on, at least one. The caller must hold a live claim on each ([claim-records](claim-records.md)) |
 | `draft` | boolean, optional | Default false |
+| `closes` | boolean, optional | Default false. True only when the work is verified (tested). See below |
 
 The server MUST, in this order, refuse before it creates anything when:
 
@@ -153,13 +154,16 @@ Opened through the gtd MCP server for **agent:example**. Works on #<first issue>
 ```
 
 - `by` is the caller's principal from its token (S1); there is no argument for it.
-- The visible line says `Closes #n` for each issue instead of `Works on #n` when `base`
-  is the repo's default branch, so merging closes the stories.
+- The visible line says `Closes #n` for each issue instead of `Works on #n` only when
+  `closes` is true, the PR is not a draft, and `base` is the repo's default branch, so
+  merging closes the stories. Any other PR leaves its issues open for a person to close
+  after testing.
 - The JSON follows the record rules in [claim-records](claim-records.md#record-format):
   `<` and `>` escaped, keys sorted.
 
 It returns `number`, `url`, `author` (the login GitHub shows as author), `by`, `head`,
-`base`, `draft`, `issues` and `body` (the body as written, with the block).
+`base`, `draft`, `issues`, `closes` (whether merging closes the issues) and `body` (the
+body as written, with the block).
 
 `pr_open` is `work`, so a `work` agent can use it. It changes nothing else: no labels, no
 Status, no claim records; the agent reports with the `item_*` tools as usual.
