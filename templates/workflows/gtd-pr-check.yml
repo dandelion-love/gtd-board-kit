@@ -1,0 +1,68 @@
+# gtd PR check and daily agent audit: a TEMPLATE. A person installs it, never an agent.
+#
+# Install once per work repo that has the kit at .gtd/kit:
+#   cp .gtd/kit/templates/workflows/gtd-pr-check.yml .github/workflows/gtd-pr-check.yml
+# then commit it yourself. See templates/workflows/README.md in the kit.
+#
+# Report-only: findings show in the job summary and never fail the job. To make the
+# check required later, add --enforce to the pr-check step and mark the job a required
+# status check in the branch rules.
+#
+# Optional repository variables (Settings > Secrets and variables > Actions > Variables):
+#   GTD_SERVER_LOGIN    the gtd server's GitHub login (its App bot)
+#   GTD_AGENT_LOGINS    comma-separated logins that are agents (Bots count already)
+#   GTD_RECORD_AUTHORS  comma-separated logins whose comments may carry claim records
+name: gtd PR check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: "17 14 * * *"   # daily audit; GitHub runs schedules in UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: gtd-pr-check-${{ github.event.pull_request.number || github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  pr-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The base commit, not the PR's: the check reads the PR through the API and never
+      # runs code the PR changed, so a PR cannot edit the check that judges it.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          submodules: true
+          persist-credentials: false
+      - name: Check the PR body against its issues (report-only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GTD_SERVER_LOGIN: ${{ vars.GTD_SERVER_LOGIN }}
+          GTD_AGENT_LOGINS: ${{ vars.GTD_AGENT_LOGINS }}
+          GTD_RECORD_AUTHORS: ${{ vars.GTD_RECORD_AUTHORS }}
+        run: python3 .gtd/kit/tools/pr_check.py
+
+  audit:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: Audit the last day of agent actions (report-only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GTD_SERVER_LOGIN: ${{ vars.GTD_SERVER_LOGIN }}
+          GTD_AGENT_LOGINS: ${{ vars.GTD_AGENT_LOGINS }}
+        run: python3 .gtd/kit/tools/pr_check.py --audit --since 24h

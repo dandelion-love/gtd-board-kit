@@ -252,6 +252,11 @@ for files, msg, want in (
     if verdict(files, msg)[0] != want:
         fail(f"spec_pair verdict for {files} with {msg!r} was not {want}")
 
+# tools/pr_check.py: its offline tests pass.
+prc = subprocess.run([sys.executable, str(ROOT / "tests" / "test_pr_check.py")], capture_output=True, text=True)
+if prc.returncode != 0:
+    fail("tests/test_pr_check.py failed:\n" + prc.stderr.strip()[-2000:])
+
 if errors:
     print("\n".join(f"FAIL {e}" for e in errors))
     sys.exit(1)
