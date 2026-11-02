@@ -78,7 +78,7 @@ The owner settled the nine questions that the
   rules for combined branches (done in kit 0.14.0: `board-claim`, an optional
   `branch` on `item_claim`, conformance C14); a server tool that opens PRs;
   the board profile's Kind list.
-- Until the ready tool exists, an agent treats an item as ready only when a person has
+- Until a server offers the ready tool ([ready check](../../server-spec/ready-check.md)), an agent treats an item as ready only when a person has
   added `agent-ready`.
 
 See [work items live on the board](/decisions/work-items-live-on-the-board.md) and
