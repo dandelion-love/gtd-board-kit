@@ -21,12 +21,10 @@ malformed event or an internal error allows the call.
 
 Modes (each reads one hook event as JSON on stdin):
   --claude-hook   Claude Code (wired by install/settings.snippet.json)
-  --codex-hook    Codex, from <repo>/.codex/hooks.json:
-                    {"hooks": {
-                      "SessionStart": [{"hooks": [{"type": "command", "command":
-                        "python3 \\"$(git rev-parse --show-toplevel)/.gtd/kit/tools/agent_guard.py\\" --codex-hook"}]}],
-                      "PreToolUse": [{"matcher": "Bash|apply_patch|mcp__.*", "hooks": [{"type": "command",
-                        "command": "python3 \\"$(git rev-parse --show-toplevel)/.gtd/kit/tools/agent_guard.py\\" --codex-hook"}]}]}}
+  --codex-hook    Codex (wired by install/codex-hooks.snippet.json into <repo>/.codex/hooks.json)
+
+Both snippets run the guard as `g=<kit>/tools/agent_guard.py; [ -f "$g" ] && python3 "$g"
+<mode> || true`, so a missing submodule or a missing python3 never blocks a tool call.
 
 A denial is printed as {"hookSpecificOutput": {"hookEventName": "PreToolUse",
 "permissionDecision": "deny", ...}} with exit 0, the form both agents read.
@@ -141,10 +139,31 @@ def granted(rel: str, root: Path) -> bool:
     return r.returncode == 0
 
 
-def workflow_denial(paths: list[str], cwd: str, root: Path) -> str | None:
+def origin_repo(root: Path) -> str | None:
+    """`owner/repo` of the checkout's origin, lower-cased, or None."""
+    try:
+        url = subprocess.run(["git", "-C", str(root), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    m = re.search(r"github\.com[:/]([^/\s]+)/([^/\s]+?)(?:\.git)?/?$", url)
+    return f"{m.group(1)}/{m.group(2)}".lower() if m else None
+
+
+def mcp_target_is_checkout(data: dict, root: Path) -> bool:
+    """A GitHub MCP write names its repo; this checkout's grants count only for this repo."""
+    owner, repo = str(data.get("owner") or ""), str(data.get("repo") or "")
+    if "/" in repo and not owner:
+        owner, repo = repo.split("/", 1)
+    here = origin_repo(root)
+    return bool(here and owner and repo and f"{owner}/{repo}".lower() == here)
+
+
+def workflow_denial(paths: list[str], cwd: str, root: Path, *,
+                    grants_apply: bool = True) -> str | None:
     for path in paths:
         rel = rel_path(path, cwd, root)
-        if rel and is_workflow(rel) and not granted(rel, root):
+        if rel and is_workflow(rel) and not (grants_apply and granted(rel, root)):
             return (f"{rel} is under .github/workflows/; agents never create or edit "
                     "workflows unless a merged workflow grant in .gtd/BOARD.local.md names "
                     "that path. Ask your person instead (board-needs-person).")
@@ -241,6 +260,7 @@ def pre_tool_use(adapter: Adapter, event: dict) -> int:
             return deny(pr_denial())
 
     paths: list[str] = []
+    grants_apply = True
     if tool in EDIT_TOOLS[adapter]:
         paths = [str(data[k]) for k in EDIT_TOOLS[adapter][tool] if data.get(k)]
     elif tool in SHELL_TOOLS:
@@ -252,7 +272,9 @@ def pre_tool_use(adapter: Adapter, event: dict) -> int:
         names = [data.get("path")] + [f.get("path") for f in data.get("files") or []
                                       if isinstance(f, dict)]
         paths = [str(root / n) for n in names if n]
-    reason = workflow_denial(paths, cwd, root)
+        # Another repo's write is never covered by this checkout's grants.
+        grants_apply = mcp_target_is_checkout(data, root)
+    reason = workflow_denial(paths, cwd, root, grants_apply=grants_apply)
     return deny(reason) if reason else 0
 
 
