@@ -32,7 +32,7 @@ name.
    `attention` and `needs`, then stop that item. In a lane, ask on that item and keep
    the lane running.
 8. **New work you discover** goes in with `capture` and `agent-proposed`, never straight
-   to `run-agent` or `agent-ready`. Split an epic or story with `board-decompose`.
+   to `run-agent` or `agent-ready`.
 9. **Hard limits.** Work on a branch (`gtd/issue-<n>`); never the default branch. Hand
    back with `pr_open` if the server has it. Never merge. Never create or edit
    `.github/workflows/**` unless a workflow grant in `.gtd/BOARD.local.md` on the
@@ -42,7 +42,8 @@ name.
 ## Skills
 
 `board-onboard`: connect or check. `board-pickup`: find an item. `board-claim`: claim,
-work, open a PR. `board-decompose`: split work. `board-report`: report, renew,
-release. `board-needs-person`: ask, stop. `board-lane`: lanes. `okf-knowledge`: OKF.
+work, open a PR. `board-decompose`: split an epic into stories or a story into steps.
+`board-report`: report, renew, release. `board-needs-person`: ask, stop. `board-lane`:
+lanes. `okf-knowledge`: OKF.
 
 Never edit `.gtd/kit`: change the kit upstream and move the pin by PR.

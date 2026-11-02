@@ -6,8 +6,8 @@
 # Run from the work repo's root, on a branch (never the default branch). It adds the
 # submodule at .gtd/kit pinned to the given commit (default: the kit's main), links the
 # skills into .claude/skills, .codex/skills and .agents/skills, adds a SessionStart hook
-# if the repo has no .claude/settings.json, starts .gtd/BOARD.local.md (the repo's own layer) if missing, and
-# points CLAUDE.md / AGENTS.md at both. It commits nothing:
+# if the repo has no .claude/settings.json, starts .gtd/BOARD.local.md (the repo's own
+# layer) if missing, and points CLAUDE.md / AGENTS.md at both. It commits nothing:
 # review `git status`, commit, and open a PR.
 set -euo pipefail
 
