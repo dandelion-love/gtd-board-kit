@@ -57,7 +57,7 @@ class Family(Enum):
     CLAIMS = "C"            # Claims (Core)
     BOARD = "B"             # Board (Board level)
     CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
-    PULL_REQUESTS = "R"     # Pull requests (when pr_open is offered)
+    PULL_REQUESTS = "PR"    # Pull requests (when pr_open is offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -949,16 +949,16 @@ PR_MARKER_RE = re.compile(r"<!--\s*gtd-pr\s+v1\s+(\{.*?\})\s*-->", re.DOTALL)
 
 def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None,
               head: str | None) -> None:
-    """R1 to R3: ``pr_open`` refusals, then (with a pushed ``head``) one real PR."""
+    """PR1 to PR3: ``pr_open`` refusals, then (with a pushed ``head``) one real PR."""
     if "pr_open" not in tools:
-        for cid in ("R1", "R2", "R3"):
+        for cid in ("PR1", "PR2", "PR3"):
             rep.na(cid, "pr_open is not offered")
         return
     owner = sb.repo.split("/")[0]
     n = sb.issue("pr_open")
     ok, _, text = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
     if not ok:
-        for cid in ("R1", "R2", "R3"):
+        for cid in ("PR1", "PR2", "PR3"):
             rep.skip(cid, f"could not claim the sandbox issue: {text[:100]}")
         return
 
@@ -976,11 +976,11 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
         ok, _, _ = pr(**args)
         if ok:
             bad.append(label)
-    rep.check("R1", not bad, f"not refused: {', '.join(bad)}", "three bad heads refused")
+    rep.check("PR1", not bad, f"not refused: {', '.join(bad)}", "three bad heads refused")
 
     other = sb.issue("pr_open unclaimed")
     bad = []
-    # A refusal counts only when it gives the reason R2 checks: every probe uses a missing
+    # A refusal counts only when it gives the reason PR2 checks: every probe uses a missing
     # branch, so a server without these checks would otherwise pass on the branch alone.
     ok, _, text = pr(head=missing, issues=[])
     if ok or "issues" not in text:
@@ -991,10 +991,10 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
     ok, _, text = pr(head=missing, body='x <!-- gtd-pr v1 {"by": "agent:x", "issues": [1], "v": 1} -->')
     if ok or "gtd-pr" not in text:
         bad.append("a body with a gtd-pr marker was not refused for the marker")
-    rep.check("R2", not bad, "; ".join(bad), "empty issues, an unclaimed issue and a marker refused")
+    rep.check("PR2", not bad, "; ".join(bad), "empty issues, an unclaimed issue and a marker refused")
 
     if not head:
-        rep.manual("R3", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+        rep.manual("PR3", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
     else:
         ok, out, text = pr(head=head)
         out = out if isinstance(out, dict) else {}
@@ -1025,7 +1025,7 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
             elif got.get("by") != principal or got.get("issues") != [n]:
                 probs.append(f"marker by/issues {got.get('by')!r}/{got.get('issues')!r}")
             print(f"note: close PR {out.get('url')} by hand", file=sys.stderr)
-        rep.check("R3", not probs, "; ".join(probs), f"opened {out.get('url')} as {out.get('author')}")
+        rep.check("PR3", not probs, "; ".join(probs), f"opened {out.get('url')} as {out.get('author')}")
     c.call("item_release", sb.args(n, done="pr_open checks", remaining="none", next="close"))
 
 
@@ -1368,7 +1368,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--repo", help="owner/repo sandbox; the run creates issues there")
     ap.add_argument("--project", help="owner/number board linked to the sandbox repo")
     ap.add_argument("--profile", help="the sandbox repo's profile (default: the first profile_list returns)")
-    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for R3 (opens one PR)")
+    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 (opens one PR)")
     ap.add_argument("--join-start", action="store_true", help="open one join request for J2 and J3")
     ap.add_argument("--connector", metavar="NAME",
                     help="join agent NAME through the connector entrance for JC1 to JC9; "

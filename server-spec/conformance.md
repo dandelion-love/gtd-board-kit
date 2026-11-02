@@ -130,15 +130,15 @@ A server that lists `profile_updates` in `tools/list` must also pass these.
 ## Pull requests (when offered)
 
 A server that lists `pr_open` in `tools/list` must also pass these
-([opening pull requests](tools.md#opening-pull-requests)). R1 and R2 open nothing. R3 needs
+([opening pull requests](tools.md#opening-pull-requests)). PR1 and PR2 open nothing. PR3 needs
 a branch already pushed to the sandbox repo (the runner's `--pr-head`) and leaves one PR
 open for a person to close.
 
 | Id | Check |
 | --- | --- |
-| R1 | Holding a claim on a sandbox issue, `pr_open` refuses a cross-repository `head` (`owner:branch`), a `head` equal to `base`, and a `head` that is not a branch of the repo |
-| R2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`. Each refusal gives that reason, not only a missing branch |
-| R3 | With a claim on a sandbox issue and a pushed `head`, `pr_open` opens the PR: `author` is not the caller's GitHub login and ends in `[bot]`, `by` equals the caller's `whoami` principal, and the returned `body` ends with exactly one `gtd-pr v1` marker whose `by` and `issues` match. A second `pr_open` for the same `head` and `base` refuses and gives the open PR's URL |
+| PR1 | Holding a claim on a sandbox issue, `pr_open` refuses a cross-repository `head` (`owner:branch`), a `head` equal to `base`, and a `head` that is not a branch of the repo |
+| PR2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`. Each refusal gives that reason, not only a missing branch |
+| PR3 | With a claim on a sandbox issue and a pushed `head`, `pr_open` opens the PR: `author` is not the caller's GitHub login and ends in `[bot]`, `by` equals the caller's `whoami` principal, and the returned `body` ends with exactly one `gtd-pr v1` marker whose `by` and `issues` match. A second `pr_open` for the same `head` and `base` refuses and gives the open PR's URL |
 
 ## Security (all levels)
 
