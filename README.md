@@ -25,6 +25,7 @@ data, tokens or board contents.
 | `install/` | `add-to-repo.ps1` / `.sh`, `install-user.ps1`, the SessionStart hook, the `BOARD.local.md` starter |
 | `tests/check_kit.py` | Size budgets, frontmatter, versions, links, and the public guard over the tree |
 | `tools/public_guard.py`, `.githooks/` | The guard that keeps private data out: `pre-commit`, `commit-msg`, `pre-push` |
+| `tools/agent_guard.py` | Claude Code and Codex hooks for work repos: deny an own PR create while `pr_open` exists and workflow edits without a merged grant; a SessionStart reminder |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` | Rules for any agent working on the kit, and Claude Code hooks that run the guard |
 
 ## Knowledge docs: OKF, pinned by the kit
