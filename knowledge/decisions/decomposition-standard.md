@@ -75,7 +75,8 @@ The owner settled the nine questions that the
   kit; the [per-repo layer](/decisions/per-repo-layer.md) may keep a different name for
   a while and say so.
 - Follow-up changes: the ready check in `server-spec/` and its runner checks; claim
-  rules for combined branches in `board-claim`; a server tool that opens PRs;
+  rules for combined branches (done in kit 0.14.0: `board-claim`, an optional
+  `branch` on `item_claim`, conformance C14); a server tool that opens PRs;
   the board profile's Kind list.
 - Until the ready tool exists, an agent treats an item as ready only when a person has
   added `agent-ready`.

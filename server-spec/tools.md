@@ -50,10 +50,18 @@ can still let go of an item a person closed to stop it (a standing lane's fast s
 | Tool | Class | Further arguments | Refuses when |
 | --- | --- | --- | --- |
 | `item_get` | read | none | never, for an allowlisted issue |
-| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `project?` | someone else holds an unexpired lease; the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
+| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `project?` | someone else holds an unexpired lease; `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
 | `item_renew` | work | `lease?`, `project?` | the caller is not the holder |
 | `item_release` | work | `done`, `remaining`, `next` (all required), `handoff_to?`, `project?` | the caller is not the holder |
 | `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
+
+`branch` names the branch the caller's commits for this item land on: the item's own
+`gtd/issue-<n>` branch, or an integration (release-candidate) branch that combines
+several stories. The server stores it as `mandate.branch` and never reads or writes the
+branch itself. A valid name is 1 to 200 characters of letters, digits, `.`, `_`, `-` and
+`/`; it does not start with `-` or `/`, end with `/`, `.` or `.lock`, or contain `..` or
+`//`. Each call claims **one** item; claiming several stories for one branch is one call
+per story (see [claim records](claim-records.md#several-items-one-branch)).
 
 `item_report` with `attention` also adds the label `needs:<needs>` to the issue (adding is
 idempotent; it never removes one). A failed label write is a warning, the record stands.

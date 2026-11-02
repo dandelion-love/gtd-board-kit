@@ -58,12 +58,31 @@ A record comment is human-readable Markdown with one marker at the end:
   "rule": "agent-ready for an inferred pickup, a lane name in a lane, else null",
   "policy_version": "the lane's policy version, or null",
   "pointed_in": "a link to where the agent was pointed, or null",
+  "branch": "the branch the holder's commits for this item land on, or null",
   "scope": {"repo": "owner/repo", "item": 0, "title": "...", "body_sha256": "first 16 hex"}
 }
 ```
 
 `scope` fixes what was claimed: the item as it read at claim time. Wider work is a new
 item ([claims and leases](../knowledge/model/claims-and-leases.md)).
+
+`branch` is optional and only recorded: a fold does not use it. A record written before
+the field existed has no `branch`; readers treat a missing key as null.
+
+## Several items, one branch
+
+An agent may work one or more stories, and the session that owns them may combine them
+on one integration branch. The record format does not change for that:
+
+- **One record, one item.** A claim names exactly one item (`scope.item`). There is no
+  record or tool that claims several items at once, and a server MUST NOT add one.
+- **Each item has its own lease.** Renewing, releasing or reporting on one item never
+  changes another, even when both name the same `branch`. A fold reads only its own
+  issue's comments.
+- **Every item worked is claimed.** Work for an item lands on a branch only while the
+  committer holds that item's claim. Merging a branch someone else built into an
+  integration branch is not working its items; a fix commit for an item on the
+  integration branch is, so it needs that item's claim.
 
 A server MAY define more events for its own tools (a coordination desk, say). Folds ignore
 events they do not know.

@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Claim an item and work it
@@ -15,7 +15,7 @@ this session; the local file's labels, columns and rules win over anything below
 ## 1. Claim before touching anything
 
 ```
-item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", project)
+item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, project)
 ```
 
 - `explicit`: you were pointed at it. `asked_by` is who pointed you (your person's
@@ -25,6 +25,23 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", project)
   `explicit`** unless someone really did point you at it: pick another item or ask.
 - Refused because someone holds it: leave it. Never take over a live lease.
 - Pick a lease that covers the work, at most 72h; you will renew (`board-report`).
+- `branch`: where your commits for it land (`gtd/issue-<number>`, or the combined branch).
+
+## Several stories on one branch
+
+Your unit of work may be one or more stories, and the session that owns them may combine
+them on one integration (release-candidate) branch.
+
+- **Claim every story you work on**, one `item_claim` each, before its first commit.
+  An unclaimed story never gets a commit, even on a combined branch. Refused on one?
+  Leave it out of the batch.
+- Each claim has its own lease, reports and release: renew each, report each, release
+  each with its own notes (`board-report`). Dropping a story from the batch: take its
+  commits off the branch and release it.
+- The owning session merges other agents' story branches into the combined branch
+  without claiming them; a fix commit there for a story needs that story's claim.
+- The PR lists every story it carries (`Closes #<n>` each). Before opening it,
+  `item_get` each: you hold it, or its holder released it with `ready`.
 
 ## 2. Show it on the board
 
