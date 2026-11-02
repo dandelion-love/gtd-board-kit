@@ -1,0 +1,455 @@
+{
+ "pickup_sizes": [
+  "XS",
+  "S",
+  "M"
+ ],
+ "repo": "owner/repo",
+ "cases": [
+  {
+   "name": "ready",
+   "what": "criteria, Size S, no blockers",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
+   }
+  },
+  {
+   "name": "ac-missing",
+   "what": "no criteria heading",
+   "body": "Make the thing work.\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "acceptance-criteria"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "ac-empty",
+   "what": "heading with no list item before the next heading",
+   "body": "## Acceptance criteria\n\nTBD\n\n## Notes\n\n- a note\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "acceptance-criteria"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "ac-task-box",
+   "what": "level-3 heading in another case, task-box items",
+   "body": "Intro.\n\n### Acceptance Criteria (AC)\n\n- [ ] AC1: it works\n- [ ] AC2: it is fast\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
+   }
+  },
+  {
+   "name": "ac-subheading",
+   "what": "a lower-level heading between the heading and the item still counts",
+   "body": "## Acceptance criteria\n\n### Happy path\n\n1. AC1: it works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
+   }
+  },
+  {
+   "name": "ac-in-code",
+   "what": "a heading inside a fenced code block does not count",
+   "body": "```\n## Acceptance criteria\n- AC1\n```\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "acceptance-criteria"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "question",
+   "what": "a needs:* label is an open question",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [
+    "needs:owner"
+   ],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "open-question"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "body-unlinked",
+   "what": "a blocker named in the body but not linked",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {#B}.\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "unlinked-blocker"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "body-unlinked-full",
+   "what": "the owner/repo form, and depends on",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nThis depends on {full#B} first.\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "unlinked-blocker"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "body-unlinked-url",
+   "what": "the issue URL form",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {url#B}\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "unlinked-blocker"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "body-linked",
+   "what": "a body blocker that is a native link, closed",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nDepends on {#B}.\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "B"
+    ]
+   },
+   "closed": [
+    "B"
+   ],
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
+   }
+  },
+  {
+   "name": "body-other-words",
+   "what": "a reference without the blocker words is not a blocker",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nSee {#B} for background.\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
+   }
+  },
+  {
+   "name": "body-self",
+   "what": "a reference to the issue itself is ignored",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {#S}?\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
+   }
+  },
+  {
+   "name": "label-unlinked",
+   "what": "the blocked label with no open native blocker",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [
+    "blocked"
+   ],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "unlinked-blocker"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "label-linked",
+   "what": "the blocked label with an open native blocker",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [
+    "blocked"
+   ],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "B"
+    ]
+   },
+   "expect": {
+    "verdict": "ready-blocked",
+    "missing": [],
+    "blockers": [
+     "B"
+    ]
+   }
+  },
+  {
+   "name": "blocked-open",
+   "what": "an open native blocker",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "B"
+    ]
+   },
+   "expect": {
+    "verdict": "ready-blocked",
+    "missing": [],
+    "blockers": [
+     "B"
+    ]
+   }
+  },
+  {
+   "name": "blocked-closed",
+   "what": "a closed native blocker does not block",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "B"
+    ]
+   },
+   "closed": [
+    "B"
+   ],
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
+   }
+  },
+  {
+   "name": "cycle-direct",
+   "what": "the issue and its blocker block each other",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "B"
+    ],
+    "B": [
+     "S"
+    ]
+   },
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "blocker-cycle"
+    ],
+    "blockers": [
+     "B"
+    ]
+   }
+  },
+  {
+   "name": "cycle-upstream",
+   "what": "a cycle upstream of the issue",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "B"
+    ],
+    "B": [
+     "C"
+    ],
+    "C": [
+     "B"
+    ]
+   },
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "blocker-cycle"
+    ],
+    "blockers": [
+     "B"
+    ]
+   }
+  },
+  {
+   "name": "cycle-broken",
+   "what": "a closed issue breaks the cycle",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "B"
+    ],
+    "B": [
+     "C"
+    ],
+    "C": [
+     "B"
+    ]
+   },
+   "closed": [
+    "C"
+   ],
+   "expect": {
+    "verdict": "ready-blocked",
+    "missing": [],
+    "blockers": [
+     "B"
+    ]
+   }
+  },
+  {
+   "name": "chain",
+   "what": "a chain without a cycle",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "B"
+    ],
+    "B": [
+     "C"
+    ],
+    "C": [
+     "D"
+    ]
+   },
+   "expect": {
+    "verdict": "ready-blocked",
+    "missing": [],
+    "blockers": [
+     "B"
+    ]
+   }
+  },
+  {
+   "name": "size-none",
+   "what": "no Size",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": null,
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "size"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "size-large",
+   "what": "a Size outside pickup_sizes",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "L",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "size"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "no-board",
+   "what": "no readable board",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "board": false,
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "size"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "several",
+   "what": "every failure is listed, in rule order, with the open blocker",
+   "body": "Do it. Blocked by {#C}.\n",
+   "labels": [
+    "needs:owner"
+   ],
+   "size": "XL",
+   "blocked_by": {
+    "S": [
+     "B"
+    ]
+   },
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "acceptance-criteria",
+     "open-question",
+     "unlinked-blocker",
+     "size"
+    ],
+    "blockers": [
+     "B"
+    ]
+   }
+  }
+ ]
+}

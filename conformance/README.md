@@ -9,7 +9,7 @@ It needs Python 3.10 or later and nothing else (standard library only).
 ## Quick start
 
 ```bash
-# 1. Offline: the claim-fold golden cases (C13), against the reference fold.
+# 1. Offline: the claim-fold (C13) and ready-check (R1) golden cases, against the references.
 python3 conformance/runner.py
 
 # 2. Unauthenticated: the 401 challenge and resource metadata (T1).
@@ -55,16 +55,17 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 
 | Option | Unlocks | Side effects |
 | --- | --- | --- |
-| none | C13 | none |
+| none | C13, R1 | none |
 | `--server` | T1, T8, T9 (from the well-known document's levels); J2 and J3 skip unless the server claims Join | none |
 | `--token-env` | T0, T2, T3, T5, T7, T8 compared with `whoami`, J10, P1 to P3, X1 | none (reads only) |
 | `--preset-token PRESET=ENV` (repeat) | T6, X2 for each preset you pass | none |
-| `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, X3 | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them |
+| `--repo owner/repo` | P4 to P6, C1, C2, C5 to C9, C11, X3; R2 to R7 when `item_ready` is offered | **creates issues** titled `[conformance <run>] ...`, adds labels and comments, claims and releases them; for R5 and R7, links two as blockers of each other and closes one, when `issue_blocked_by_add` and `issue_close` are offered |
 | `--token-b-env` | C2, C3, C6 with a second principal | as above |
 | `--project owner/number` | P7, B1 to B4, C12, and the Size part of C5 | adds the sandbox issues to the board and writes fields on them |
 | `--join-start` | J2 and J3 with a real request | opens one join request; it expires unapproved after ten minutes |
 | `--connector NAME` | JC1 to JC9, when `/join` lists the connector entrance | registers two OAuth clients with a loopback redirect, joins agent `NAME` at `desk` after a person approves it in a browser, and revokes it at the end when the server advertises `revocation_endpoint` (otherwise revoke it at `/join/agents`) |
 | `--fold-cmd CMD` | C13 against **your** fold instead of the reference | runs `CMD` locally |
+| `--ready-cmd CMD` | R1 against **your** ready check; without `--server`, R1 runs against the reference | runs `CMD` locally |
 
 Use a **scratch repo and board** that nothing else watches. The runner lists the issues it
 made at the end; close or delete them afterwards.
@@ -115,11 +116,28 @@ your server's fold in a few lines of glue and pass it as `--fold-cmd "python3 my
 The runner's own `reference_fold` is a readable statement of the rules in
 [claim-records](../server-spec/claim-records.md).
 
+## Testing your ready check offline
+
+R1 feeds each case in [ready_cases.json](ready_cases.json) to a command on stdin, with the
+case's letters already turned into issue numbers:
+
+```json
+{"repo": "owner/repo", "number": N, "body": "## Acceptance criteria\n\n- AC1 ...",
+ "labels": [], "board": true, "size": "S", "pickup_sizes": ["XS", "S", "M"],
+ "blocked_by": ["owner/repo#M"],
+ "issues": {"owner/repo#M": {"state": "open", "blocked_by": []}}}
+```
+
+The command answers with `verdict`, `missing` (rule names, or `{rule, detail}` objects) and
+`blockers` (`owner/repo#N` of the open ones). The runner's `reference_ready` is a readable
+statement of the rules in [ready check](../server-spec/ready-check.md). If the server
+offers `item_ready` and you give no `--ready-cmd`, R1 is listed as manual.
+
 ## Limits
 
 - It is black-box. It cannot see your logs (X1 covers response bodies only) or whether a
   refused call reached GitHub (P5 checks the refusal only).
-- Optional tool groups are not checked beyond their class (X2).
+- Optional tool groups are not checked beyond their class (X2), except Customization (O1 to O3) and Readiness (R1 to R7).
 - A server's own tools, outside the spec, are checked by the class they declare in `_meta` `gtd-board-kit/class`, else as `full` (X2).
 - P6 and C8 re-read a label-filtered list for up to 30 seconds after a write, because those lists can lag.
-- It does not clean up after itself; it never closes or deletes issues.
+- It does not clean up after itself; it never deletes issues, and closes only the one R7 makes.

@@ -18,6 +18,9 @@ What it needs, and which checks each unlocks:
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
     profile_updates offered O1 (with a token), O2 (with --repo); O3 is manual
+    item_ready offered      R1 (with --ready-cmd), R2 to R7 (with --repo; R2 and R6 in full
+                            with --project)
+    no --server             C13 and R1, against the reference fold and ready check
 
 Tokens are read from environment variables, never from the command line, and are never
 printed. Checks that need a person (J4 to J9, C4, C10, T4) are listed as manual with what
@@ -57,6 +60,7 @@ class Family(Enum):
     CLAIMS = "C"            # Claims (Core)
     BOARD = "B"             # Board (Board level)
     CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
+    READINESS = "R"         # Ready check (when item_ready is offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -67,6 +71,7 @@ class Family(Enum):
 HEADINGS = {
     Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
     Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
+    Family.READINESS: "Ready check",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -88,6 +93,7 @@ LEVEL_OF = {
     Family.TRANSPORT: Level.CORE, Family.PROFILES: Level.CORE, Family.CLAIMS: Level.CORE,
     Family.SECURITY: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
+    Family.READINESS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -118,7 +124,7 @@ CLASS.update(dict.fromkeys((
     "project_views_list", "list_next_actions", "issue_list", "issue_blocked_by_list",
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
-    "channel_comments_read", "profile_updates"), "read"))
+    "channel_comments_read", "profile_updates", "item_ready"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -471,6 +477,167 @@ def check_fold(rep: Report, fold_cmd: str | None) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Ready check (server-spec/ready-check.md)
+# ---------------------------------------------------------------------------
+
+#: The ready rules, in the order `missing` lists them.
+READY_RULES = ("acceptance-criteria", "open-question", "unlinked-blocker", "blocker-cycle", "size")
+READY_VERDICTS = ("ready", "ready-blocked", "needs-refinement")
+READY_WALK_LIMIT = 50
+_FENCE = re.compile(r"^\s*(```|~~~)")
+_HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$")
+_LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?\S")
+_BLOCKER_WORDS = re.compile(r"\b(?:blocked by|depends on)\b", re.IGNORECASE)
+_ISSUE_REF = re.compile(
+    r"https://github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)|(?<![\w/])([\w.-]+/[\w.-]+)?#(\d+)\b")
+
+
+def _prose_lines(body: str) -> list[str]:
+    """The body's lines outside fenced code blocks."""
+    out, fenced = [], False
+    for line in (body or "").splitlines():
+        if _FENCE.match(line):
+            fenced = not fenced
+            continue
+        if not fenced:
+            out.append(line)
+    return out
+
+
+def has_acceptance_criteria(body: str) -> bool:
+    """A heading starting "acceptance criteria" with a list item before the next heading
+    of the same or a higher level."""
+    level = None
+    for line in _prose_lines(body):
+        h = _HEADING.match(line)
+        if h:
+            depth = len(h.group(1))
+            if level is not None and depth <= level:
+                level = None
+            if level is None and h.group(2).strip().lower().startswith("acceptance criteria"):
+                level = depth
+            continue
+        if level is not None and _LIST_ITEM.match(line):
+            return True
+    return False
+
+
+def body_blockers(body: str, repo: str) -> list[str]:
+    """`owner/repo#N` for every issue reference after "blocked by" or "depends on"."""
+    refs = []
+    for line in _prose_lines(body):
+        m = _BLOCKER_WORDS.search(line)
+        if not m:
+            continue
+        for r in _ISSUE_REF.finditer(line[m.end():]):
+            refs.append(f"{r.group(1) or r.group(3) or repo}#{r.group(2) or r.group(4)}".lower())
+    return refs
+
+
+def reference_ready(issue: dict) -> dict:
+    """The ready check over a plain description of an issue and its blocker graph.
+
+    ``issue``: ``repo``, ``number``, ``body``, ``labels``, ``board`` (bool), ``size``,
+    ``pickup_sizes``, ``blocked_by`` (``owner/repo#N`` of each native blocker) and
+    ``issues`` (``owner/repo#N`` to ``{state, blocked_by}`` for every other issue).
+    Returns ``verdict``, ``missing`` (rule names) and ``blockers`` (open ones)."""
+    me = f"{issue['repo']}#{issue['number']}".lower()
+    graph = {k.lower(): v for k, v in (issue.get("issues") or {}).items()}
+    graph[me] = {"state": "open", "blocked_by": issue.get("blocked_by") or []}
+    is_open = lambda ref: (graph.get(ref.lower()) or {}).get("state", "open") == "open"
+    native = [b.lower() for b in issue.get("blocked_by") or []]
+    open_blockers = [b for b in native if is_open(b)]
+    labels = issue.get("labels") or []
+    missing = []
+    if not has_acceptance_criteria(issue.get("body") or ""):
+        missing.append("acceptance-criteria")
+    if any(lbl.startswith("needs:") for lbl in labels):
+        missing.append("open-question")
+    stray = [r for r in body_blockers(issue.get("body") or "", issue["repo"]) if r != me and r not in native]
+    if stray or ("blocked" in labels and not open_blockers):
+        missing.append("unlinked-blocker")
+    # Walk open blockers; a node met again while still on the path is a cycle.
+    state: dict[str, str] = {}
+    cycle = too_big = False
+
+    def walk(node: str) -> None:
+        nonlocal cycle, too_big
+        if cycle or too_big:
+            return
+        state[node] = "on-path"
+        if len(state) > READY_WALK_LIMIT:
+            too_big = True
+            return
+        for nxt in (graph.get(node) or {}).get("blocked_by") or []:
+            nxt = nxt.lower()
+            if not is_open(nxt):
+                continue
+            if state.get(nxt) == "on-path":
+                cycle = True
+                return
+            if nxt not in state:
+                walk(nxt)
+        state[node] = "done"
+    walk(me)
+    if cycle or too_big:
+        missing.append("blocker-cycle")
+    if not issue.get("board", True) or issue.get("size") not in (issue.get("pickup_sizes") or []):
+        missing.append("size")
+    verdict = "needs-refinement" if missing else "ready-blocked" if open_blockers else "ready"
+    return {"verdict": verdict, "missing": missing, "blockers": open_blockers}
+
+
+def ready_inputs(fixtures: dict) -> list[tuple[dict, dict, dict]]:
+    """(case, input, expected) with letters turned into `owner/repo#N` and body references."""
+    repo = fixtures["repo"]
+    out = []
+    for case in fixtures["cases"]:
+        letters = sorted({"S", *case["blocked_by"], *(x for v in case["blocked_by"].values() for x in v),
+                          *re.findall(r"\{(?:full|url)?#([A-Z])\}", case["body"])})
+        num = {x: 100 + i for i, x in enumerate(["S"] + [x for x in letters if x != "S"])}
+        def ref(x: str, num: dict = num) -> str:
+            return f"{repo}#{num[x]}"
+        forms = {"full": lambda x: ref(x), "url": lambda x, num=num: f"https://github.com/{repo}/issues/{num[x]}",
+                 "": lambda x, num=num: f"#{num[x]}"}
+        body = re.sub(r"\{(full|url)?#([A-Z])\}", lambda m, f=forms: f[m.group(1) or ""](m.group(2)), case["body"])
+        closed = set(case.get("closed") or [])
+        issues = {ref(x): {"state": "closed" if x in closed else "open",
+                           "blocked_by": [ref(y) for y in case["blocked_by"].get(x, [])]}
+                  for x in letters if x != "S"}
+        inp = {"repo": repo, "number": num["S"], "body": body, "labels": case["labels"],
+               "board": case.get("board", True), "size": case["size"],
+               "pickup_sizes": fixtures["pickup_sizes"],
+               "blocked_by": [ref(y) for y in case["blocked_by"].get("S", [])], "issues": issues}
+        exp = dict(case["expect"], blockers=[ref(y) for y in case["expect"]["blockers"]])
+        out.append((case, inp, exp))
+    return out
+
+
+def check_ready_cases(rep: Report, ready_cmd: str | None) -> None:
+    """R1: the golden cases, against the reference or a server's own logic (--ready-cmd)."""
+    fixtures = json.loads((HERE / "ready_cases.json").read_text())
+    bad = []
+    for case, inp, exp in ready_inputs(fixtures):
+        if ready_cmd:
+            proc = subprocess.run(ready_cmd, shell=True, input=json.dumps(inp),
+                                  capture_output=True, text=True, timeout=60, check=False)
+            try:
+                got = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                bad.append(f"{case['name']}: no JSON from --ready-cmd")
+                continue
+        else:
+            got = reference_ready(inp)
+        got_missing = [m.get("rule") if isinstance(m, dict) else m for m in got.get("missing") or []]
+        got_blockers = sorted(str(b).lower() for b in got.get("blockers") or [])
+        if got.get("verdict") != exp["verdict"] or got_missing != exp["missing"] or \
+                got_blockers != sorted(b.lower() for b in exp["blockers"]):
+            bad.append(f"{case['name']} ({case['what']}): {got.get('verdict')} {got_missing} {got_blockers}")
+    who = "--ready-cmd" if ready_cmd else "the reference ready check"
+    rep.check("R1", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
+
+
+# ---------------------------------------------------------------------------
 # Server checks
 # ---------------------------------------------------------------------------
 
@@ -733,9 +900,10 @@ class Sandbox:
         self.c, self.repo, self.project, self.run = c, repo, project, run
         self.made: list[int] = []
 
-    def issue(self, what: str, labels: list[str] | None = None) -> int:
+    def issue(self, what: str, labels: list[str] | None = None, body: str = "") -> int:
         args = {"title": f"[conformance {self.run}] {what}", "repo": self.repo,
-                "note": "Created by the gtd-board-kit conformance runner. Safe to close."}
+                "note": (body + "\n" if body else "")
+                + "Created by the gtd-board-kit conformance runner. Safe to close."}
         if labels:
             args["labels"] = labels
         ok, out, text = self.c.call("capture", args)
@@ -878,6 +1046,126 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
 
     # C6b closed issue: needs issue_close, an optional tool
     rep.manual("C6b", "close a claimed sandbox issue by hand, then item_release must succeed and item_claim refuse")
+
+
+READY_FIELDS = ("repo", "number", "title", "verdict", "missing", "blockers", "kind", "size")
+READY_AC = "## Acceptance criteria\n\n- AC1: the conformance runner sees this criterion\n"
+
+
+def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
+                    ready_cmd: str | None) -> None:
+    """R1 to R7: item_ready, when the server offers it (server-spec/ready-check.md)."""
+    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7")
+    if "item_ready" not in tools:
+        for cid in ids:
+            rep.na(cid, "item_ready is not offered")
+        return
+    if ready_cmd:
+        check_ready_cases(rep, ready_cmd)
+    else:
+        rep.manual("R1", "run the golden cases against the server's own rules: --ready-cmd CMD")
+    if sb is None:
+        for cid in ids[1:]:
+            rep.skip(cid, "needs --repo")
+        return
+    owner_needs = profile.get("owner_needs") or "triage"
+    sizes = profile.get("pickup_sizes") or []
+
+    def ready(n: int) -> tuple[bool, dict, str]:
+        ok, out, text = c.call("item_ready", sb.args(n))
+        return ok, out if isinstance(out, dict) else {}, text
+
+    def rules(out: dict) -> list[str]:
+        return [m.get("rule") if isinstance(m, dict) else m for m in out.get("missing") or []]
+
+    def sized(n: int, size: str | None) -> None:
+        if sb.project:
+            c.call("project_set_field", sb.args(n, field="Size", **({"value": size} if size else {"clear": True})))
+
+    # R2: shape, and a story with criteria and an allowed Size is ready.
+    n = sb.issue("ready", body=READY_AC)
+    sized(n, sizes[0] if sizes else None)
+    ok, out, text = ready(n)
+    shape = [f for f in READY_FIELDS if f not in out]
+    bad_rules = [r for r in rules(out) if r not in READY_RULES]
+    if not ok or shape or out.get("verdict") not in READY_VERDICTS or bad_rules:
+        rep.fail("R2", f"item_ready: {text[:80] if not ok else ''} lacks {shape}, verdict "
+                       f"{out.get('verdict')!r}, unknown rules {bad_rules}")
+    elif sb.project and sizes:
+        rep.check("R2", out["verdict"] == "ready", f"criteria and Size {sizes[0]}: {out['verdict']} {rules(out)}")
+    else:
+        rep.ok("R2", "shape only (pass --project, with pickup_sizes on its Size field, for the ready case)")
+
+    # R3: it writes nothing. Off-board stays off-board; the claim state is unchanged.
+    n = sb.issue("read only", body=READY_AC, labels=["blocked"])
+    before = c.call("item_get", sb.args(n))[1]
+    on_board = c.call("project_item_find", sb.args(n))[0] if sb.project else None
+    ready(n)
+    ready(n)
+    after = c.call("item_get", sb.args(n))[1]
+    still = c.call("project_item_find", sb.args(n))[0] if sb.project else None
+    keep = lambda x: {k: v for k, v in ((x or {}).get("item") or {}).items() if k not in ("stale", "now")}
+    rep.check("R3", keep(before) == keep(after) and on_board == still,
+              f"item_get changed {keep(before) != keep(after)}; board item before {on_board}, after {still}",
+              "claim state unchanged" + ("; an off-board issue stayed off the board" if sb.project else ""))
+
+    # R4: missing criteria, and an open question.
+    n1 = sb.issue("no criteria", body="Make the thing work.\n")
+    n2 = sb.issue("question", body=READY_AC, labels=[f"needs:{owner_needs}"])
+    r1, r2 = rules(ready(n1)[1]), rules(ready(n2)[1])
+    rep.check("R4", "acceptance-criteria" in r1 and "acceptance-criteria" not in r2 and "open-question" in r2,
+              f"no criteria gave {r1}; needs:{owner_needs} gave {r2}")
+
+    # R5: blockers named but not linked, linked, and a cycle.
+    b = sb.issue("blocker", body=READY_AC)
+    n1 = sb.issue("unlinked", body=READY_AC + f"\nBlocked by #{b}.\n")
+    n2 = sb.issue("blocked label", body=READY_AC, labels=["blocked"])
+    r1, r2 = rules(ready(n1)[1]), rules(ready(n2)[1])
+    probs = [] if "unlinked-blocker" in r1 and "unlinked-blocker" in r2 else [f"unlinked gave {r1}, {r2}"]
+    if "issue_blocked_by_add" in tools:
+        link = lambda x, y: c.call("issue_blocked_by_add", {"repo": sb.repo, "number": x,
+                                                            "blocker": y, "blocker_repo": sb.repo})
+        okl, _, tl = link(n1, b)
+        _, out, _ = ready(n1)
+        listed = [x.get("number") for x in out.get("blockers") or [] if isinstance(x, dict)]
+        if not okl or "unlinked-blocker" in rules(out) or b not in listed:
+            probs.append(f"linked: {tl[:60] if not okl else ''} rules {rules(out)}, blockers {listed}")
+        okc, _, tc = link(b, n1)
+        r3 = rules(ready(n1)[1])
+        if not okc or "blocker-cycle" not in r3:
+            probs.append(f"cycle: {tc[:60] if not okc else ''} rules {r3}")
+        rep.check("R5", not probs, "; ".join(probs), "unlinked, linked and cycle")
+    elif probs:
+        rep.fail("R5", "; ".join(probs))
+    else:
+        rep.manual("R5", "issue_blocked_by_add is not offered: link a blocker by hand (it is listed and "
+                         "the unlinked rule passes), then link back (blocker-cycle)")
+
+    # R6: Size.
+    if not sb.project:
+        rep.skip("R6", "needs --project")
+    else:
+        n1 = sb.issue("no size", body=READY_AC)
+        sized(n1, None)
+        cases = [("no Size", rules(ready(n1)[1]))]
+        ok, board, _ = c.call("project_get", {"project": sb.project})
+        field = next((f for f in (board or {}).get("fields") or [] if f.get("name") == "Size"), None)
+        other = [o.get("name") if isinstance(o, dict) else o for o in (field or {}).get("options") or []]
+        other = [o for o in other if o not in sizes]
+        if other:
+            n2 = sb.issue("large", body=READY_AC)
+            sized(n2, other[0])
+            cases.append((f"Size {other[0]}", rules(ready(n2)[1])))
+        wrong = [f"{what}: {got}" for what, got in cases if "size" not in got]
+        rep.check("R6", not wrong, "; ".join(wrong), f"{len(cases)} cases")
+
+    # R7: refusals.
+    if "issue_close" in tools:
+        n = sb.issue("closed", body=READY_AC)
+        c.call("issue_close", {"repo": sb.repo, "number": n, "reason": "not_planned"})
+        ok, _, _ = ready(n)
+        rep.check("R7", not ok, "a closed issue was not refused", "closed issue refused; PR and epic by hand")
+    rep.manual("R7", "item_ready on a pull request number and on an issue of Kind epic: both refuse")
 
 
 def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
@@ -1287,11 +1575,14 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--connector-wait", type=float, default=600,
                     help="seconds to wait for that approval (default 600)")
     ap.add_argument("--fold-cmd", help="a command that folds {now, comments} from stdin to JSON on stdout")
+    ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
 
     rep = Report()
     check_fold(rep, a.fold_cmd)
+    if not a.server:
+        check_ready_cases(rep, a.ready_cmd)
     seen: list[str] = []
     secrets: list[str] = []
 
@@ -1327,15 +1618,18 @@ def main(argv: list[str]) -> int:
                     p, _, env = spec.partition("=")
                     presets[p] = token(env)
                 check_presets(rep, base, presets, seen)
+                name = a.profile or next(iter(profiles), None)
+                sb = None
                 if a.repo:
                     c2 = Client(base, token(a.token_b_env), seen) if a.token_b_env else None
                     if c2:
                         c2.initialize()
-                    name = a.profile or next(iter(profiles), None)
                     sb = Sandbox(c, a.repo, a.project, datetime.now(timezone.utc).strftime("%m%d-%H%M"))
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
                     if a.project:
                         check_board(rep, c, sb, profiles.get(name) or {})
+                check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
+                if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
             except CheckError as e:

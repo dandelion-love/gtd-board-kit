@@ -77,7 +77,7 @@ The owner settled the nine questions that the
 - Follow-up changes: the ready check in `server-spec/` and its runner checks; claim
   rules for combined branches in `board-claim`; a server tool that opens PRs;
   the board profile's Kind list.
-- Until the ready tool exists, an agent treats an item as ready only when a person has
+- Until a server offers the ready tool ([ready check](../../server-spec/ready-check.md)), an agent treats an item as ready only when a person has
   added `agent-ready`.
 
 See [work items live on the board](/decisions/work-items-live-on-the-board.md) and

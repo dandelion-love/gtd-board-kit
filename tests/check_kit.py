@@ -212,6 +212,10 @@ fold_table = set(re.findall(r"^\| ([a-z]) \|", conf_md, re.M))
 fold_json = {c["name"] for c in json.loads((ROOT / "conformance" / "fold_cases.json").read_text())["cases"]}
 if fold_table != fold_json:
     fail(f"C13 fixture table {sorted(fold_table)} differs from fold_cases.json {sorted(fold_json)}")
+ready_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", conf_md, re.M)
+ready_json = [c["name"] for c in json.loads((ROOT / "conformance" / "ready_cases.json").read_text())["cases"]]
+if ready_table != ready_json:
+    fail(f"R1 case table {ready_table} differs from ready_cases.json {ready_json}")
 
 # Every check id in the table belongs to a Family, and the report sorts by family order.
 for cid in spec_ids:

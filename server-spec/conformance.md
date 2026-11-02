@@ -127,6 +127,52 @@ A server that lists `profile_updates` in `tools/list` must also pass these.
 | O2 | `profile_updates` for the sandbox repo returns `profile`, `overrides`, `inferred` and `updates`; every notice has the fields of the [upstream change notice](repo-context-and-profiles.md#upstream-change-notice), and `current` equals that item's fingerprint in `profile_get` |
 | O3 | With an override whose `seen` is stale, a reconcile plan reports the item as an upstream change and plans no write to it; with `skip` and no `seen`, the item is not created; recolouring a label the reconciler made (its name in another case too) is kept on the next run; nothing is ever deleted (*manual*: needs a scratch repo whose `gtd-context.json` a person edits) |
 
+## Ready check (when offered)
+
+A server that lists `item_ready` in `tools/list` must also pass these
+([ready check](ready-check.md)).
+
+| Id | Check |
+| --- | --- |
+| R1 | The golden cases below, fed to the server's own ready logic (`--ready-cmd`), give the stated `verdict`, failed rules in rule order, and open blockers |
+| R2 | `item_ready` returns `repo`, `number`, `title`, `verdict` (one of the three words), `missing` (rules from the five), `blockers`, `kind`, `size`; with a board, an issue with criteria and an allowed Size, nothing else on it, is `ready` |
+| R3 | It writes nothing: the issue's claim state (`item_get`) is the same after two calls, and an issue not on the board is still not on it |
+| R4 | An issue without an acceptance-criteria section fails `acceptance-criteria`; one with the section and a `needs:*` label fails `open-question` and not `acceptance-criteria` |
+| R5 | "Blocked by `#N`" in the body without a native link, and the `blocked` label with no open native blocker, each fail `unlinked-blocker`; once linked, the blocker is in `blockers` and the rule passes; linking back fails `blocker-cycle` |
+| R6 | With a board, no Size, and a Size outside `pickup_sizes`, each fail `size` |
+| R7 | A pull request, a closed issue, and an issue of Kind `epic` are refused |
+
+R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,
+`pickup_sizes` is `XS`, `S`, `M`, and it is on the board unless the case says otherwise):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `ready` | criteria, Size S, no blockers | ready |
+| `ac-missing` | no criteria heading | needs-refinement: `acceptance-criteria` |
+| `ac-empty` | heading with no list item before the next heading | needs-refinement: `acceptance-criteria` |
+| `ac-task-box` | level-3 heading in another case, task-box items | ready |
+| `ac-subheading` | a lower-level heading between the heading and the item still counts | ready |
+| `ac-in-code` | a heading inside a fenced code block does not count | needs-refinement: `acceptance-criteria` |
+| `question` | a needs:* label is an open question | needs-refinement: `open-question` |
+| `body-unlinked` | a blocker named in the body but not linked | needs-refinement: `unlinked-blocker` |
+| `body-unlinked-full` | the owner/repo form, and depends on | needs-refinement: `unlinked-blocker` |
+| `body-unlinked-url` | the issue URL form | needs-refinement: `unlinked-blocker` |
+| `body-linked` | a body blocker that is a native link, closed | ready |
+| `body-other-words` | a reference without the blocker words is not a blocker | ready |
+| `body-self` | a reference to the issue itself is ignored | ready |
+| `label-unlinked` | the blocked label with no open native blocker | needs-refinement: `unlinked-blocker` |
+| `label-linked` | the blocked label with an open native blocker | ready-blocked; blockers B |
+| `blocked-open` | an open native blocker | ready-blocked; blockers B |
+| `blocked-closed` | a closed native blocker does not block | ready |
+| `cycle-direct` | the issue and its blocker block each other | needs-refinement: `blocker-cycle`; blockers B |
+| `cycle-upstream` | a cycle upstream of the issue | needs-refinement: `blocker-cycle`; blockers B |
+| `cycle-broken` | a closed issue breaks the cycle | ready-blocked; blockers B |
+| `chain` | a chain without a cycle | ready-blocked; blockers B |
+| `size-none` | no Size | needs-refinement: `size` |
+| `size-large` | a Size outside pickup_sizes | needs-refinement: `size` |
+| `no-board` | no readable board | needs-refinement: `size` |
+| `several` | every failure is listed, in rule order, with the open blocker | needs-refinement: `acceptance-criteria`, `open-question`, `unlinked-blocker`, `size`; blockers B |
+
 ## Security (all levels)
 
 | Id | Check |
