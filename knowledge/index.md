@@ -6,4 +6,5 @@ okf_version: "0.2"
 
 * [Model](model/) - How agents and boards fit together: labels, claims, reports
 * [Decisions](decisions/) - Why the kit is shaped the way it is
+* [Decomposition](decomposition/) - Research on breaking work into epics, stories and tasks (draft, no rule yet)
 * [References](references/) - External specifications the kit pins

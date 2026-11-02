@@ -2,6 +2,7 @@
 
 ## 2026-11-02
 
+* **Added**: research on decomposing work into epics, stories and tasks (kit 0.13.1). `knowledge/decomposition/` holds 79 draft concepts in seven sections (agile foundations, agentic methods, skill landscape, GitHub primitives, work item kinds, acceptance and verification, human gates) and an overview with the decisions left to the owner. Research only: no skill or spec changes.
 * **Added**: declared tool classes (kit 0.13.0). A server may class a tool of its own, one the spec does not name, by declaring `"gtd-board-kit/class"` in the tool's `_meta` in `tools/list`; the fence treats it like a spec class, an undeclared tool stays `full`, and a declaration on a spec tool must agree with the spec. X2 checks declared classes. P6 and C8 re-read a lagging label-filtered list for up to 30 seconds before failing.
 
 ## 2026-11-01

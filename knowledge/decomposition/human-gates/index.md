@@ -1,0 +1,23 @@
+# Human gates
+
+* [Approval fatigue and rubber-stamping](approval-fatigue-and-rubber-stamping.md) - When approvals are frequent and mostly yes, people stop reading them; the evidence says cut the count and the repeats, not add more prompts
+* [Attention budget](attention-budget.md) - Treat the owner's attention as the scarce input; every gate, message and setting must give more value than the attention it costs, or it goes
+* [Automation bias](automation-bias.md) - People over-trust automated output, missing its errors and following its wrong advice; it is worse under time pressure and when the output looks finished
+* [Batch the sitting, one question per message](batching-and-one-question-at-a-time.md) - Gather a person's decisions into planned sittings, and inside a sitting ask one concrete question at a time; the two rules work at different scales and do not conflict
+* [Design or spec approval gate](design-approval-gate.md) - A person approves a written design or spec before any agent builds; the cheapest gate to pass and the most expensive one to skip
+* [Done acceptance gate](done-acceptance-gate.md) - Done is accepted by a person on evidence the agent produced fresh; the agent's own verification is a precondition, not the acceptance
+* [dsh-superagent page, proposed additions from the Epic/Story/Task research](dsh-superagent-proposed-additions.md) - Three additions to the kit's dsh-superagent reference page (Ticket vs Story, what a Mandate freezes from a Story, observe mode for proactive decomposition), and nothing it already says
+* [Human gates across agent methods](gates-across-methods.md) - Which human approval points AI-DLC, Superpowers, Spec Kit, Kiro, the AppLab backlog plugin and dsh-superagent have, and which of them can be waived
+* [GitHub CODEOWNERS](github-codeowners.md) - A file that names owners for paths so they are requested automatically, and, with the matching branch rule, must approve changes to those paths
+* [GitHub gate mechanisms, enforceable vs conventional](github-enforceable-vs-conventional.md) - Which GitHub mechanisms the platform enforces against an agent with write access, which only work if the agent obeys, and what each costs the owner
+* [GitHub environments with required reviewers](github-environment-required-reviewers.md) - A deployment environment can hold a workflow job until a named reviewer approves it; enforceable, but on Free, Pro and Team only for public repositories
+* [GitHub issue forms as a readiness gate](github-issue-forms.md) - Issue forms structure what a new item must say, and can add labels and projects; their required fields are enforced only in public repositories
+* [Labels as approval signals](github-labels-as-signals.md) - A label a person adds is a cheap, visible, attributable go-ahead; anyone with triage or write can add one, so it is a convention that agents must check
+* [GitHub Projects status move as approval](github-projects-status-move.md) - Moving a card between Status columns is the cheapest approval act on GitHub, but anyone with project write can do it and its history is not reliable
+* [GitHub required reviews](github-required-reviews.md) - Branch protection or a ruleset can block a merge until enough write-access reviewers approve; authors cannot approve their own PRs, which shapes how a solo owner's agents must sign in
+* [Human in the loop vs human on the loop](human-in-vs-on-the-loop.md) - In the loop, the agent waits for a person to approve; on the loop, it acts and the person watches and can veto or undo; agent tools are moving from the first to the second
+* [Merge approval gate](merge-approval-gate.md) - A person, never the agent, decides whether a finished branch is merged; it is the one gate GitHub can enforce, with a catch for solo owners
+* [Minimum gate set for a solo owner with agents (draft)](minimum-gate-set-solo-owner.md) - Five human gates, one of them enforced by GitHub, are enough for one busy owner to steer agents that decompose and build Epics, Stories and Tasks; everything else runs on the loop
+* [Plan approval gate](plan-approval-gate.md) - A person reviews the agent's implementation plan, the how, before execution starts; methods disagree on whether it is mandatory
+* [Ready hand move (Definition of Ready gate)](ready-hand-move-gate.md) - Agents may refine an item up to Ready, but only a person moves it into the column agents pull from; that move is the go-ahead
+* [Walking skeleton approval](walking-skeleton-approval.md) - The first, smallest end-to-end slice of an Epic must pass a real check and be approved by a person before the other slices start
