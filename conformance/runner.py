@@ -1307,11 +1307,19 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         listed = [x.get("number") for x in out.get("blockers") or [] if isinstance(x, dict)]
         if not okl or "unlinked-blocker" in rules(out) or b not in listed:
             probs.append(f"linked: {tl[:60] if not okl else ''} rules {rules(out)}, blockers {listed}")
+        # Linking back makes a cycle. GitHub itself refuses one (a 422 naming the cycle), so
+        # a refusal that says why passes; a link that lands must fail blocker-cycle.
         okc, _, tc = link(b, n1)
-        r3 = rules(ready(n1)[1])
-        if not okc or "blocker-cycle" not in r3:
-            probs.append(f"cycle: {tc[:60] if not okc else ''} rules {r3}")
-        rep.check("R5", not probs, "; ".join(probs), "unlinked, linked and cycle")
+        cycle_note = "cycle"
+        if okc:
+            r3 = rules(ready(n1)[1])
+            if "blocker-cycle" not in r3:
+                probs.append(f"cycle: linked back, rules {r3}")
+        elif "cycle" in tc.lower():
+            cycle_note = "cycle refused by GitHub"
+        else:
+            probs.append(f"cycle: linking back was refused without naming the cycle: {tc[:80]}")
+        rep.check("R5", not probs, "; ".join(probs), f"unlinked, linked and {cycle_note}")
     elif probs:
         rep.fail("R5", "; ".join(probs))
     else:
