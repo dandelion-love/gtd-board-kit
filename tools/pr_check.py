@@ -411,17 +411,23 @@ def run_pr(api: Api, repo: str, number: int, a) -> tuple[str, list[Finding]]:
     marker, _ = pr_marker(pr.get("body") or "")
     issues: dict[tuple[str, int], str] = {}
     comments: dict[tuple[str, int], list[dict]] = {}
+    unread: list[Finding] = []
     for r, n in carried_issues(pr.get("body") or "", repo, marker):
         try:
             issue, _ = api.get(f"/repos/{r}/issues/{n}")
-        except RuntimeError:
-            continue  # another repo the token cannot read: reported below as no criteria
-        if issue.get("pull_request"):
-            continue
-        issues[(r, n)] = issue.get("body") or ""
-        comments[(r, n)] = api.pages(f"/repos/{r}/issues/{n}/comments")
-    findings = check_pr(pr, repo, changed, issues, comments, server_login=a.server_login,
-                        record_authors=a.record_authors)
+            if issue.get("pull_request"):
+                continue
+            issues[(r, n)] = issue.get("body") or ""
+            comments[(r, n)] = api.pages(f"/repos/{r}/issues/{n}/comments")
+        except RuntimeError as e:
+            # Never drop it silently: an unchecked issue must not look clean.
+            issues.pop((r, n), None)
+            where = f"{r}#{n}" if r != repo else f"#{n}"
+            unread.append(Finding("issues", where, f"could not read the issue, so it was not checked ({e})"))
+    findings = unread + check_pr(pr, repo, changed, issues, comments, server_login=a.server_login,
+                                 record_authors=a.record_authors)
+    if unread and not issues:
+        findings = [f for f in findings if not (f.rule == "issues" and f.where == "PR body")]
     return f"PR check: {repo} pull request {number}", findings
 
 
@@ -435,6 +441,11 @@ def run_audit(api: Api, repo: str, a) -> tuple[str, list[Finding]]:
     events = api.pages(f"/repos/{repo}/issues/events", stop=older("created_at"))
     pulls = api.pages(f"/repos/{repo}/pulls", {"state": "all", "sort": "updated", "direction": "desc"},
                       stop=older("updated_at"))
+    # The list endpoint has merged_at but not merged_by: read each merged PR in full.
+    for i, p in enumerate(pulls):
+        merged = ts(p.get("merged_at"))
+        if merged and merged >= since and not p.get("merged_by"):
+            pulls[i] = dict(p, merged_by=api.get(f"/repos/{repo}/pulls/{p['number']}")[0].get("merged_by"))
     reviews = {p["number"]: api.pages(f"/repos/{repo}/pulls/{p['number']}/reviews") for p in pulls}
     findings = audit(events, pulls, reviews, since, agent_logins=a.agent_logins,
                      server_login=a.server_login)

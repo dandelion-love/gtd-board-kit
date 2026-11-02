@@ -181,6 +181,57 @@ class AuditMode(unittest.TestCase):
             pc.parse_since("soon", now)
 
 
+class FakeApi:
+    """Answers by path; a path mapped to an Exception raises it."""
+    def __init__(self, routes):
+        self.routes = routes
+
+    def get(self, path, params=None):
+        val = self.routes[path]
+        if isinstance(val, Exception):
+            raise val
+        return val, {}
+
+    def pages(self, path, params=None, stop=None, limit=20):
+        out = []
+        for item in self.get(path)[0]:
+            if stop and stop(item):
+                break
+            out.append(item)
+        return out
+
+
+class Fetching(unittest.TestCase):
+    def args(self, **kw):
+        return type("A", (), dict(dict(server_login=None, record_authors=frozenset(),
+                                       agent_logins=frozenset(), since="24h"), **kw))()
+
+    def test_unreadable_issue_is_a_finding(self):
+        body = GOOD.replace("Closes ", f"Closes other/private{H}9 ")
+        api = FakeApi({
+            f"/repos/{REPO}/pulls/{5}": {"body": body, "user": {"login": "server[bot]"}},
+            f"/repos/{REPO}/pulls/{5}/files": [{"filename": "tests/test_form.py"}],
+            f"/repos/{REPO}/issues/{12}": {"body": ISSUE},
+            f"/repos/{REPO}/issues/{12}/comments": [claim()],
+            f"/repos/other/private/issues/{9}": RuntimeError("GitHub API 404"),
+        })
+        _, found = pc.run_pr(api, REPO, 5, self.args())
+        self.assertEqual([(f.rule, f.where) for f in found], [("issues", f"other/private{H}9")])
+
+    def test_audit_reads_merged_by(self):
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        bot = {"login": "server[bot]", "type": "Bot"}
+        api = FakeApi({
+            f"/repos/{REPO}/issues/events": [],
+            f"/repos/{REPO}/pulls": [{"number": 3, "created_at": "2025-01-01T00:00:00Z",
+                                      "updated_at": now, "merged_at": now, "body": ""}],
+            f"/repos/{REPO}/pulls/{3}": {"merged_by": bot},
+            f"/repos/{REPO}/pulls/{3}/reviews": [],
+        })
+        _, found = pc.run_audit(api, REPO, self.args())
+        self.assertEqual([(f.rule, f.detail) for f in found], [("merge", "merged by server[bot]")])
+
+
 class Exit(unittest.TestCase):
     def test_usage_error_is_2(self):
         self.assertEqual(pc.main(["--repo", "not a repo"]), 2)
