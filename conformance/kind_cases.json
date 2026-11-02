@@ -1,0 +1,453 @@
+{
+  "about": "Golden cases for the Kind and parent rules (server-spec/repo-context-and-profiles.md, Kinds; check K1). A Kind is an Issue Type name or a kind: label value, null for none. op link: may parent hold child. op type: may an issue with that parent and those sub-issues take the Kind (null clears it); its parent is null for no parent, an empty string for a parent with no Kind.",
+  "cases": [
+    {
+      "name": "epic-story",
+      "what": "an epic holds a story",
+      "op": "link",
+      "parent": "Epic",
+      "child": "Story",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "epic-chore",
+      "what": "an epic holds a chore",
+      "op": "link",
+      "parent": "Epic",
+      "child": "Chore",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "epic-bug",
+      "what": "an epic holds a bug",
+      "op": "link",
+      "parent": "Epic",
+      "child": "Bug",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "epic-spike",
+      "what": "an epic holds a spike",
+      "op": "link",
+      "parent": "Epic",
+      "child": "Spike",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "epic-research",
+      "what": "an epic holds research",
+      "op": "link",
+      "parent": "Epic",
+      "child": "Research",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "epic-domain",
+      "what": "an epic holds a domain Kind",
+      "op": "link",
+      "parent": "Epic",
+      "child": "Experiment",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "epic-epic",
+      "what": "an epic under an epic",
+      "op": "link",
+      "parent": "Epic",
+      "child": "Epic",
+      "expect": {
+        "allowed": false,
+        "rule": "epic-is-top"
+      }
+    },
+    {
+      "name": "story-epic",
+      "what": "an epic under a story",
+      "op": "link",
+      "parent": "Story",
+      "child": "Epic",
+      "expect": {
+        "allowed": false,
+        "rule": "epic-is-top"
+      }
+    },
+    {
+      "name": "none-epic",
+      "what": "an epic under an issue with no Kind",
+      "op": "link",
+      "parent": null,
+      "child": "Epic",
+      "expect": {
+        "allowed": false,
+        "rule": "epic-is-top"
+      }
+    },
+    {
+      "name": "research-epic",
+      "what": "an epic under research",
+      "op": "link",
+      "parent": "Research",
+      "child": "Epic",
+      "expect": {
+        "allowed": false,
+        "rule": "epic-is-top"
+      }
+    },
+    {
+      "name": "epic-finding",
+      "what": "a finding directly under an epic",
+      "op": "link",
+      "parent": "Epic",
+      "child": "Finding",
+      "expect": {
+        "allowed": false,
+        "rule": "epic-holds-stories"
+      }
+    },
+    {
+      "name": "epic-none",
+      "what": "a step directly under an epic",
+      "op": "link",
+      "parent": "Epic",
+      "child": null,
+      "expect": {
+        "allowed": false,
+        "rule": "epic-holds-stories"
+      }
+    },
+    {
+      "name": "story-none",
+      "what": "a story holds a step",
+      "op": "link",
+      "parent": "Story",
+      "child": null,
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "story-chore",
+      "what": "a chore under a story",
+      "op": "link",
+      "parent": "Story",
+      "child": "Chore",
+      "expect": {
+        "allowed": false,
+        "rule": "holds-steps"
+      }
+    },
+    {
+      "name": "chore-bug",
+      "what": "a bug under a chore",
+      "op": "link",
+      "parent": "Chore",
+      "child": "Bug",
+      "expect": {
+        "allowed": false,
+        "rule": "holds-steps"
+      }
+    },
+    {
+      "name": "bug-finding",
+      "what": "a finding under a bug",
+      "op": "link",
+      "parent": "Bug",
+      "child": "Finding",
+      "expect": {
+        "allowed": false,
+        "rule": "holds-steps"
+      }
+    },
+    {
+      "name": "story-domain",
+      "what": "a domain Kind under a story is not checked",
+      "op": "link",
+      "parent": "Story",
+      "child": "Experiment",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "story-retired",
+      "what": "a retired Kind still on an old issue is not standard",
+      "op": "link",
+      "parent": "Story",
+      "child": "Task",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "spike-finding",
+      "what": "a spike holds its finding",
+      "op": "link",
+      "parent": "Spike",
+      "child": "Finding",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "spike-none",
+      "what": "a spike holds a step",
+      "op": "link",
+      "parent": "Spike",
+      "child": null,
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "spike-story",
+      "what": "a story under a spike",
+      "op": "link",
+      "parent": "Spike",
+      "child": "Story",
+      "expect": {
+        "allowed": false,
+        "rule": "holds-steps"
+      }
+    },
+    {
+      "name": "finding-none",
+      "what": "a finding holds nothing",
+      "op": "link",
+      "parent": "Finding",
+      "child": null,
+      "expect": {
+        "allowed": false,
+        "rule": "finding-holds-nothing"
+      }
+    },
+    {
+      "name": "finding-domain",
+      "what": "a finding holds no domain Kind either",
+      "op": "link",
+      "parent": "Finding",
+      "child": "Experiment",
+      "expect": {
+        "allowed": false,
+        "rule": "finding-holds-nothing"
+      }
+    },
+    {
+      "name": "research-story",
+      "what": "research as an epic holds a story",
+      "op": "link",
+      "parent": "Research",
+      "child": "Story",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "research-finding",
+      "what": "research holds its finding",
+      "op": "link",
+      "parent": "Research",
+      "child": "Finding",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "domain-story",
+      "what": "a domain Kind as parent is not checked",
+      "op": "link",
+      "parent": "Experiment",
+      "child": "Story",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "none-story",
+      "what": "an issue with no Kind as parent is not checked",
+      "op": "link",
+      "parent": null,
+      "child": "Story",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "case-insensitive",
+      "what": "Kinds compare without case",
+      "op": "link",
+      "parent": "EPIC",
+      "child": "story",
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "type-task",
+      "what": "setting a retired Kind",
+      "op": "type",
+      "kind": "Task",
+      "parent": null,
+      "children": [],
+      "expect": {
+        "allowed": false,
+        "rule": "retired-kind"
+      }
+    },
+    {
+      "name": "type-question",
+      "what": "retired, any case",
+      "op": "type",
+      "kind": "question",
+      "parent": null,
+      "children": [],
+      "expect": {
+        "allowed": false,
+        "rule": "retired-kind"
+      }
+    },
+    {
+      "name": "type-decision",
+      "what": "retired, any case",
+      "op": "type",
+      "kind": "DECISION",
+      "parent": "Epic",
+      "children": [],
+      "expect": {
+        "allowed": false,
+        "rule": "retired-kind"
+      }
+    },
+    {
+      "name": "type-chore",
+      "what": "a chore under an epic",
+      "op": "type",
+      "kind": "Chore",
+      "parent": "Epic",
+      "children": [],
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    },
+    {
+      "name": "type-finding-under-epic",
+      "what": "the new Kind is checked against the parent",
+      "op": "type",
+      "kind": "Finding",
+      "parent": "Epic",
+      "children": [],
+      "expect": {
+        "allowed": false,
+        "rule": "epic-holds-stories"
+      }
+    },
+    {
+      "name": "type-clear-under-epic",
+      "what": "clearing the type checks the issue as a step",
+      "op": "type",
+      "kind": null,
+      "parent": "Epic",
+      "children": [],
+      "expect": {
+        "allowed": false,
+        "rule": "epic-holds-stories"
+      }
+    },
+    {
+      "name": "type-epic-with-parent",
+      "what": "an issue with a parent cannot become an epic",
+      "op": "type",
+      "kind": "Epic",
+      "parent": "Story",
+      "children": [],
+      "expect": {
+        "allowed": false,
+        "rule": "epic-is-top"
+      }
+    },
+    {
+      "name": "type-epic-under-untyped",
+      "what": "a parent with no Kind still keeps an epic out",
+      "op": "type",
+      "kind": "Epic",
+      "parent": "",
+      "children": [],
+      "expect": {
+        "allowed": false,
+        "rule": "epic-is-top"
+      }
+    },
+    {
+      "name": "type-finding-with-steps",
+      "what": "the new Kind is checked against each sub-issue",
+      "op": "type",
+      "kind": "Finding",
+      "parent": null,
+      "children": [
+        null
+      ],
+      "expect": {
+        "allowed": false,
+        "rule": "finding-holds-nothing"
+      }
+    },
+    {
+      "name": "type-story-over-chore",
+      "what": "a story cannot hold a chore",
+      "op": "type",
+      "kind": "Story",
+      "parent": "Epic",
+      "children": [
+        null,
+        "Chore"
+      ],
+      "expect": {
+        "allowed": false,
+        "rule": "holds-steps"
+      }
+    },
+    {
+      "name": "type-spike-over-finding",
+      "what": "a spike holds a step and its finding",
+      "op": "type",
+      "kind": "Spike",
+      "parent": "Epic",
+      "children": [
+        null,
+        "Finding"
+      ],
+      "expect": {
+        "allowed": true,
+        "rule": null
+      }
+    }
+  ]
+}

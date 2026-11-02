@@ -153,9 +153,10 @@ A server that lists `item_ready` in `tools/list` must also pass these
 | R2 | `item_ready` returns `repo`, `number`, `title`, `verdict` (one of the three words), `missing` (rules from the five), `blockers`, `kind`, `size`; with a board, an issue with criteria and an allowed Size, nothing else on it, is `ready` |
 | R3 | It writes nothing: the issue's claim state (`item_get`) is the same after two calls, and an issue not on the board is still not on it |
 | R4 | An issue without an acceptance-criteria section fails `acceptance-criteria`; one with the section and a `needs:*` label fails `open-question` and not `acceptance-criteria` |
-| R5 | "Blocked by `#N`" in the body without a native link, and the `blocked` label with no open native blocker, each fail `unlinked-blocker`; once linked, the blocker is in `blockers` and the rule passes; linking back fails `blocker-cycle` |
+| R5 | "Blocked by `#N`" in the body without a native link, and the `blocked` label with no open native blocker, each fail `unlinked-blocker`; once linked, the blocker is in `blockers` and the rule passes; linking back either refuses with a reason that names the cycle (GitHub refuses a dependency cycle itself, so `issue_blocked_by_add` passes its reason through) or, when the link lands, fails `blocker-cycle`. The cycle rule itself is covered offline by R1 |
 | R6 | With a board, no Size, and a Size outside `pickup_sizes`, each fail `size` |
 | R7 | A pull request, a closed issue, and an issue of Kind `epic` are refused |
+| R8 | `item_claim` returns `ready` whose `verdict`, failed rules and open blockers equal what `item_ready` returns for the issue; an explicit claim on an issue without criteria succeeds (the verdict never refuses) and a `warnings` line names `needs-refinement`; a claim on a `ready` issue has no "not ready" warning ([the ready verdict on a claim](tools.md#claims-and-reports)) |
 
 R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,
 `pickup_sizes` is `XS`, `S`, `M`, and it is on the board unless the case says otherwise):
@@ -192,6 +193,66 @@ R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Siz
 | `size-large` | a Size outside pickup_sizes | needs-refinement: `size` |
 | `no-board` | no readable board | needs-refinement: `size` |
 | `several` | every failure is listed, in rule order, with the open blocker | needs-refinement: `acceptance-criteria`, `open-question`, `unlinked-blocker`, `size`; blockers B |
+
+## Kind and parent rules (when offered)
+
+A server that lists `sub_issue_add` or `issue_type_set` in `tools/list` must also pass
+these ([parent rules](repo-context-and-profiles.md#kinds)). K3 and K4 need a sandbox repo
+whose owner has the Issue Types `Epic`, `Story`, `Chore`, `Spike` and `Finding`; without
+them they are skipped.
+
+| Id | Check |
+| --- | --- |
+| K1 | The golden cases below, fed to the server's own Kind logic (`--kind-cmd`), give the stated answer and rule |
+| K2 | `issue_type_set` with `Task`, `question` and `DECISION` each refuses and names `retired-kind`, whether or not the owner has such a type |
+| K3 | `sub_issue_add` links a story under an epic and a step (no Kind) under a story; it refuses a step under an epic (`epic-holds-stories`), a chore under a story (`holds-steps`), an epic under a story (`epic-is-top`) and a step under a finding (`finding-holds-nothing`), each refusal naming its rule and leaving no link |
+| K4 | `issue_type_set` checks the new Kind against the issue's parent and its sub-issues: a story under an epic refuses `Finding` (`epic-holds-stories`) and `Epic` (`epic-is-top`); a step under a story refuses `Chore` (`holds-steps`); a story with no parent and a step under it refuses `Finding` (`finding-holds-nothing`, the sub-issue side alone); a refused write leaves the type as it was |
+
+K1 cases ([kind_cases.json](../conformance/kind_cases.json); a Kind is an Issue Type name
+or a `kind:` label value, any case; a type case names the issue's parent, if it has one,
+and its sub-issues):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `epic-story` | Epic holds Story | allowed |
+| `epic-chore` | Epic holds Chore | allowed |
+| `epic-bug` | Epic holds Bug | allowed |
+| `epic-spike` | Epic holds Spike | allowed |
+| `epic-research` | Epic holds Research | allowed |
+| `epic-domain` | Epic holds Experiment | allowed |
+| `epic-epic` | Epic holds Epic | refused: `epic-is-top` |
+| `story-epic` | Story holds Epic | refused: `epic-is-top` |
+| `none-epic` | no Kind holds Epic | refused: `epic-is-top` |
+| `research-epic` | Research holds Epic | refused: `epic-is-top` |
+| `epic-finding` | Epic holds Finding | refused: `epic-holds-stories` |
+| `epic-none` | Epic holds no Kind | refused: `epic-holds-stories` |
+| `story-none` | Story holds no Kind | allowed |
+| `story-chore` | Story holds Chore | refused: `holds-steps` |
+| `chore-bug` | Chore holds Bug | refused: `holds-steps` |
+| `bug-finding` | Bug holds Finding | refused: `holds-steps` |
+| `story-domain` | Story holds Experiment | allowed |
+| `story-retired` | Story holds Task | allowed |
+| `spike-finding` | Spike holds Finding | allowed |
+| `spike-none` | Spike holds no Kind | allowed |
+| `spike-story` | Spike holds Story | refused: `holds-steps` |
+| `finding-none` | Finding holds no Kind | refused: `finding-holds-nothing` |
+| `finding-domain` | Finding holds Experiment | refused: `finding-holds-nothing` |
+| `research-story` | Research holds Story | allowed |
+| `research-finding` | Research holds Finding | allowed |
+| `domain-story` | Experiment holds Story | allowed |
+| `none-story` | no Kind holds Story | allowed |
+| `case-insensitive` | EPIC holds story | allowed |
+| `type-task` | set Task; no parent | refused: `retired-kind` |
+| `type-question` | set question; no parent | refused: `retired-kind` |
+| `type-decision` | set DECISION; parent Epic | refused: `retired-kind` |
+| `type-chore` | set Chore; parent Epic | allowed |
+| `type-finding-under-epic` | set Finding; parent Epic | refused: `epic-holds-stories` |
+| `type-clear-under-epic` | clear the type; parent Epic | refused: `epic-holds-stories` |
+| `type-epic-with-parent` | set Epic; parent Story | refused: `epic-is-top` |
+| `type-epic-under-untyped` | set Epic; parent with no Kind | refused: `epic-is-top` |
+| `type-finding-with-steps` | set Finding; no parent; sub-issues no Kind | refused: `finding-holds-nothing` |
+| `type-story-over-chore` | set Story; parent Epic; sub-issues no Kind, Chore | refused: `holds-steps` |
+| `type-spike-over-finding` | set Spike; parent Epic; sub-issues no Kind, Finding | allowed |
 
 ## Security (all levels)
 

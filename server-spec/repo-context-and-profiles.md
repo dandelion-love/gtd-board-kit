@@ -116,6 +116,32 @@ When `profile_get` returns `item_types` (a list of `{name, issue_type?, ...}`, e
 vocabulary of one kind of item), no entry's `name` or `issue_type` may be a retired Kind,
 compared without case.
 
+**Parent rules.** GitHub accepts any sub-issue under any issue; the kit does not. A
+server that offers the Issue structure tools ([tools](tools.md#optional-groups)) checks
+every link it makes (`sub_issue_add`) and every Kind it sets (`issue_type_set`) against
+these rules, and refuses a write that breaks one, naming the
+rule. An issue's Kind is read as `item_ready` reads it: its Issue Type's name, else its
+`kind:<kind>` label, lower case; an issue with neither has no Kind. A **standard Kind** is
+one in the table above; a profile's domain Kinds, retired Kinds still on old issues, and
+no Kind are not standard.
+
+| Rule | A link from parent P to child C refuses when |
+| --- | --- |
+| `epic-is-top` | C is an `epic`. An epic is never a sub-issue |
+| `epic-holds-stories` | P is an `epic` and C is a `finding` or has no Kind. An epic holds story-level work (`story`, `chore`, `bug`, `spike`, `research`, or a domain Kind) |
+| `holds-steps` | P is a `story`, `chore` or `bug` and C has a standard Kind; or P is a `spike` and C has a standard Kind other than `finding`. Their sub-issues are steps, with no Kind and no PR of their own; a spike's finding records its result |
+| `finding-holds-nothing` | P is a `finding`. A finding has no sub-issues |
+| `retired-kind` | (on `issue_type_set`) the new type is a [retired Kind](#kinds), compared without case. The refusal names the Kind that replaces it |
+
+A `research` issue is story-level work or, when it needs several stories, an epic, so it
+may hold any Kind but an epic. A domain Kind as P is not checked.
+
+`issue_type_set` checks the new Kind both ways: against the issue's parent (the issue as
+C) and against each of its sub-issues (the issue as P). Clearing the type checks the
+issue as C with no Kind. A refused write changes nothing: no link, no type. Links made
+outside the server (GitHub's own UI) are not checked; the rules bind what the server
+writes. The golden pairs are in [kind_cases.json](../conformance/kind_cases.json).
+
 **Moving a repo off the retired Kinds** happens when it next repins the kit. Issues of
 Issue Type `Task` (or label `kind:task`) move to `Chore` (`kind:chore`), or become steps of
 the story they belong to. An open question moves onto the item it blocks as `attention`

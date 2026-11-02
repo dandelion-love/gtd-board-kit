@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "g=\"$(git rev-parse --show-toplevel)/.gtd/kit/tools/agent_guard.py\"; [ -f \"$g\" ] && python3 \"$g\" --codex-hook || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "g=\"$(git rev-parse --show-toplevel)/.gtd/kit/tools/agent_guard.py\"; [ -f \"$g\" ] && python3 \"$g\" --codex-hook || true"
+          }
+        ]
+      }
+    ]
+  }
+}

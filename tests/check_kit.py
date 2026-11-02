@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS = ["board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "okf-knowledge"]
+SKILLS = ["board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "board-decompose", "okf-knowledge"]
 BOARD_BUDGET = 3000      # bytes; BOARD.md is read in full by every agent
 SKILL_BUDGET = 6000      # bytes per SKILL.md
 DESC_BUDGET = 1024       # characters; the Agent Skills limit for description
@@ -212,10 +212,20 @@ fold_table = set(re.findall(r"^\| ([a-z]) \|", conf_md, re.M))
 fold_json = {c["name"] for c in json.loads((ROOT / "conformance" / "fold_cases.json").read_text())["cases"]}
 if fold_table != fold_json:
     fail(f"C13 fixture table {sorted(fold_table)} differs from fold_cases.json {sorted(fold_json)}")
-ready_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", conf_md, re.M)
+def section(heading: str) -> str:
+    """The text of one `## heading` section of conformance.md."""
+    m = re.search(rf"^## {re.escape(heading)}.*?(?=^## )", conf_md, re.M | re.S)
+    return m.group(0) if m else ""
+
+
+ready_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Ready check"), re.M)
 ready_json = [c["name"] for c in json.loads((ROOT / "conformance" / "ready_cases.json").read_text())["cases"]]
 if ready_table != ready_json:
     fail(f"R1 case table {ready_table} differs from ready_cases.json {ready_json}")
+kind_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Kind and parent rules"), re.M)
+kind_json = [c["name"] for c in json.loads((ROOT / "conformance" / "kind_cases.json").read_text())["cases"]]
+if kind_table != kind_json:
+    fail(f"K1 case table {kind_table} differs from kind_cases.json {kind_json}")
 
 # Every check id in the table belongs to a Family, and the report sorts by family order.
 for cid in spec_ids:
@@ -255,6 +265,17 @@ for files, msg, want in (
         (["skills/board-claim/SKILL.md"], "Skill change", True)):
     if verdict(files, msg)[0] != want:
         fail(f"spec_pair verdict for {files} with {msg!r} was not {want}")
+
+# tools/pr_check.py: its offline tests pass.
+prc = subprocess.run([sys.executable, str(ROOT / "tests" / "test_pr_check.py")], capture_output=True, text=True)
+if prc.returncode != 0:
+    fail("tests/test_pr_check.py failed:\n" + prc.stderr.strip()[-2000:])
+
+# tools/agent_guard.py: the Claude and Codex hook rules (tests/test_agent_guard.py).
+r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_agent_guard.py")],
+                   capture_output=True, text=True)
+if r.returncode != 0:
+    fail("tests/test_agent_guard.py failed:\n" + r.stderr.strip()[-2000:])
 
 if errors:
     print("\n".join(f"FAIL {e}" for e in errors))

@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $KitUrl = "https://github.com/dandelion-love/gtd-board-kit"
 $KitDir = ".gtd/kit"
-$Skills = @("board-onboard", "board-pickup", "board-claim", "board-report", "board-needs-person", "board-lane", "okf-knowledge")
+$Skills = @("board-onboard", "board-pickup", "board-claim", "board-decompose", "board-report", "board-needs-person", "board-lane", "okf-knowledge")
 
 # Not named "Git": PowerShell names are case-insensitive and functions beat executables,
 # so a function called Git would call itself instead of git.exe.
@@ -31,9 +31,13 @@ Invoke-Git add .gitmodules $KitDir
 # Symlinks written straight into the index (mode 120000), so no Developer Mode is needed.
 # Without core.symlinks the working copy shows small text files; the commit is still right.
 $tmp = [System.IO.Path]::GetTempFileName()
-foreach ($tool in @(".claude", ".codex")) {
+foreach ($tool in @(".claude", ".codex", ".agents")) {
   foreach ($s in $Skills) {
     $path = "$tool/skills/$s"
+    # An older pin may predate a skill; link only what the pinned kit has.
+    if (-not (Test-Path "$KitDir/skills/$s" -PathType Container)) {
+      Write-Host "skip    $path (not in this kit pin)"; continue
+    }
     if ((Test-Path $path) -and -not ((Get-Item $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and (Test-Path $path -PathType Container)) {
       Write-Host "keep    $path (the repo's own skill overrides the kit's)"; continue
     }
@@ -53,6 +57,16 @@ if (-not (Test-Path .claude/settings.json)) {
   Invoke-Git add .claude/settings.json
 } else {
   Write-Host "NOTE: .claude/settings.json exists; merge $KitDir/install/settings.snippet.json into it by hand."
+}
+
+if (-not (Test-Path "$KitDir/install/codex-hooks.snippet.json")) {
+  Write-Host "NOTE: this kit pin has no Codex hooks; skipped .codex/hooks.json."
+} elseif (-not (Test-Path .codex/hooks.json)) {
+  New-Item -ItemType Directory -Force .codex | Out-Null
+  Copy-Item "$KitDir/install/codex-hooks.snippet.json" .codex/hooks.json
+  Invoke-Git add .codex/hooks.json
+} else {
+  Write-Host "NOTE: .codex/hooks.json exists; merge $KitDir/install/codex-hooks.snippet.json into it by hand."
 }
 
 if (-not (Test-Path .gtd/BOARD.local.md)) {
