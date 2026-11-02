@@ -1,6 +1,6 @@
 # Base research: Epic, Story, Task decomposition for board-kit
 
-Status: research only, first sweep, Nov 1, 2026. This document stores the research that will become a board-kit standard. It does not yet define the final standard, and it does not include DeepSeek Super-Agent. DeepSeek will be looped in after the CanLII basis is ready, as a separate research addition.
+Status: research only, first sweep, Nov 1, 2026. This document stores the research that will become a board-kit standard. It does not yet define the final standard. DeepSeek Super-Agent research is included in section 7, adaptation is deferred until after the CanLII basis is ready.
 
 Scope note: no private project internals are included. Repo references below are to public structures already described in those repos, and to published external methods. No credentials, tokens, or client data are in this document.
 
@@ -149,7 +149,7 @@ Ktv-pitcch, native GitHub: defined in knowledge/conventions.md, section Work dec
 
 Gtd-dispatch, different style: no epic label. Epics use an [epic] title prefix and sub-issues, with a Done when section, not a section literally named Acceptance criteria.
 
-Board-kit, current state: Kinds epic, task, bug, research, spike, finding, question, decision. No Story, no acceptance criteria template, no decomposition process. Issue 16 in board-kit lists board views and fields a fresh install gets wrong, including creating organisation issue types before the first sync, and Kind needing an option for every synced kind.
+Board-kit, current state: Kinds epic, task, bug, research, spike, finding, question, decision. No Story, no acceptance criteria template, no decomposition process. An open issue in <repo> lists board views and fields a fresh install gets wrong, including creating organisation issue types before the first sync, and Kind needing an option for every synced kind.
 
 Synthesis for the standard: trip-planner content, ktv-pitcch GitHub form, board-kit board and agent rules, plus AI-DLC dependency graph and human approval gate, Superpowers executable plan and fresh-evidence verification gate, and the latest skills' Gherkin plus SMART threshold synthesis. Research, spike, question, and decision still need a home in the epic and story model: draft answer is spike and research become stories under an epic when they produce a finding, question becomes a blocked story waiting on a person, decision becomes an OKF decision record linked from the epic. That mapping needs author sign-off, not a silent assumption.
 
