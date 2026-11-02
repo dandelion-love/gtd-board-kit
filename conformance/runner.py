@@ -484,9 +484,10 @@ def check_fold(rep: Report, fold_cmd: str | None) -> None:
 READY_RULES = ("acceptance-criteria", "open-question", "unlinked-blocker", "blocker-cycle", "size")
 READY_VERDICTS = ("ready", "ready-blocked", "needs-refinement")
 READY_WALK_LIMIT = 50
-_FENCE = re.compile(r"^\s*(```|~~~)")
+_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 _HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$")
-_LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?\S")
+_LIST_MARKER = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(.*)$")
+_TASK_BOX = re.compile(r"^\[[ xX]\](?:\s+|$)")
 _BLOCKER_WORDS = re.compile(r"\b(?:blocked by|depends on)\b", re.IGNORECASE)
 _ISSUE_REF = re.compile(
     r"https://github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)|(?<![\w/])([\w.-]+/[\w.-]+)?#(\d+)\b")
@@ -494,14 +495,26 @@ _ISSUE_REF = re.compile(
 
 def _prose_lines(body: str) -> list[str]:
     """The body's lines outside fenced code blocks."""
-    out, fenced = [], False
+    out, fence = [], None  # the open fence's character and length
     for line in (body or "").splitlines():
-        if _FENCE.match(line):
-            fenced = not fenced
-            continue
-        if not fenced:
+        m = _FENCE.match(line)
+        if fence is None:
+            if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):
+                fence = (m.group(1)[0], len(m.group(1)))
+                continue
             out.append(line)
+        elif m and m.group(1)[0] == fence[0] and len(m.group(1)) >= fence[1] and not m.group(2).strip():
+            fence = None  # a closing fence: same character, at least as long, nothing after
     return out
+
+
+def _is_criterion(line: str) -> bool:
+    """A list item with text: a marker, an optional task box, then something to read."""
+    m = _LIST_MARKER.match(line)
+    if not m:
+        return False
+    text = _TASK_BOX.sub("", m.group(1).strip(), count=1)
+    return bool(text.strip())
 
 
 def has_acceptance_criteria(body: str) -> bool:
@@ -517,7 +530,7 @@ def has_acceptance_criteria(body: str) -> bool:
             if level is None and h.group(2).strip().lower().startswith("acceptance criteria"):
                 level = depth
             continue
-        if level is not None and _LIST_ITEM.match(line):
+        if level is not None and _is_criterion(line):
             return True
     return False
 
@@ -565,7 +578,7 @@ def reference_ready(issue: dict) -> dict:
         if cycle or too_big:
             return
         state[node] = "on-path"
-        if len(state) > READY_WALK_LIMIT:
+        if len(state) >= READY_WALK_LIMIT:
             too_big = True
             return
         for nxt in (graph.get(node) or {}).get("blocked_by") or []:

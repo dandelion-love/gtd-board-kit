@@ -153,6 +153,9 @@ R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Siz
 | `ac-task-box` | level-3 heading in another case, task-box items | ready |
 | `ac-subheading` | a lower-level heading between the heading and the item still counts | ready |
 | `ac-in-code` | a heading inside a fenced code block does not count | needs-refinement: `acceptance-criteria` |
+| `ac-empty-box` | an empty task box is not a criterion | needs-refinement: `acceptance-criteria` |
+| `ac-in-long-fence` | a three-backtick line does not close a four-backtick fence | needs-refinement: `acceptance-criteria` |
+| `ac-after-tilde-fence` | criteria after a closed tilde fence count | ready |
 | `question` | a needs:* label is an open question | needs-refinement: `open-question` |
 | `body-unlinked` | a blocker named in the body but not linked | needs-refinement: `unlinked-blocker` |
 | `body-unlinked-full` | the owner/repo form, and depends on | needs-refinement: `unlinked-blocker` |
@@ -168,6 +171,8 @@ R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Siz
 | `cycle-upstream` | a cycle upstream of the issue | needs-refinement: `blocker-cycle`; blockers B |
 | `cycle-broken` | a closed issue breaks the cycle | ready-blocked; blockers B |
 | `chain` | a chain without a cycle | ready-blocked; blockers B |
+| `walk-under-bound` | 49 issues in the walk (the issue and a chain of 48) is checked | ready-blocked; blockers N01 |
+| `walk-at-bound` | a walk that reaches 50 issues fails, cycle or not | needs-refinement: `blocker-cycle`; blockers N01 |
 | `size-none` | no Size | needs-refinement: `size` |
 | `size-large` | a Size outside pickup_sizes | needs-refinement: `size` |
 | `no-board` | no readable board | needs-refinement: `size` |

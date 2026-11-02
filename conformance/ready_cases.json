@@ -91,6 +91,49 @@
    }
   },
   {
+   "name": "ac-empty-box",
+   "what": "an empty task box is not a criterion",
+   "body": "## Acceptance criteria\n\n- [ ]\n- [x]\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "acceptance-criteria"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "ac-in-long-fence",
+   "what": "a three-backtick line does not close a four-backtick fence",
+   "body": "````markdown\n```\n## Acceptance criteria\n- AC1\n```\n````\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "acceptance-criteria"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "ac-after-tilde-fence",
+   "what": "criteria after a closed tilde fence count",
+   "body": "~~~\nBlocked by {#B}\n~~~\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
+   }
+  },
+  {
    "name": "question",
    "what": "a needs:* label is an open question",
    "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
@@ -376,6 +419,331 @@
     "missing": [],
     "blockers": [
      "B"
+    ]
+   }
+  },
+  {
+   "name": "walk-under-bound",
+   "what": "49 issues in the walk (the issue and a chain of 48) is checked",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "N01"
+    ],
+    "N01": [
+     "N02"
+    ],
+    "N02": [
+     "N03"
+    ],
+    "N03": [
+     "N04"
+    ],
+    "N04": [
+     "N05"
+    ],
+    "N05": [
+     "N06"
+    ],
+    "N06": [
+     "N07"
+    ],
+    "N07": [
+     "N08"
+    ],
+    "N08": [
+     "N09"
+    ],
+    "N09": [
+     "N10"
+    ],
+    "N10": [
+     "N11"
+    ],
+    "N11": [
+     "N12"
+    ],
+    "N12": [
+     "N13"
+    ],
+    "N13": [
+     "N14"
+    ],
+    "N14": [
+     "N15"
+    ],
+    "N15": [
+     "N16"
+    ],
+    "N16": [
+     "N17"
+    ],
+    "N17": [
+     "N18"
+    ],
+    "N18": [
+     "N19"
+    ],
+    "N19": [
+     "N20"
+    ],
+    "N20": [
+     "N21"
+    ],
+    "N21": [
+     "N22"
+    ],
+    "N22": [
+     "N23"
+    ],
+    "N23": [
+     "N24"
+    ],
+    "N24": [
+     "N25"
+    ],
+    "N25": [
+     "N26"
+    ],
+    "N26": [
+     "N27"
+    ],
+    "N27": [
+     "N28"
+    ],
+    "N28": [
+     "N29"
+    ],
+    "N29": [
+     "N30"
+    ],
+    "N30": [
+     "N31"
+    ],
+    "N31": [
+     "N32"
+    ],
+    "N32": [
+     "N33"
+    ],
+    "N33": [
+     "N34"
+    ],
+    "N34": [
+     "N35"
+    ],
+    "N35": [
+     "N36"
+    ],
+    "N36": [
+     "N37"
+    ],
+    "N37": [
+     "N38"
+    ],
+    "N38": [
+     "N39"
+    ],
+    "N39": [
+     "N40"
+    ],
+    "N40": [
+     "N41"
+    ],
+    "N41": [
+     "N42"
+    ],
+    "N42": [
+     "N43"
+    ],
+    "N43": [
+     "N44"
+    ],
+    "N44": [
+     "N45"
+    ],
+    "N45": [
+     "N46"
+    ],
+    "N46": [
+     "N47"
+    ],
+    "N47": [
+     "N48"
+    ]
+   },
+   "expect": {
+    "verdict": "ready-blocked",
+    "missing": [],
+    "blockers": [
+     "N01"
+    ]
+   }
+  },
+  {
+   "name": "walk-at-bound",
+   "what": "a walk that reaches 50 issues fails, cycle or not",
+   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {
+    "S": [
+     "N01"
+    ],
+    "N01": [
+     "N02"
+    ],
+    "N02": [
+     "N03"
+    ],
+    "N03": [
+     "N04"
+    ],
+    "N04": [
+     "N05"
+    ],
+    "N05": [
+     "N06"
+    ],
+    "N06": [
+     "N07"
+    ],
+    "N07": [
+     "N08"
+    ],
+    "N08": [
+     "N09"
+    ],
+    "N09": [
+     "N10"
+    ],
+    "N10": [
+     "N11"
+    ],
+    "N11": [
+     "N12"
+    ],
+    "N12": [
+     "N13"
+    ],
+    "N13": [
+     "N14"
+    ],
+    "N14": [
+     "N15"
+    ],
+    "N15": [
+     "N16"
+    ],
+    "N16": [
+     "N17"
+    ],
+    "N17": [
+     "N18"
+    ],
+    "N18": [
+     "N19"
+    ],
+    "N19": [
+     "N20"
+    ],
+    "N20": [
+     "N21"
+    ],
+    "N21": [
+     "N22"
+    ],
+    "N22": [
+     "N23"
+    ],
+    "N23": [
+     "N24"
+    ],
+    "N24": [
+     "N25"
+    ],
+    "N25": [
+     "N26"
+    ],
+    "N26": [
+     "N27"
+    ],
+    "N27": [
+     "N28"
+    ],
+    "N28": [
+     "N29"
+    ],
+    "N29": [
+     "N30"
+    ],
+    "N30": [
+     "N31"
+    ],
+    "N31": [
+     "N32"
+    ],
+    "N32": [
+     "N33"
+    ],
+    "N33": [
+     "N34"
+    ],
+    "N34": [
+     "N35"
+    ],
+    "N35": [
+     "N36"
+    ],
+    "N36": [
+     "N37"
+    ],
+    "N37": [
+     "N38"
+    ],
+    "N38": [
+     "N39"
+    ],
+    "N39": [
+     "N40"
+    ],
+    "N40": [
+     "N41"
+    ],
+    "N41": [
+     "N42"
+    ],
+    "N42": [
+     "N43"
+    ],
+    "N43": [
+     "N44"
+    ],
+    "N44": [
+     "N45"
+    ],
+    "N45": [
+     "N46"
+    ],
+    "N46": [
+     "N47"
+    ],
+    "N47": [
+     "N48"
+    ],
+    "N48": [
+     "N49"
+    ]
+   },
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "blocker-cycle"
+    ],
+    "blockers": [
+     "N01"
     ]
    }
   },
