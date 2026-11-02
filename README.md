@@ -67,9 +67,9 @@ curl -fsSL https://raw.githubusercontent.com/dandelion-love/gtd-board-kit/main/i
 ```
 
 It adds the submodule pinned to a full commit, links the kit's skills into
-`.claude/skills`, `.codex/skills` and `.agents/skills`, adds a SessionStart hook that initialises the
-submodule in fresh cloud clones, and adds one line to `CLAUDE.md` and `AGENTS.md`. It
-commits nothing. Review, commit, open a PR, and let a person merge it.
+`.claude/skills`, `.codex/skills` and `.agents/skills`, adds Claude Code hooks (initialise
+the submodule in fresh cloud clones, run the agent guard) and the same guard for Codex in
+`.codex/hooks.json`, and adds one line to `CLAUDE.md` and `AGENTS.md`. It commits nothing. Review, commit, open a PR, and let a person merge it.
 
 The repo also needs `.github/gtd-context.json` with its `profile` and `project`, and the
 agent needs the gtd MCP server. There is one join with two entrances: a host that keeps
