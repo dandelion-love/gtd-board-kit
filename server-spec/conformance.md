@@ -206,7 +206,7 @@ them they are skipped.
 | K1 | The golden cases below, fed to the server's own Kind logic (`--kind-cmd`), give the stated answer and rule |
 | K2 | `issue_type_set` with `Task`, `question` and `DECISION` each refuses and names `retired-kind`, whether or not the owner has such a type |
 | K3 | `sub_issue_add` links a story under an epic and a step (no Kind) under a story; it refuses a step under an epic (`epic-holds-stories`), a chore under a story (`holds-steps`), an epic under a story (`epic-is-top`) and a step under a finding (`finding-holds-nothing`), each refusal naming its rule and leaving no link |
-| K4 | `issue_type_set` checks the new Kind against the issue's parent and its sub-issues: a story under an epic refuses `Finding` (`epic-holds-stories`) and `Epic` (`epic-is-top`); a step under a story refuses `Chore` (`holds-steps`); a refused write leaves the type as it was |
+| K4 | `issue_type_set` checks the new Kind against the issue's parent and its sub-issues: a story under an epic refuses `Finding` (`epic-holds-stories`) and `Epic` (`epic-is-top`); a step under a story refuses `Chore` (`holds-steps`); a story with no parent and a step under it refuses `Finding` (`finding-holds-nothing`, the sub-issue side alone); a refused write leaves the type as it was |
 
 K1 cases ([kind_cases.json](../conformance/kind_cases.json); a Kind is an Issue Type name
 or a `kind:` label value, any case; a type case names the issue's parent, if it has one,

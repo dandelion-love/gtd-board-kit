@@ -1446,11 +1446,24 @@ def check_kinds(rep: Report, c: Client, tools: dict, sb: Sandbox | None, kind_cm
         ok, text = set_type(n, name)
         if ok or rule not in text:
             probs.append(f"#{n} to {name}: wanted {rule}, got {'set' if ok else text[:60]}")
+    # Child side alone: a story with no parent over a step may not become a finding.
+    lone, step3 = sb.issue("lone story"), sb.issue("step 3")
+    ok_s, text_s = set_type(lone, "Story")
+    ok_l, text_l = link(lone, step3)
+    if not ok_s or not ok_l:
+        probs.append(f"setup: {text_s[:40] if not ok_s else ''} {text_l[:40] if not ok_l else ''}")
+    else:
+        ok, text = set_type(lone, "Finding")
+        if ok or "finding-holds-nothing" not in text:
+            probs.append(f"#{lone} (no parent, a step under it) to Finding: wanted finding-holds-nothing, "
+                         f"got {'set' if ok else text[:60]}")
     if "item_ready" in tools:
-        _, out, _ = c.call("item_ready", sb.args(story))
-        if isinstance(out, dict) and out.get("kind") not in (None, "story"):
-            probs.append(f"a refused write changed #{story}'s Kind to {out.get('kind')}")
-    rep.check("K4", not probs, "; ".join(probs[:3]), "three type changes refused, each naming its rule")
+        for n in (story, lone):
+            _, out, _ = c.call("item_ready", sb.args(n))
+            if isinstance(out, dict) and out.get("kind") not in (None, "story"):
+                probs.append(f"a refused write changed #{n}'s Kind to {out.get('kind')}")
+    rep.check("K4", not probs, "; ".join(probs[:3]),
+              "four type changes refused (parent side and sub-issue side), each naming its rule")
 
 
 def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
