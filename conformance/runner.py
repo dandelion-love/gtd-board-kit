@@ -127,6 +127,27 @@ CLASS.update(dict.fromkeys((
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post"), "work"))
+#: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
+#: classes `full` by prefix. A declaration can never lower one of these.
+SPEC_FULL = frozenset((
+    "project_create", "project_update", "project_template", "project_copy", "project_link_repo",
+    "project_views", "project_reconcile", "project_field_update", "project_field_delete",
+    "project_item_remove", "project_workflows", "project_workflow_delete",
+    "repo_reconcile_labels", "work_items_sync", "actions_run", "actions_rerun", "actions_cancel",
+    "org_issue_types", "org_issue_type_set", "repo_variables", "repo_variable_set",
+    "repo_variable_delete"))
+SPEC_FULL_PREFIXES = ("webhook_",)
+
+
+def spec_class(name: str) -> str | None:
+    """The class the spec gives ``name``, or None for a tool the spec does not name."""
+    if name in CLASS:
+        return CLASS[name]
+    if name in SPEC_FULL or name.startswith(SPEC_FULL_PREFIXES):
+        return "full"
+    return None
+
+
 #: Where a server declares the class of a tool of its own (transport-and-identity.md, Presets).
 CLASS_META = "gtd-board-kit/class"
 #: How long a list read may lag a label write (GitHub's label-filtered lists), P6 and C8.
@@ -136,7 +157,7 @@ LIST_LAG_SECONDS, LIST_LAG_STEP = 30, 3
 def tool_class(tool: dict) -> tuple[str, str | None]:
     """(class, problem): the spec's class, else the declared one, else ``full``."""
     declared = (tool.get("_meta") or {}).get(CLASS_META)
-    spec = CLASS.get(tool.get("name"))
+    spec = spec_class(tool.get("name") or "")
     if declared is not None and declared not in PRESETS:
         return spec or "full", f"declares class {declared!r}, not a preset"
     if spec and declared is not None and declared != spec:
