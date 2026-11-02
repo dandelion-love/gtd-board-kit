@@ -256,6 +256,12 @@ for files, msg, want in (
     if verdict(files, msg)[0] != want:
         fail(f"spec_pair verdict for {files} with {msg!r} was not {want}")
 
+# tools/agent_guard.py: the Claude and Codex hook rules (tests/test_agent_guard.py).
+r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_agent_guard.py")],
+                   capture_output=True, text=True)
+if r.returncode != 0:
+    fail("tests/test_agent_guard.py failed:\n" + r.stderr.strip()[-2000:])
+
 if errors:
     print("\n".join(f"FAIL {e}" for e in errors))
     sys.exit(1)
