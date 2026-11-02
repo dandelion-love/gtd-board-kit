@@ -116,6 +116,15 @@ A server lists a level only when every check of that level (and of the levels be
   credential the board reads and writes fail, so there is no `Core` and no `Board`;
 - `Extended` is listed only with `Core`, when at least one optional group is offered.
 
+**A conformance run earns the claim.** A server starts with no level. It claims one only
+after the kit's [runner](../conformance/README.md), at the kit version it will name as
+`spec_version`, made that level claimable against this deployment, with that level's
+manual checks done by a person. The implementation keeps that run's outcome (kit version,
+claimable levels, date) and claims the levels both that run allowed and the server's own
+checks still allow at run time, so a later fault or configuration change can drop a level
+but nothing can add one without a new run. When the kit moves, the server keeps naming the
+version it last passed until a run at the new version passes.
+
 An empty list is valid and means "no kit skill will work here". Agents react to the version
 and the levels as [server version and levels](../knowledge/model/server-version.md) says.
 

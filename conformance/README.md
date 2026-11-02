@@ -27,6 +27,30 @@ python3 conformance/runner.py --server https://gtd.example.com \
 Tokens are read from the environment variables you name, never from the command line, and
 the runner never prints them. Check X1 fails if a token it sent comes back in any response.
 
+## Certifying a server (for an agent)
+
+A server claims a level only after a run like this has made it claimable
+([spec version and levels](../server-spec/transport-and-identity.md#spec-version-and-levels)).
+An agent asked to "run conformance" or "certify the server" does this, in order:
+
+1. **Use the latest kit.** Fetch the kit's default branch (`git -C .gtd/kit fetch origin`
+   then check out `origin/main` in a scratch copy, or clone the kit fresh). Do not move the
+   repo's pin to do it. Note the kit's `VERSION`: that is the version being certified.
+2. **Run every check you can**, with `--json`: a token at `work`, a second principal, a
+   scratch repo and board, `--join-start`, and `--connector NAME` if the server offers the
+   connector entrance. A skipped check, or one the run never reached because an option was missing, keeps its level unclaimable; a check of an optional part the server does not offer is `n/a` and does not.
+3. **Do the manual checks with your person.** The run prints them under each claimable
+   level ("confirm by hand"). Never mark one done yourself.
+4. **Read the verdict.** The last line names the levels claimable at this kit version.
+   Nothing claimable: report the failures and stop.
+5. **Propose the claim**, in the server's own repository, as a change a person merges:
+   set the server's spec version to the kit `VERSION` you ran and its recorded levels to
+   the claimable ones (minus any whose manual checks your person did not confirm), with
+   the JSON report attached or linked. Never claim a level the run did not make
+   claimable, and never edit the report.
+6. **After the deploy, re-run** without the sandbox options: T8 shows the new version and
+   levels, and T9 confirms the claim is honest.
+
 ## What a run needs, and what it touches
 
 | Option | Unlocks | Side effects |

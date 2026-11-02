@@ -164,6 +164,11 @@ class Report:
     def manual(self, cid: str, note: str) -> None:
         self.add(cid, "manual", note)
 
+    def na(self, cid: str, note: str) -> None:
+        """Not applicable: the server does not offer what the check covers (an optional
+        entrance or tool group). Unlike a skip, it does not hold a level back."""
+        self.add(cid, "n/a", note)
+
     def check(self, cid: str, cond: bool, note_fail: str, note_ok: str = "") -> bool:
         (self.ok(cid, note_ok) if cond else self.fail(cid, note_fail))
         return cond
@@ -542,6 +547,42 @@ def check_t9(rep: Report, claimed: list | None) -> None:
               f"claims {claimed or 'nothing'}; no check of those levels failed")
 
 
+def spec_check_ids() -> list[str]:
+    """Every check id in server-spec/conformance.md, the set a certifying run must cover."""
+    table = (HERE.parent / "server-spec" / "conformance.md").read_text()
+    return re.findall(rf"^\| ({CHECK_ID.pattern}) \|", table, re.M)
+
+
+def claimable(rep: Report, spec_ids: list[str] | None = None) -> tuple[list[str], dict[str, list[str]]]:
+    """The levels this run lets a server claim at this kit version, lowest first, and the
+    manual checks a person still has to confirm for each.
+
+    A level is claimable only when the run covered **every** check of it, and of Core
+    beneath it, in the spec: each one passed, is manual, or is not applicable because the
+    server does not offer that optional part; at least one passed; none failed, was
+    skipped, or is missing from the run (a missing prerequisite is not a pass)."""
+    ids = [cid for cid in (spec_ids if spec_ids is not None else spec_check_ids()) if cid != "T9"]
+    status: dict[str, set[str]] = {}
+    for r in rep.rows:
+        status.setdefault(r["id"], set()).add(r["status"])
+    wanted: dict[Level, list[str]] = {}
+    for cid in ids:
+        fam = family_of(cid)
+        if fam in LEVEL_OF:
+            wanted.setdefault(LEVEL_OF[fam], []).append(cid)
+
+    def clean(level: Level) -> bool:
+        need = wanted.get(level, [])
+        got = [status.get(cid, set()) for cid in need]
+        return bool(need) and all(s and s <= {"pass", "manual", "n/a"} for s in got) and \
+            any("pass" in s for s in got)
+    levels = [lv for lv in Level if clean(lv) and (lv is Level.CORE or clean(Level.CORE))]
+    manual = {lv.value: sorted({cid for cid in wanted.get(lv, []) + wanted.get(Level.CORE, [])
+                                if "manual" in status.get(cid, set())}, key=report_order)
+              for lv in levels}
+    return [lv.value for lv in levels], manual
+
+
 def check_profiles(rep: Report, c: Client) -> dict:
     ok, lst, text = c.call("profile_list")
     if not ok:
@@ -597,7 +638,7 @@ def check_customization(rep: Report, c: Client, tools: dict, profiles: dict,
                         repo: str | None, project: str | None) -> None:
     if "profile_updates" not in tools:
         for cid in ("O1", "O2", "O3"):
-            rep.skip(cid, "profile_updates is not offered")
+            rep.na(cid, "profile_updates is not offered")
         return
     bad = []
     for name, p in profiles.items():
@@ -992,7 +1033,7 @@ def check_connector(rep: Report, base: str, entrances: set[str] | None, name: st
                     wait: float, seen: list[str], secrets: list[str]) -> None:
     if not entrances or "connector" not in entrances:
         for cid in JC_IDS:
-            rep.skip(cid, "the connector entrance is not offered on /join")
+            rep.na(cid, "the connector entrance is not offered on /join")
         return
     if not name:
         for cid in JC_IDS:
@@ -1267,10 +1308,15 @@ def main(argv: list[str]) -> int:
     width = max(len(r["id"]) for r in rows)
     for r in rows:
         print(f"{r['id']:<{width}}  {r['status']:<6}  {r['note']}")
-    counts = {s: sum(r["status"] == s for r in rows) for s in ("pass", "FAIL", "skip", "manual")}
+    counts = {s: sum(r["status"] == s for r in rows) for s in ("pass", "FAIL", "skip", "manual", "n/a")}
     print(", ".join(f"{v} {k}" for k, v in counts.items()))
+    kit_version = (HERE.parent / "VERSION").read_text().strip()
+    levels, manual = claimable(rep)
+    print(f"claimable at kit {kit_version}: {', '.join(levels) or 'nothing'}"
+          + "".join(f"\n  {lv}: confirm by hand {', '.join(ids)}" for lv, ids in manual.items() if ids))
     if a.json:
-        Path(a.json).write_text(json.dumps({"rows": rows, "counts": counts}, indent=2))
+        Path(a.json).write_text(json.dumps({"rows": rows, "counts": counts, "kit_version": kit_version,
+                                           "claimable": levels, "manual": manual}, indent=2))
     return 1 if rep.failed() else 0
 
 
