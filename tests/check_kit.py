@@ -259,6 +259,8 @@ views = {"board": {"views": [
     {"name": "Caps", "filter": "Last-Updated:7days"},
     {"name": "New", "filter": "is:closed updated:>=@today-7d"},
     {"name": "Negated", "filter": "-last-updated:30days"},
+    {"name": "Quoted", "filter": 'title:"drop last-updated: support" is:open'},
+    {"name": "Quoted2", "filter": 'title:"last-updated:7days"'},
     {"name": "None"}]}}
 if [x.split("'")[1] for x in deprecated_filters_in(views)] != ["Old", "Caps", "Negated"]:
     fail(f"deprecated_filters_in got {deprecated_filters_in(views)}")

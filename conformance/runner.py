@@ -250,7 +250,8 @@ def deprecated_filters_in(profile: dict) -> list[str]:
     for view in (profile.get("board") or {}).get("views") or []:
         if not isinstance(view, dict):
             continue
-        text = str(view.get("filter") or "").lower()
+        # A quoted value (title:"...") is text, not a qualifier.
+        text = re.sub(r'"[^"]*"', '""', str(view.get("filter") or "")).lower()
         used = [q.value for q in DeprecatedQualifier
                 if re.search(r"(^|[\s(-])" + re.escape(q.value), text)]
         if used:
