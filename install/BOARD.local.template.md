@@ -26,10 +26,12 @@ for anything specific to this repo. Delete any section you don't need.
 | agent-running | |
 | waiting-for-review | |
 | blocked | |
+| <!-- the owner's needs:* label --> | <!-- its own column, e.g. Needs owner; not Blocked (see knowledge/model/board-fields.md) --> |
 
 ## Fields and columns
 
-<!-- Fields beyond the profile and who writes them; columns an agent must never set by hand. -->
+<!-- The kit's standard fields and their writers are in .gtd/kit/knowledge/model/board-fields.md.
+     Here: renamed or extra fields and who writes them; columns an agent must never set by hand. -->
 
 ## Queue and ETA
 

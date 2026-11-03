@@ -3,7 +3,7 @@ name: board-report
 description: Report progress on a claimed board item, renew or release its claim, or record a failure, through the gtd MCP server. Use at each milestone of work on a claimed issue, before a lease runs out, when work stops for any reason, and when handing an item to someone else.
 metadata:
   author: gtd-board-kit
-  version: 0.3.0
+  version: 0.3.1
 ---
 
 # Report on a claimed item
@@ -60,6 +60,9 @@ defaults are below.
   can't make it, say so in a report instead of moving it.
 - **Order between items:** native blocked-by links (`issue_blocked_by_list`), never a
   note in the body.
+- **Other fields:** `.gtd/kit/knowledge/model/board-fields.md` says who writes each
+  field and when. Waiting on a person's gate: `Gates` names it and the report note is
+  the one-line ask; once it passes, update `Gates` and clear the `needs:*` label.
 
 ## Long runs on compute hosts
 
