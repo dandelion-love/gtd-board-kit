@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "g=\"$(git rev-parse --show-toplevel)/.gtd/kit/tools/agent_guard.py\"; [ -f \"$g\" ] && python3 \"$g\" --codex-hook || true"
+            "command": "r=\"$(git rev-parse --show-toplevel)\"; git -C \"$r\" submodule update --init --depth 1 .gtd/kit >/dev/null 2>&1 || true; g=\"$r/.gtd/kit/tools/agent_guard.py\"; [ -f \"$g\" ] && python3 \"$g\" --codex-hook || true"
           }
         ]
       }
