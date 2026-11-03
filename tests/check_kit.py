@@ -198,7 +198,8 @@ if lint.returncode != 0:
 # fixture table matches fold_cases.json.
 sys.path.insert(0, str(ROOT / "conformance"))
 sys.dont_write_bytecode = True
-from runner import CHECK_ID, HEADINGS, Family, family_of, fingerprint, report_order  # noqa: E402
+from runner import (CHECK_ID, HEADINGS, DeprecatedQualifier, Family,  # noqa: E402
+                    deprecated_filters_in, family_of, fingerprint, report_order)
 ID = CHECK_ID.pattern
 conf_md = (ROOT / "server-spec" / "conformance.md").read_text()
 spec_ids = set(re.findall(rf"^\| ({ID}) \|", conf_md, re.M))
@@ -248,6 +249,21 @@ for item, want in (({"name": "Inbox", "layout": "table", "filter": "status:Inbox
                      "manual": ["advisory, not hashed"]}, "14d526f52c0e")):
     if fingerprint(item) != want or f"`{want}`" not in spec_md:
         fail(f"fingerprint golden value {want} disagrees between the runner and the spec")
+
+# P9: the runner flags exactly the deprecated view filter qualifiers the spec lists.
+for q in DeprecatedQualifier:
+    if f"`{q.value}" not in spec_md:
+        fail(f"deprecated qualifier {q.value} is not in the spec's View filters table")
+views = {"board": {"views": [
+    {"name": "Old", "filter": "is:closed last-updated:7days"},
+    {"name": "Caps", "filter": "Last-Updated:7days"},
+    {"name": "New", "filter": "is:closed updated:>=@today-7d"},
+    {"name": "Negated", "filter": "-last-updated:30days"},
+    {"name": "Quoted", "filter": 'title:"drop last-updated: support" is:open'},
+    {"name": "Quoted2", "filter": 'title:"last-updated:7days"'},
+    {"name": "None"}]}}
+if [x.split("'")[1] for x in deprecated_filters_in(views)] != ["Old", "Caps", "Negated"]:
+    fail(f"deprecated_filters_in got {deprecated_filters_in(views)}")
 
 # tools/spec_pair.py: a spec change needs a conformance change or a Conformance-unchanged trailer.
 sys.dont_write_bytecode = True

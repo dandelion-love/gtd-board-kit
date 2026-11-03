@@ -2,6 +2,7 @@
 
 ## 2026-11-03
 
+* **Added**: view filters (kit 0.19.0). A profile must not declare a view whose filter uses a deprecated qualifier; the first is `last-updated:`, replaced by `updated:` with a date (`is:closed updated:>=@today-7d`). GitHub warns on it and will drop it. A live view that still has one is reported for a person with the filter to type, because the API cannot edit a view, even when the repo kept the view. Conformance gains P9, and `board-onboard` 0.5.0 checks the repo's live views.
 * **Fixed**: the Codex SessionStart hook initialises `.gtd/kit` before it runs `agent_guard.py` (kit 0.18.2), as the Claude hook does. Before, a Codex-only session in a fresh checkout never ran the guard and the linked skills stayed unresolved.
 
 ## 2026-11-02

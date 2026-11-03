@@ -81,6 +81,25 @@ names (a repo can rename them in `.gtd/BOARD.local.md`):
 | `Last report` | text | Mirror of the latest report, written by the claim tools |
 | `Start date`, `Target date` | date | The ETA ([queue and ETA](../knowledge/model/queue-and-eta.md)) |
 
+### View filters
+
+A view's `filter` is the platform's own filter text, and it must use only the qualifiers
+the platform currently supports. A profile MUST NOT declare a view whose filter uses a
+**deprecated qualifier**:
+
+| Deprecated | Use instead | Example |
+| --- | --- | --- |
+| `last-updated:<n>days` | `updated:` with a date | `is:closed updated:>=@today-7d` |
+
+GitHub Projects warns on a deprecated qualifier and will drop it, after which the view
+silently shows the wrong items. A board copied from a template, or made before the profile
+changed, can still have one. A platform's API may not let a tool change a view's filter
+(GitHub's can create a view but not edit one), so a reconciler that finds a live view whose
+filter uses a deprecated qualifier reports it as work for a person: the board, the view,
+the filter it has, and the filter to type in its place. This holds even when the view's
+mode is `keep` or the repo wrote its own filter, because the old qualifier stops working
+whatever the repo intended.
+
 ### Kinds
 
 What an item **is** is its Kind ([how work decomposes](../knowledge/decisions/decomposition-standard.md)).
