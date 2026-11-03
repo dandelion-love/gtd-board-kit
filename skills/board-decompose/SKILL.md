@@ -79,7 +79,10 @@ For each story, in dependency order:
 5. With the Board level: `project_add_item`, then fill its fields with
    `project_set_field` as `.gtd/kit/knowledge/model/board-fields.md` says: `Epic`,
    `Size`, `Owns`, `Gates`, and `Lane`/`Priority`/`Target date` when known. A person's
-   value wins. Then do the same for the epic itself, and fill its Stories table.
+   value wins. Then do the same for the epic itself.
+
+When every story is linked, fill the epic's Stories table with `issue_update` (no
+board level needed).
 
 Steps stay a checklist in the story body. Use sub-issues as steps only where
 `.gtd/BOARD.local.md` says so; they are never claimed or given a PR. A step that turns
