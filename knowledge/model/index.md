@@ -6,3 +6,4 @@
 * [Queue and ETA](queue-and-eta.md) - Card order is the queue, a date field is the ETA, a person's edit wins
 * [Report vocabulary](report-vocabulary.md) - Six report states and the question for a person
 * [Server version and levels](server-version.md) - The server declares its spec version and honest levels; agents run only skills whose level is claimed
+* [Board fields and who writes them](board-fields.md) - Each standard field has a writer and a moment; a card waiting on a person names the gate and the ask

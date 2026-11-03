@@ -2,6 +2,7 @@
 
 ## 2026-11-03
 
+* **Added**: epic shape and board fields (kit 0.20.0). `board-decompose` 0.2.0 writes the epic body with every section the decomposition research calls for (Problem, Outcome check, Scope, Out of scope, Stories, Decisions, Risks and open questions, Gates) and fills each new item's board fields. The bodies live in `skills/board-decompose/templates.md`, and `templates/issues/` ships them as GitHub issue templates. The new model concept `board-fields` says who writes each standard field (Epic, Size, Priority, Lane, Owns, Gates, Agent, Last report, Start date, Target date) and when, and how a card waiting on a person's gate says which gate and what is asked; profiles should give the owner's `needs:*` label its own column instead of `Blocked`. `board-report` 0.3.1 points at it.
 * **Added**: view filters (kit 0.19.0). A profile must not declare a view whose filter uses a deprecated qualifier; the first is `last-updated:`, replaced by `updated:` with a date (`is:closed updated:>=@today-7d`). GitHub warns on it and will drop it. A live view that still has one is reported for a person with the filter to type, because the API cannot edit a view, even when the repo kept the view. Conformance gains P9, and `board-onboard` 0.5.0 checks the repo's live views.
 * **Fixed**: the Codex SessionStart hook initialises `.gtd/kit` before it runs `agent_guard.py` (kit 0.18.2), as the Claude hook does. Before, a Codex-only session in a fresh checkout never ran the guard and the linked skills stayed unresolved.
 

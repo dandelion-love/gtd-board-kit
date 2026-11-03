@@ -3,7 +3,7 @@ name: board-decompose
 description: Break an epic into story-level issues, or a story into steps, the kit's standard way, through the gtd MCP server. Use when asked to plan, split, slice or decompose an epic, an outcome or a large issue into stories, or a story into steps, in a repo that has gtd-board-kit. It proposes work for a person to promote; it never makes work agent-ready.
 metadata:
   author: gtd-board-kit
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Decompose work into stories and steps
@@ -36,11 +36,14 @@ issue: steps have no PR and no claim. A step that needs its own PR is a `chore`:
    `issue_blocked_by_list`. Extend what is there; never duplicate a story.
 3. Planning an epic is work on it: claim it `explicit` (`board-claim` §1, no `branch`).
 
-## 2. The epic's outcome check
+## 2. The epic's body
 
-The epic needs one or two checkable criteria under a `## Outcome check` heading: what is
-true when the outcome is reached, beyond "every child is closed". Missing? Append a
-draft with `issue_update`, keep the person's text unchanged, and say so in your report.
+The epic body has the sections in `templates.md` (next to this file): Problem, Outcome
+check, Scope, Out of scope, Stories, Decisions, Risks and open questions, Gates. The
+outcome check is one or two checkable criteria: what is true when the outcome is
+reached, beyond "every child is closed". Append each missing section as a draft with
+`issue_update`, keep the person's text, and say so in your report. Fill the Stories
+table in step 5.
 
 ## 3. Slice the stories
 
@@ -59,26 +62,10 @@ draft with `issue_update`, keep the person's text unchanged, and say so in your 
 
 ## 4. Write each story
 
-```
-<one or two lines: what changes, for whom, and why; link the epic>
-
-## Acceptance criteria
-- [ ] AC1: <one checkable statement>
-- [ ] AC2: If <bad input or failure>, then <visible result>
-
-## Steps
-- [ ] <a step inside this story; no PR of its own>
-
-Blocked by #<n>
-```
-
-- Use exactly one `## Acceptance criteria` heading. Default to a rule list, one
-  checkable line each; write an event as a When / If-then line; include at least one
-  error or rejection case. A spike states its timebox and the question it answers.
-- Number them `AC1`, `AC2`, ... and have each name its evidence (a test, a command and
-  its output, a screenshot), so the PR shows one Evidence row per id (the PR check).
-- A `Blocked by` line only alongside a native link (step 5); prose alone fails the ready
-  check.
+Use the story body in `templates.md`: a line on what changes and why, exactly one
+`## Acceptance criteria` heading (numbered `AC1`, `AC2`, ..., each naming its evidence,
+at least one error or rejection case), `## Steps`, and `Blocked by` lines only
+alongside a native link (step 5). A spike states its timebox and the question it answers.
 
 ## 5. Create and link
 
@@ -89,8 +76,13 @@ For each story, in dependency order:
    Types uses a `kind:<kind>` label through `issue_labels` instead, never both.
 3. `sub_issue_add(parent=<epic>, child=<number>, repo)`.
 4. Each dependency: `issue_blocked_by_add(number, blocker, repo)`. Never make a cycle.
-5. With the Board level: `project_add_item`, then a suggested `Size` with
-   `project_set_field`. A person may change it.
+5. With the Board level: `project_add_item`, then fill its fields with
+   `project_set_field` as `.gtd/kit/knowledge/model/board-fields.md` says: `Epic`,
+   `Size`, `Owns`, `Gates`, and `Lane`/`Priority`/`Target date` when known. A person's
+   value wins. Then do the same for the epic itself.
+
+When every story is linked, fill the epic's Stories table with `issue_update` (no
+board level needed).
 
 Steps stay a checklist in the story body. Use sub-issues as steps only where
 `.gtd/BOARD.local.md` says so; they are never claimed or given a PR. A step that turns
@@ -111,7 +103,8 @@ say in the report that readiness is unchecked.
   Kind, Size and blockers, with links.
   - Four stories or more: epic-intent approval comes first.
     `item_report(state="waiting", attention=..., needs=<profile's owner_needs>,
-    note="Approve the plan or comment changes")`.
+    note="Approve the plan or comment changes")`, and the epic's `Gates` says
+    `G1 open: add agent-ready to approve the plan`.
   - Three or fewer: no intent approval; the person adds `agent-ready` to each story.
 - `item_release(done=<stories created>, remaining=<open questions>, next="a person
   promotes the stories")`. Comments asking for changes: claim again and revise.
