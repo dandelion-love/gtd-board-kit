@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-03
+
+* **Fixed**: the Codex SessionStart hook initialises `.gtd/kit` before it runs `agent_guard.py` (kit 0.18.2), as the Claude hook does. Before, a Codex-only session in a fresh checkout never ran the guard and the linked skills stayed unresolved.
+
 ## 2026-11-02
 
 * **Changed**: B3 waits out board lag (kit 0.18.1). GitHub Projects can serve the old item order for a while after `project_item_move`, so the runner re-reads `project_items` for up to 30 seconds before failing B3, as P6 and C8 do for label-filtered lists. What a server must do is unchanged.
