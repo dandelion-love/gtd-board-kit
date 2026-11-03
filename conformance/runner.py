@@ -22,6 +22,8 @@ What it needs, and which checks each unlocks:
                             with --project)
     sub_issue_add offered   K1 (with --kind-cmd), K2 to K4 (with --repo whose owner has the
                             Issue Types Epic, Story, Chore, Spike and Finding)
+    issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
+                            artifacts are available; it creates two artifacts, deletes none)
     no --server             C13, R1 and K1, against the reference fold, ready check and Kind rules
 
 Tokens are read from environment variables, never from the command line, and are never
@@ -65,6 +67,7 @@ class Family(Enum):
     READINESS = "R"         # Ready check (when item_ready is offered)
     PULL_REQUESTS = "PR"    # Pull requests (when pr_open is offered)
     KINDS = "K"             # Kind and parent rules (when the Issue structure tools are offered)
+    ARTIFACTS = "A"         # Issue artifacts (when the issue_artifact_* tools are offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -76,7 +79,7 @@ HEADINGS = {
     Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
     Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
-    Family.KINDS: "Kind and parent rules",
+    Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -99,7 +102,7 @@ LEVEL_OF = {
     Family.SECURITY: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
-    Family.KINDS: Level.EXTENDED,
+    Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -1105,9 +1108,12 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     ok, out, text = c.call("issue_labels", sb.args(n, add=["blocked", "area:conformance"]))
     ok2, _, t2 = c.call("issue_labels", sb.args(n, add=["conformance-not-a-label"]))
     ok3, _, _t3 = c.call("issue_labels", sb.args(n, add=["run-agent"]))
-    ok4, _, _ = c.call("issue_labels", sb.args(n, remove=["blocked"]))
-    rep.check("P4", ok and not ok2 and not ok3 and ok4 and "blocked" in (t2 + json.dumps(out or {})),
-              f"add {ok} ({text[:60]}), unknown refused {not ok2}, run-agent refused {not ok3}, remove {ok4}")
+    ok3r, _, _ = c.call("issue_labels", sb.args(n, add=["agent-review"]))
+    ok4, _, _ = c.call("issue_labels", sb.args(n, remove=["blocked", "agent-review"]))
+    rep.check("P4", ok and not ok2 and not ok3 and not ok3r and ok4
+              and "blocked" in (t2 + json.dumps(out or {})),
+              f"add {ok} ({text[:60]}), unknown refused {not ok2}, run-agent refused {not ok3}, "
+              f"agent-review refused {not ok3r}, remove {ok4}")
 
     # P5 allowlist
     ok, _, text = c.call("item_get", {"repo": "conformance-invalid/never-allowed", "number": 1})
@@ -1497,6 +1503,82 @@ def check_kinds(rep: Report, c: Client, tools: dict, sb: Sandbox | None, kind_cm
                 probs.append(f"a refused write changed #{n}'s Kind to {out.get('kind')}")
     rep.check("K4", not probs, "; ".join(probs[:3]),
               "four type changes refused (parent side and sub-issue side), each naming its rule")
+
+
+ARTIFACT_TOOLS = ("issue_artifact_list", "issue_artifact_get", "issue_artifact_create",
+                  "issue_artifact_update")
+ARTIFACT_IDS = ("A1", "A2", "A3", "A4")
+
+
+def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """A1 to A4: the issue artifact tools, when any is offered. Creates, never deletes."""
+    offered = [t for t in tools if t.startswith("issue_artifact_")]
+    if not offered:
+        for cid in ARTIFACT_IDS:
+            rep.na(cid, "the issue_artifact_* tools are not offered")
+        return
+    missing = [t for t in ARTIFACT_TOOLS if t not in tools]
+    deletes = [t for t in offered if "delete" in t]
+    rep.check("A1", not missing and not deletes,
+              f"missing {', '.join(missing) or '-'}; delete tools {', '.join(deletes) or '-'}",
+              "all four offered, no delete tool")
+    if sb is None or missing:
+        for cid in ARTIFACT_IDS[1:]:
+            rep.skip(cid, "needs --repo and all four tools")
+        return
+    n = sb.issue("issue artifacts")
+
+    def at(**more: Any) -> dict:
+        return {"repo": sb.repo, "number": n, **more}
+
+    body = f"Conformance run {sb.run}: a generic artifact."
+    ok1, gen, t1 = c.call("issue_artifact_create", at(type="generic", name="conformance generic", body=body))
+    ok2, link, t2 = c.call("issue_artifact_create",
+                           at(type="link", name="conformance link", body="https://example.com/conformance"))
+    if not (ok1 and ok2):
+        rep.fail("A2", f"create refused: {(t1 if not ok1 else t2)[:120]}")
+        for cid in ("A3", "A4"):
+            rep.skip(cid, "the A2 creates failed")
+        return
+    fields = all(isinstance(a, dict) and {"number", "type", "name", "url"} <= set(a) for a in (gen, link))
+    _, rows, _ = c.call("issue_artifact_list", at())
+    _, links, _ = c.call("issue_artifact_list", at(type="link"))
+
+    def nums(res: Any) -> set:
+        items = res if isinstance(res, list) else (res or {}).get("result") or (res or {}).get("items") or []
+        return {a.get("number") for a in items if isinstance(a, dict)}
+
+    _, got, _ = c.call("issue_artifact_get", at(artifact=gen["number"]))
+    got = got or {}
+    rep.check("A2", fields and {gen["number"], link["number"]} <= nums(rows)
+              and nums(links) == {link["number"]} and got.get("body") == body,
+              f"fields {fields}; list {sorted(nums(rows))}; link list {sorted(nums(links))}; "
+              f"body as written {got.get('body') == body}",
+              "two created, listed, filtered by type, body read back")
+
+    before = got.get("versions")
+    body2 = body + " Updated."
+    ok, upd, text = c.call("issue_artifact_update", at(artifact=gen["number"], body=body2))
+    _, after, _ = c.call("issue_artifact_get", at(artifact=gen["number"]))
+    after = after or {}
+    rep.check("A3", ok and (upd or {}).get("body") == body2 and isinstance(before, int)
+              and after.get("versions") == before + 1,
+              f"update {ok} ({text[:60]}); versions {before} -> {after.get('versions')}",
+              "body updated and one more version")
+
+    refused = []
+    for what, args in (("type report", at(type="report", name="x", body="x")),
+                       ("empty name", at(type="generic", name="", body="x")),
+                       ("link body not a URL", at(type="link", name="x", body="see the PR")),
+                       ("record marker", at(type="generic", name="x",
+                                            body=f"<!-- {MARKER} v1 {{\"event\": \"claim\"}} -->")),
+                       ("body too long", at(type="generic", name="x", body="x" * 60001))):
+        ok, _, text = c.call("issue_artifact_create", args)
+        if ok:
+            refused.append(f"{what} accepted")
+        elif what == "type report" and not all(t in text for t in ("generic", "link", "plan", "embedded_html")):
+            refused.append("type refusal does not list the four types")
+    rep.check("A4", not refused, "; ".join(refused), "five bad creates refused, with reasons")
 
 
 def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
@@ -2056,6 +2138,7 @@ def main(argv: list[str]) -> int:
                     check_prs(rep, c, sb, _tools, who, a.pr_head)
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
+                check_artifacts(rep, c, _tools, sb)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)

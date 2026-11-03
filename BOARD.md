@@ -42,8 +42,8 @@ name.
 ## Skills
 
 `board-onboard`: connect or check. `board-pickup`: find an item. `board-claim`: claim,
-work, open a PR. `board-decompose`: split an epic into stories or a story into steps.
-`board-report`: report, renew, release. `board-needs-person`: ask, stop. `board-lane`:
-lanes. `okf-knowledge`: OKF.
+work, open a PR. `board-decompose`: split an epic or story. `board-review`: review an
+issue. `board-report`: report, renew, release. `board-needs-person`:
+ask, stop. `board-lane`: lanes. `okf-knowledge`: OKF.
 
 Never edit `.gtd/kit`: change the kit upstream and move the pin by PR.

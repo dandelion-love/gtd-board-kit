@@ -59,7 +59,7 @@ own. Colours and descriptions are free.
 
 | Family | Labels |
 | --- | --- |
-| Dispatch | `run-agent`, `agent-running`, `waiting-for-review`, `agent-failed`, `blocked`, `accepted` |
+| Dispatch | `run-agent`, `agent-review`, `agent-running`, `waiting-for-review`, `agent-failed`, `blocked`, `accepted` |
 | Whom it waits for | `needs:triage`, plus one `needs:<owner_needs>`, plus any others the profile wants |
 | Who may take it | `agent:any`, `agent:human`, plus one `agent:<runtime>` per runtime that may be routed to (`agent:claude`, `agent:codex`, ...) |
 | May it be pulled | `agent-ready`, `agent-proposed` |
