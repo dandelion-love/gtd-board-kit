@@ -12,7 +12,7 @@ What it needs, and which checks each unlocks:
     nothing                 C13 (the fold fixtures, against the reference fold or --fold-cmd)
     --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
-    + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, P8, J10, X2 (partly)
+    + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, P8, P9, J10, X2 (partly)
     + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
@@ -236,6 +236,26 @@ class StandardKind(Enum):
     SPIKE = "spike"
     RESEARCH = "research"
     FINDING = "finding"
+
+
+class DeprecatedQualifier(Enum):
+    """View filter qualifiers a profile must not use (repo-context-and-profiles.md,
+    View filters; check P9). The value is the qualifier as written, lower case."""
+    LAST_UPDATED = "last-updated:"
+
+
+def deprecated_filters_in(profile: dict) -> list[str]:
+    """The profile's views whose filter uses a deprecated qualifier (check P9)."""
+    found = []
+    for view in (profile.get("board") or {}).get("views") or []:
+        if not isinstance(view, dict):
+            continue
+        text = str(view.get("filter") or "").lower()
+        used = [q.value for q in DeprecatedQualifier
+                if re.search(r"(^|[\s(-])" + re.escape(q.value), text)]
+        if used:
+            found.append(f"view {view.get('name')!r} uses {', '.join(used)}")
+    return found
 
 
 class KindRule(Enum):
@@ -954,7 +974,7 @@ def check_profiles(rep: Report, c: Client) -> dict:
         rep.fail("P1", f"profile_list: {text[:120]}")
         return {}
     names = [p["name"] if isinstance(p, dict) else p for p in (lst or {}).get("profiles") or []]
-    profiles, p1, p2, p3, p8 = {}, [], [], [], []
+    profiles, p1, p2, p3, p8, p9 = {}, [], [], [], [], []
     for name in names:
         ok, p, text = c.call("profile_get", {"name": name})
         if not ok:
@@ -978,10 +998,14 @@ def check_profiles(rep: Report, c: Client) -> dict:
         retired = retired_kinds_in(p)
         if retired:
             p8.append(f"{name}: {', '.join(retired)}")
+        stale = deprecated_filters_in(p)
+        if stale:
+            p9.append(f"{name}: {'; '.join(stale)}")
     rep.check("P1", names and not p1, "; ".join(p1) or "no profiles", f"{len(names)} profiles")
     rep.check("P2", not p2, f"needs or owner_needs inconsistent in {', '.join(p2)}")
     rep.check("P3", not p3, f"status_for_label incomplete or off-board in {', '.join(p3)}")
     rep.check("P8", not p8, f"retired Kinds declared: {'; '.join(p8)}")
+    rep.check("P9", not p9, f"deprecated view filter qualifiers: {'; '.join(p9)}")
     return profiles
 
 

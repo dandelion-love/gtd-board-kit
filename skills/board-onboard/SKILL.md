@@ -3,7 +3,7 @@ name: board-onboard
 description: Connect this repo to its board, or check and repair that connection. Covers the kit install, gtd MCP access, drafting .gtd/BOARD.local.md from the repo and the board, and the PR. Use when asked to onboard, set up, connect or check a repo's board, when .gtd/BOARD.local.md is missing or unfilled, or after moving the kit pin.
 metadata:
   author: gtd-board-kit
-  version: 0.4.0
+  version: 0.5.0
 ---
 
 # Onboard this repo to its board
@@ -29,6 +29,7 @@ Check each item and redo only the step that fails:
 | `python3 .gtd/kit/tools/lanes.py check` passes | fix the lane or grant block; only your person adds or widens one |
 | every lane at `auto` or `observe` has a live lease on its item | resume it with `board-lane`, or tell your person it lapsed |
 | `profile_updates(repo)`, when the server offers it, returns no `updates` | see [upstream changes](#upstream-changes) |
+| no view in `project_views_list` has a filter with a deprecated qualifier (`.gtd/kit/server-spec/repo-context-and-profiles.md`, View filters) | the API cannot edit a view: give your person the board, the view, its filter and the replacement, for them to edit in the board's UI |
 
 ## Upstream changes
 
