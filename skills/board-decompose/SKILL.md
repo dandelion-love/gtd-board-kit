@@ -3,7 +3,7 @@ name: board-decompose
 description: Break an epic into story-level issues, or a story into steps, the kit's standard way, through the gtd MCP server. Use when asked to plan, split, slice or decompose an epic, an outcome or a large issue into stories, or a story into steps, in a repo that has gtd-board-kit. It proposes work for a person to promote; it never makes work agent-ready.
 metadata:
   author: gtd-board-kit
-  version: 0.2.0
+  version: 0.2.1
 ---
 
 # Decompose work into stories and steps

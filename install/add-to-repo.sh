@@ -14,7 +14,7 @@ set -euo pipefail
 
 KIT_URL="https://github.com/dandelion-love/gtd-board-kit"
 KIT_DIR=".gtd/kit"
-SKILLS=(board-onboard board-pickup board-claim board-decompose board-report board-needs-person board-lane okf-knowledge)
+SKILLS=(board-onboard board-pickup board-claim board-decompose board-report board-needs-person board-lane board-review okf-knowledge)
 PIN="${1:-}"
 
 [ -d .git ] || { echo "run this from the work repo's root" >&2; exit 1; }

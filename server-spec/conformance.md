@@ -32,7 +32,7 @@ reports pass, fail, skip or manual for every id below.
 | P1 | `profile_get` of every listed profile returns every field in [repo-context-and-profiles](repo-context-and-profiles.md#profiles), and every profile declares every base label |
 | P2 | Every `needs` value has a matching `needs:*` label; `owner_needs` is one of them |
 | P3 | Every profile's `status_for_label` maps `agent-running`, `waiting-for-review`, `agent-failed` and every `needs:*` label, and names only columns in `board.status` |
-| P4 | `issue_labels` adds and removes a profile label and an `area:x` label; refuses a label outside the profile and lists the real ones; refuses adding `run-agent`; never changes Status |
+| P4 | `issue_labels` adds and removes a profile label and an `area:x` label; refuses a label outside the profile and lists the real ones; refuses adding `run-agent` and adding `agent-review`, and removes `agent-review`; never changes Status |
 | P5 | A repo or board outside the allowlist is refused before any GitHub call (the fake sees no request) |
 | P6 | `list_next_actions` with a label returns only open issues with that label, never a PR. GitHub's label-filtered lists can lag a label write by seconds, so the runner re-reads for up to 30 seconds before failing |
 | P7 | `project_items` returns items in the board's manual order and pages with a cursor |
@@ -254,6 +254,20 @@ and its sub-issues):
 | `type-finding-with-steps` | set Finding; no parent; sub-issues no Kind | refused: `finding-holds-nothing` |
 | `type-story-over-chore` | set Story; parent Epic; sub-issues no Kind, Chore | refused: `holds-steps` |
 | `type-spike-over-finding` | set Spike; parent Epic; sub-issues no Kind, Finding | allowed |
+
+## Issue artifacts (when offered)
+
+A server that lists any `issue_artifact_*` tool in `tools/list` must also pass these
+([issue artifacts](tools.md#issue-artifacts)). A1 to A4 need a sandbox repo where GitHub's
+issue artifacts are available; they create artifacts on a sandbox issue and delete
+nothing.
+
+| Id | Check |
+| --- | --- |
+| A1 | `tools/list` has all four of `issue_artifact_list`, `issue_artifact_get`, `issue_artifact_create` and `issue_artifact_update`, and no tool whose name starts `issue_artifact_` and contains `delete` |
+| A2 | `issue_artifact_create` of a `generic` and a `link` artifact returns `number`, `type`, `name` and `url`; `issue_artifact_list` shows both, and with `type=link` only the link; `issue_artifact_get` returns the body as written |
+| A3 | `issue_artifact_update` of the generic artifact's body returns the new body, and `versions` is one more than before |
+| A4 | Each refuses and says why: `type` `report` (the refusal lists the four types); an empty `name`; a `link` body that is not one `https` URL; a body with a record marker; a body over 60000 characters |
 
 ## Security (all levels)
 

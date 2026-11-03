@@ -85,9 +85,9 @@ values (the skill then picks the profile's `owner_needs`).
 
 | Tool | Class | Arguments | Notes |
 | --- | --- | --- | --- |
-| `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (and `run-agent` refuses), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
+| `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (so `run-agent` and `agent-review` refuse), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
 | `issue_comment` | work | `repo`, `number`, `body` | Plain comment on an issue or PR. A body containing a record marker ([claim-records](claim-records.md#record-format)) refuses: records come only from the `item_*` tools |
-| `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` refuses (a person, or a server's own dispatch tool, starts a run). `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
+| `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` or `agent-review` refuses (a person, or a server's own dispatch tool, starts a run or a review); removing them is allowed. `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
 
 ### Optional on Core, needed by some skills
 
@@ -126,7 +126,8 @@ that offers the capability uses the name.
 | Org setup | `org_issue_types`, `org_issue_type_set`, `webhook_*`, `repo_variables`, `repo_variable_set`, `repo_variable_delete` (full) | Organisation issue types, webhooks, variables. Webhook targets must be on an operator host allowlist |
 | Run state | `run_state_post` (work), `run_state_read` (read) | Long runs on compute hosts post `start`, `phase`, `end`, `hold`, `release`, `spend` events to a run-state channel issue named in the repo's layer. `by` here is provenance text, not identity: the record is still stamped with the principal |
 | Channels | `channels_list`, `channel_comments_read` (read), `channel_comment_post` (work) | Long-lived discussion issues a repo names as channels |
-| Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps |
+| Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps. A server that starts runs from `run-agent` also starts a review run from `agent-review`: see [review requests](#review-requests) |
+| Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
 | Pull requests | `pr_open` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it. See [opening pull requests](#opening-pull-requests) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
@@ -196,3 +197,42 @@ Two GitHub settings decide whether the owner can then approve:
   that push. If the agent's host pushes with the owner's own credential, the owner cannot
   approve under that rule. Turn the rule off, or have the agent push with an identity that
   is not the owner's.
+
+## Issue artifacts
+
+GitHub issue artifacts are named, versioned pieces of content attached to an issue
+(GitHub calls the feature a public preview). The kit uses them for evidence and plans
+that should stay on the issue after its PR merges
+([where evidence goes](../knowledge/model/evidence-places.md)).
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `issue_artifact_list` | read | `repo`, `number`, `type?` | Each artifact's `number`, `type`, `name`, `url`, `updated_at` |
+| `issue_artifact_get` | read | `repo`, `number`, `artifact` | The artifact with `body` and `versions` (how many) |
+| `issue_artifact_create` | work | `repo`, `number`, `type`, `name`, `body` | The artifact as `issue_artifact_get` returns it |
+| `issue_artifact_update` | work | `repo`, `number`, `artifact`, `name?`, `body?` | The same; GitHub keeps the old version |
+
+- `type` is one of GitHub's four: `generic` (a Markdown document), `plan` (a Markdown
+  plan), `link` (the body is one `https` URL) or `embedded_html` (a self-contained HTML
+  file). Any other value refuses and lists the four.
+- `name` is 1 to 256 characters; `body` is at most 60000 characters (X3). A `link` body
+  that is not a single `https` URL refuses.
+- A body holding a record marker or a `gtd-pr` marker refuses, as `issue_comment` does.
+- There is no delete tool: deleting an artifact also deletes its history, so only a
+  person deletes one. A server offers all four tools or none.
+- The repo and issue are checked against the allowlist first (P5); a pull request number
+  refuses.
+
+## Review requests
+
+`agent-review` is a person's request for an agent to **review an issue**, distinct from
+`agent-ready` (permission to build) and `run-agent` (build now). Only a person adds it
+(`issue_labels` and `capture` refuse it from an agent). A server in the Dispatch group
+that starts runs from `run-agent` treats `agent-review` the same way, with the review
+procedure of the kit's `board-review` skill as the task. Without such a server, an agent
+that is pointed at the board finds these items with `list_next_actions(context=
+"agent-review")`.
+
+A review changes no text the person wrote, adds no `agent-ready` and starts no build. It
+ends with one comment of findings, the label removed and a report.
+
