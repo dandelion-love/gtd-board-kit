@@ -133,7 +133,8 @@ CLASS.update(dict.fromkeys((
     "project_views_list", "list_next_actions", "issue_list", "issue_blocked_by_list",
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
-    "channel_comments_read", "profile_updates", "item_ready"), "read"))
+    "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
+    "issue_artifact_get"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -141,7 +142,8 @@ CLASS.update(dict.fromkeys((
     "project_draft_add", "project_draft_update", "project_draft_convert", "issue_update",
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
-    "run_state_post", "channel_comment_post", "pr_open"), "work"))
+    "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
+    "issue_artifact_update"), "work"))
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -198,7 +200,7 @@ WHOAMI_FIELDS = ("principal", "signed_in_by", "preset", "fenced", "provider", "e
                  "join_url", "conformance", "spec_version")
 PROFILE_FIELDS = ("name", "labels", "needs", "owner_needs", "pickup_sizes", "status_for_label")
 BASE_LABELS = ("run-agent", "agent-running", "waiting-for-review", "agent-failed", "blocked",
-               "accepted", "needs:triage", "agent:any", "agent:human", "agent-ready",
+               "accepted", "agent-review", "needs:triage", "agent:any", "agent:human", "agent-ready",
                "agent-proposed")
 
 
