@@ -121,16 +121,20 @@ GitHub login), `via_server`, `created_at`, `url` (of the entry) and `excerpt` (t
 500 characters of its body, empty for a bare review), plus `review_state` on a review
 and `path` on a review comment.
 
-`via_server` is true when the author is the server's own GitHub identity (a record
-author). The server writes for every agent under that one identity, so such an entry may
-be the caller's own comment; the caller skips the ones it wrote.
+`via_server` is true when the author is an identity the server writes as (a record
+author). The server writes for every agent under that identity, and some deployments
+write as a person's own account, so such an entry may be the caller's own comment,
+another agent's or that person's. The caller skips only the entries whose `url` its own
+writes returned.
 
 A server may find the issues by listing those **updated** after `since` (a new comment
 or review updates its issue). It caps that scan; past the cap it reads the most recently
 updated first and adds a warning naming the cap.
 
 **The cursor.** `read_at` is the server's clock when the read began. A caller that keeps
-it passes it as `since` next time and sees each entry once. A caller with nothing kept
+it passes it as `since` next time and sees each entry once (GitHub times are whole
+seconds, so a server may set `read_at` a second early: an entry from that second can come
+twice, never not at all). A caller with nothing kept
 omits `since` and gets the last 24 hours. `next_cursor` pages within one read; pass it
 with the same `since`.
 

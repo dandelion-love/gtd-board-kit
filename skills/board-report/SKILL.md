@@ -48,7 +48,7 @@ since=<the read_at you kept>)`. It lists what others wrote since then on items y
 PRs opened for you by `pr_open` (comments and reviews) and the repo's channels. Answer
 each entry where it was written, or say in your next report why not. Keep the new
 `read_at`; with none kept, omit `since` (last 24 hours) and skip what you already
-answered. Skip `via_server` entries you wrote. No such tool on the server: read each held
+answered. Skip only entries whose url your own writes returned. No such tool on the server: read each held
 item's `follow_ups` (`item_get`) and each channel (`channel_comments_read`).
 
 ## Cadence
