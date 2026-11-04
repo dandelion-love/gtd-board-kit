@@ -61,18 +61,18 @@ does lands on an issue. No work happens off the board.
    `needs:*` label, do nothing this tick except renew. If `policy` changed since your
    last tick, say so in the tick's report and follow the new text. On `off`, also
    remove `agent-running` from the lane item.
-2. **Heartbeat.** `item_renew` the lane item, and every item whose long job this lane
-   started that has no completion marker yet. The lease is the heartbeat: a lapsed one
-   means a dead lane or job. The lease must be longer than two cadences.
+2. **Hand-offs, then heartbeat.** Each of the lane item's `follow_ups` (`item_get`) is
+   an item waiting on this lane (`board-report`): answer it there or take it on (claim
+   or `capture`) first, as a renew hides them. Then `item_renew` the lane item and each
+   item whose long job this lane started that has no completion marker yet. The lease is
+   the heartbeat (a lapsed one means a dead lane or job): longer than two cadences.
 3. **Recover before acting.** Check the repo, git history, the board and any marker
    files before repeating an outside action: a previous tick may have done it.
-   **Hand-offs:** each comment in the lane item's `follow_ups` (`item_get`) is an item
-   waiting on this lane (`board-report`). Act on it within `may`, or answer it there.
 4. **Work.** Take items in the order of the lane's `queue` view and keep their ETA
    (`board-report`, Queue order and ETA). Do only what `may` lists, never `never`. Each concrete item gets
    its own `item_claim` and the normal `board-claim` path (branch, PR, no merge without a merge grant).
-   Under `observe`, do the reading and write `item_report(state="progress",
-   note="would: <what you would have done>")` on the lane item, and change nothing else.
+   Under `observe`, read, then `item_report(state="progress", note="would: <what>")` on
+   the lane item, and change nothing else.
 5. **Questions don't stop the lane** (rule 7): ask on the item the question is about
    (`board-needs-person`) and carry on with the rest. Put `needs:*` on the lane item
    only to ask whether the lane should keep running; that holds it.
