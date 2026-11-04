@@ -169,11 +169,24 @@ The agent still pushes its branch first, with whatever git access its host gives
 The server MUST, in this order, refuse before it creates anything when:
 
 1. `repo` is not allowed (P5);
-2. `title` or `body` is too long (X3), or `body` already holds a `gtd-pr` marker (below);
+2. `title` or `body` is too long (X3), or `body` already holds a `gtd-pr` marker (below),
+   or `body` holds a **closing keyword** before an issue reference (below);
 3. `issues` is empty, or the caller does not hold an unexpired lease on one of them. The
    refusal names each such issue and says to claim it first;
 4. `head` is cross-repository, equals `base`, is not a branch of `repo`, or already has an
-   open PR into `base` (the refusal gives that PR's URL).
+   open PR into `base` (the refusal gives that PR's URL);
+5. a commit message between `base` and `head` holds a closing keyword before an issue
+   reference. The refusal names the commit and says to reword it.
+
+**Closing keywords.** GitHub closes an issue when a PR merges into the default branch and
+its body or one of its commit messages says `close`, `closes`, `closed`, `fix`, `fixes`,
+`fixed`, `resolve`, `resolves` or `resolved` (any case, optionally followed by `:`) then
+an issue reference: `#<n>`, `owner/repo#<n>`, or an issue URL. It does this anywhere in the
+text, so a rollback note such as "hold or close #<n>" closes that item on merge. That breaks
+the items that must stay open (a lane's item, a standing chore) and closes stories before
+anyone tested them. Only the server writes a closing line (`closes`, below), so it refuses
+the caller's text that holds one, in either mode, and names the keyword and the reference.
+The refusal says `closing keyword`. A branch name never closes an issue.
 
 Then it opens the PR **with its own GitHub App credential, never the caller's**, even on a
 server that otherwise acts as the caller. A server without such a credential does not offer

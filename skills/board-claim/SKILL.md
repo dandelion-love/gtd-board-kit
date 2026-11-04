@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.6.0
+  version: 0.6.1
 ---
 
 # Claim an item and work it
@@ -80,22 +80,22 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
    `pr_open(repo, head=<branch>, base, title, body, issues=[every story it carries], closes)`.
    - `closes=true` only when the work is verified (tests run, evidence in the body) and
      `base` is the default branch. Into a combined branch: `closes=false`.
-   - Put no `Closes #<n>` and no `gtd-pr` marker in `body`; the server writes both.
-   - Refused for a missing claim: claim that story or take it out. Never route around a
-     `pr_open` refusal with another tool.
+   - No `gtd-pr` marker, and no closing keyword before an issue (`close`, `fix`,
+     `resolve`, any form) in `body` or commits, even in a rollback note ("release #n").
+     Merging would close it.
+   - Refused for a missing claim: claim it or take it out. Never route around a refusal.
    - Work with no issue of its own (a register line, an experiment's result): claim the
      experiment's issue or the repo's standing chore item (`.gtd/BOARD.local.md`).
-2. Only when the server does not offer `pr_open`: open the PR with your own GitHub tool,
-   `Closes #<number>` (or `Refs #<number>`) for each story, and say in the ready report
-   that it was opened outside `pr_open`.
+2. No `pr_open` on the server: open it with your own GitHub tool, `Refs #<number>` for
+   each story (`Closes` only as `closes=true` allows), and say so in the ready report.
 3. `issue_labels(add=["waiting-for-review"], remove=["agent-running"], …)` and, without a
    bridge, set Status to the review column. Add `agent-review` too to ask another
    session to review it (`board-review`).
 4. `item_report(state="ready", note="PR open: <one line>", links=[<PR url>])`.
 5. Only under a merge grant covering every changed file, with checks green, no changes
    requested and no conflict: merge it, and report with the merged link (`grants.md`).
-6. `item_release(repo, number, done, remaining, next, project)`. Keep holding instead
-   only if you will answer review comments yourself, and renew.
+6. `item_release(repo, number, done, remaining, next, project)`, or keep holding (renew)
+   if you will answer review comments yourself.
 
 Never approve or close the issue yourself, and never merge unless a merge grant covers
 every file (above): a person's merge completes it.
