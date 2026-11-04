@@ -30,6 +30,8 @@ issue, after the PR is merged as well as before. Put each kind in one place:
   row passes, and adds that pointer to the line. A box stays empty while its row fails or
   is missing. A work review checks every tick against its row, and the person's merge
   confirms them. The worker edits only the boxes and pointers, never the criterion's text.
+  The pointer is a link to the proof itself (a permalink to the file at the head commit,
+  the run, the page), as [items that speak for themselves](self-reviewable-items.md) says.
 - An artifact name holds only letters, numbers, spaces, periods, hyphens and underscores,
   and starts and ends with a letter or number (GitHub refuses `#` or `:`):
   `PR n evidence`, not `PR #n: evidence`.
@@ -53,4 +55,5 @@ public preview, which is why the PR row, not the artifact, stays the gate.
 
 - [Criterion-to-evidence chain](/decomposition/acceptance-and-verification/criterion-to-evidence-chain.md)
 - [Board fields and who writes them](board-fields.md)
+- [Items that speak for themselves](self-reviewable-items.md)
 - [Report vocabulary](report-vocabulary.md)

@@ -54,9 +54,13 @@ Read the issue, its parent, its sub-issues and its blockers (`item_get`,
   the Stories table against its sub-issues.
 - **Evidence.** For a story with an open or merged PR (a work review): every criterion
   has a passing row in the PR's evidence table, its box is ticked with that pointer, and
-  the PR is a `link` artifact on the issue, as
+  the PR is a `link` artifact on the issue (a server without artifact tools: the report
+  says so and the PR's evidence row holds the link instead), as
   `.gtd/kit/knowledge/model/evidence-places.md` says. A missing tick, pointer or
   artifact is a finding.
+- **Speaks for itself.** From the issue alone, without the PR body or chat, can a person
+  tell where it is, who acts next and whether each criterion is met, each in one click
+  (`.gtd/kit/knowledge/model/self-reviewable-items.md`)? Each gap is a finding.
 
 ## 3. Post one comment
 

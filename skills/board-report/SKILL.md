@@ -33,8 +33,11 @@ item_report(repo, number, state, note, links, project)
 - At `ready`, also keep the evidence on the issue as
   `.gtd/kit/knowledge/model/evidence-places.md` says: a `link` artifact for the PR or a
   published doc, a `generic` one for a report (`issue_artifact_create`, when offered;
-  a name has no `#` or `:`). Tick each criterion whose evidence row passes and add its
-  pointer (`Evidence: PR #n, AC2 row`); leave a failing one empty.
+  a name has no `#` or `:`). Tick each criterion whose evidence passes, with a link to
+  the proof on its line (a permalink at the head commit, plus `PR #n AC2 row`); leave a
+  failing one empty with the reason. The `ready` note is for a person: what is
+  delivered, the one action asked, what is not done. The issue must speak for itself
+  (`.gtd/kit/knowledge/model/self-reviewable-items.md`).
 - Remove `blocked` when you resume. Without `.github/workflows/project-sync.yml`, also
   set Status to the column `.gtd/BOARD.local.md` gives.
 - A question for a person is not a state: use `board-needs-person`.
