@@ -201,7 +201,7 @@ WHOAMI_FIELDS = ("principal", "signed_in_by", "preset", "fenced", "provider", "e
 PROFILE_FIELDS = ("name", "labels", "needs", "owner_needs", "pickup_sizes", "status_for_label")
 BASE_LABELS = ("run-agent", "agent-running", "waiting-for-review", "agent-failed", "blocked",
                "accepted", "agent-review", "needs:triage", "agent:any", "agent:human", "agent-ready",
-               "agent-proposed")
+               "agent-proposed", "standing")
 
 
 class RetiredKind(Enum):
@@ -1408,6 +1408,10 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         c.call("issue_close", {"repo": sb.repo, "number": n, "reason": "not_planned"})
         ok, _, _ = ready(n)
         rep.check("R7", not ok, "a closed issue was not refused", "closed issue refused; PR and epic by hand")
+    n = sb.issue("standing", labels=["standing"], body=READY_AC)
+    ok, _, text = ready(n)
+    rep.check("R7", not ok and "standing" in text, "an issue labelled standing was not refused for it",
+              "standing issue refused")
     rep.manual("R7", "item_ready on a pull request number and on an issue of Kind epic: both refuse")
 
     # R8: the claim returns the same verdict, warns when not ready, and never refuses on it.

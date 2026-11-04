@@ -157,7 +157,7 @@ A server that lists `item_ready` in `tools/list` must also pass these
 | R4 | An issue without an acceptance-criteria section fails `acceptance-criteria`; one with the section and a `needs:*` label fails `open-question` and not `acceptance-criteria` |
 | R5 | "Blocked by `#N`" in the body without a native link, and the `blocked` label with no open native blocker, each fail `unlinked-blocker`; once linked, the blocker is in `blockers` and the rule passes; linking back either refuses with a reason that names the cycle (GitHub refuses a dependency cycle itself, so `issue_blocked_by_add` passes its reason through) or, when the link lands, fails `blocker-cycle`. The cycle rule itself is covered offline by R1 |
 | R6 | With a board, no Size, and a Size outside `pickup_sizes`, each fail `size` |
-| R7 | A pull request, a closed issue, and an issue of Kind `epic` are refused |
+| R7 | A pull request, a closed issue, an issue of Kind `epic`, and an issue labelled `standing` are refused |
 | R8 | `item_claim` returns `ready` whose `verdict`, failed rules and open blockers equal what `item_ready` returns for the issue; an explicit claim on an issue without criteria succeeds (the verdict never refuses) and a `warnings` line names `needs-refinement`; a claim on a `ready` issue has no "not ready" warning ([the ready verdict on a claim](tools.md#claims-and-reports)) |
 
 R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,

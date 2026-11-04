@@ -12,7 +12,7 @@ for anything specific to this repo. Delete any section you don't need.
 - Other boards or channels agents here may write to: <!-- e.g. a run-state channel -->
 - Knowledge bundle: <!-- folder of this repo's OKF knowledge docs; default docs/knowledge/ -->
 - The owner's `needs` value: <!-- the needs:* label that means "only the owner can unblock this" -->
-- Standing chore item: <!-- owner/repo#n: a Chore issue agents claim for work with no issue of its own (register lines, upkeep), so pr_open can land it -->
+- Standing chore item: <!-- owner/repo#n: a Chore issue agents claim for work with no issue of its own (register lines, upkeep), so pr_open can land it; label it `standing` -->
 
 ## Labels this repo adds or uses differently
 
@@ -59,7 +59,9 @@ for anything specific to this repo. Delete any section you don't need.
      the default branch: a person adds, widens or switches one on by merging a PR. New lanes
      start at switch: observe. Bump policy on every change to a lane. Fast stop, no PR:
      close the lane's item (off) or add any needs:* label to it (hold). Copy the block
-     below once per lane, then lint with: python3 .gtd/kit/tools/lanes.py check -->
+     below once per lane, then lint with: python3 .gtd/kit/tools/lanes.py check
+     Blocks named example-* are placeholders: lanes.py skips them, so they never lint,
+     run or grant anything. Rename a copy to use it. Label the lane's item `standing`. -->
 
 ### lane: example-lane
 

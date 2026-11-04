@@ -63,6 +63,7 @@ own. Colours and descriptions are free.
 | Whom it waits for | `needs:triage`, plus one `needs:<owner_needs>`, plus any others the profile wants |
 | Who may take it | `agent:any`, `agent:human`, plus one `agent:<runtime>` per runtime that may be routed to (`agent:claude`, `agent:codex`, ...) |
 | May it be pulled | `agent-ready`, `agent-proposed` |
+| Standing | `standing`: an item that stays open by design (a lane's item, a standing chore); it has no ready check |
 | Area | `area:*` is free-form; a server allows any label with that prefix |
 
 Meanings are in [labels are signals](../knowledge/model/labels-are-signals.md).

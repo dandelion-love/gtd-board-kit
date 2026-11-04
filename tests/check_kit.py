@@ -206,6 +206,11 @@ r = subprocess.run([sys.executable, str(ROOT / "tools" / "lanes.py"), "check", f
 Path(fh.name).unlink()
 if r.returncode != 1 or "pattern or folder" not in r.stdout or "never granted" not in r.stdout:
     fail("lanes.py check missed a pattern or a .gtd/ path in a merge grant")
+# The shipped template lints clean: its example-* blocks are placeholders, never checked.
+r = subprocess.run([sys.executable, str(ROOT / "tools" / "lanes.py"), "check",
+                    str(ROOT / "install" / "BOARD.local.template.md")], capture_output=True, text=True)
+if r.returncode != 0:
+    fail(f"lanes.py check fails the shipped template: {r.stdout.strip()}")
 
 # OKF: the pinned spec is present, PIN.json agrees with it, and the kit's own bundle lints.
 import json  # noqa: E402

@@ -27,7 +27,7 @@ def git(*args: str, cwd: Path) -> None:
 class Repo:
     """A throwaway work repo with an origin, so lanes.py can read the merged grants."""
 
-    def __init__(self, grant: str | None = None):
+    def __init__(self, grant: str | None = None, lane: str | None = None):
         self.tmp = tempfile.TemporaryDirectory()
         base = Path(self.tmp.name)
         origin, self.root = base / "origin.git", base / "work"
@@ -39,6 +39,11 @@ class Repo:
             body += ("\n## Workflow grants\n\n### grant: ci\n- paths:\n"
                      f"  - {grant}\n- granted_by: owner\n- date: 2026-01-01\n"
                      "- link: https://example.com/approval\n")
+        if lane:
+            body += (f"\n## Standing lanes\n\n### lane: {lane}\n- asked_by: owner\n"
+                     "- basis: nightly checks\n- grant: https://example.com/approval\n"
+                     "- policy: 1\n- switch: observe\n- item: owner/repo#n\n- every: 1h\n"
+                     "- lease: 3h\n- may:\n  - read\n- never:\n  - write\n")
         (self.root / ".gtd" / "BOARD.local.md").write_text(body)
         git("add", "-A", cwd=self.root)
         git("commit", "-qm", "base", cwd=self.root)
@@ -185,6 +190,17 @@ class GuardTest(unittest.TestCase):
             self.assertIn("BOARD.md", lines[0])
             self.assertIn("whoami", lines[1])
             self.assertIn("item_claim", lines[2])
+
+    def test_session_start_lists_lanes_to_resume(self):
+        """Lanes die with the session: a new one is shown what to resume."""
+        lane = Repo(lane="nightly")
+        try:
+            r = run(CLAUDE, {"hook_event_name": "SessionStart", "cwd": str(lane.root)})
+            self.assertEqual(r.returncode, 0)
+            self.assertIn("Standing lanes", r.stdout)
+            self.assertIn("Run lane nightly as .gtd/BOARD.local.md defines it.", r.stdout)
+        finally:
+            lane.close()
 
     def test_fails_open(self):
         for raw in ("", "not json", "[]", json.dumps({"hook_event_name": "PreToolUse",

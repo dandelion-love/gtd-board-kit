@@ -70,11 +70,19 @@ def section(text: str, title: str) -> str:
     return m.group(1) if m else ""
 
 
+EXAMPLE_PREFIX = "example-"
+
+
 def blocks(body: str, kind: str) -> list[dict]:
-    """Parse '### <kind>: <name>' blocks of '- key: value' lines; list keys collect '  - x'."""
+    """Parse '### <kind>: <name>' blocks of '- key: value' lines; list keys collect '  - x'.
+
+    A block named ``example-*`` (the template's placeholders) is skipped everywhere: it
+    is never linted, resumed, or counted as a grant."""
     out: list[dict] = []
     for m in re.finditer(rf"^### {kind}:\s*(.+?)\s*$(.*?)(?=^### |\Z)", body, re.M | re.S):
         item: dict = {"name": m.group(1).strip("` ")}
+        if item["name"].startswith(EXAMPLE_PREFIX):
+            continue
         key = None
         for line in m.group(2).splitlines():
             if re.match(r"^\s*<!--", line) or not line.strip():
