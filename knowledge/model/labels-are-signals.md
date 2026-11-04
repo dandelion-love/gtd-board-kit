@@ -25,7 +25,8 @@ Only where a repo has no bridge does an agent set Status itself, using the colum
 
 `run-agent` asks for the work now; `agent-review` asks for a review of the issue only
 (the `board-review` skill): it never starts a build and never adds `agent-ready`. Only a
-person adds either.
+person adds `run-agent`. A person or an agent adds `agent-review`, and the review is
+always done by another session: a review claim refuses the session that worked the item.
 
 See [claims](/model/claims-and-leases.md) for who holds an item and
 [reports](/model/report-vocabulary.md) for what a holder says.

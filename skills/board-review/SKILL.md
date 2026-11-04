@@ -1,16 +1,21 @@
 ---
 name: board-review
-description: Review a board issue a person labelled agent-review, against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
+description: Review a board issue labelled agent-review (by a person, or by an agent asking another session to check its work), against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Review an issue
 
 Read `.gtd/kit/BOARD.md`, then `.gtd/BOARD.local.md` if it exists, first if you have not
-this session; the local file wins. `agent-review` is a person asking for a second look at
-an issue before they approve or build it. It is not `agent-ready` and not `run-agent`.
+this session; the local file wins. `agent-review` asks for a second look at an issue: a
+person's before they approve or build it, or an agent's after it finished the work and
+wants another session to check it. It is not `agent-ready` and not `run-agent`.
+
+**Never review your own session's work.** A review is another pair of eyes; the session
+that claimed the item to work it cannot be them. A fresh session of the same agent may.
+The server enforces this on the claim below.
 
 ## Finding the requests (a lane)
 
@@ -24,8 +29,12 @@ label.
 ## 1. Claim it
 
 `item_claim(repo, number, basis="explicit", asked_by=<who added agent-review, or who
-pointed you>, lease="1h", project)`. The label is the pointing. Refused: someone holds
-it; leave it. A dispatch run started from the label is already pointed.
+pointed you>, purpose="review", session=<this session's name, as in board-claim>,
+lease="1h", project)`. The label is the pointing. Refused because someone holds it:
+leave it. Refused because your session worked the item: leave it for another session,
+never retry with another `session`. A dispatch run started from the label is already
+pointed. A server whose `item_claim` has no `purpose`: claim as before, and skip any
+item this session claimed, reported on or opened a PR for.
 
 ## 2. Review against the kit
 

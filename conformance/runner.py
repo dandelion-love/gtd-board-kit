@@ -13,7 +13,7 @@ What it needs, and which checks each unlocks:
     --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
     + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, P8, P9, J10, X2 (partly)
-    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14, X1, X3. It CREATES issues there
+    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14, C15, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
@@ -1112,10 +1112,10 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     ok3, _, _t3 = c.call("issue_labels", sb.args(n, add=["run-agent"]))
     ok3r, _, _ = c.call("issue_labels", sb.args(n, add=["agent-review"]))
     ok4, _, _ = c.call("issue_labels", sb.args(n, remove=["blocked", "agent-review"]))
-    rep.check("P4", ok and not ok2 and not ok3 and not ok3r and ok4
+    rep.check("P4", ok and not ok2 and not ok3 and ok3r and ok4
               and "blocked" in (t2 + json.dumps(out or {})),
               f"add {ok} ({text[:60]}), unknown refused {not ok2}, run-agent refused {not ok3}, "
-              f"agent-review refused {not ok3r}, remove {ok4}")
+              f"agent-review added {ok3r}, remove {ok4}")
 
     # P5 allowlist
     ok, _, text = c.call("item_get", {"repo": "conformance-invalid/never-allowed", "number": 1})
@@ -1216,6 +1216,29 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
               f"bad branch refused {not ok_bad}; claims {ok_a} {ok_b} ({(t_a or t_b)[:60]}); "
               f"branch recorded {on_branch}; release {ok_r}; second still held {bool(left.get('holder'))}")
     c.call("item_release", sb.args(b, done="checked", remaining="none", next="close"))
+
+    # C15 review claims: no session reviews work it did
+    n = sb.issue("review claim")
+    s_work, s_review = f"conformance-{sb.run}-work", f"conformance-{sb.run}-review"
+    ok_w, _, t_w = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
+                                               lease="30m", session=s_work))
+    ok_wr, _, _ = c.call("item_release", sb.args(n, done="worked", remaining="review", next="review"))
+    ok_ns, _, _ = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
+                                                purpose="review"))
+    ok_inf, _, _ = c.call("item_claim", sb.args(n, basis="inferred", purpose="review",
+                                                 session=s_review))
+    ok_same, _, _ = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
+                                                  purpose="review", session=s_work))
+    ok_rv, _, t_rv = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
+                                                   lease="30m", purpose="review", session=s_review))
+    _, out, _ = c.call("item_get", sb.args(n))
+    mandate = ((out or {}).get("item") or {}).get("mandate") or {}
+    rep.check("C15", ok_w and ok_wr and not ok_ns and not ok_inf and not ok_same and ok_rv and
+              mandate.get("purpose") == "review" and mandate.get("session") == s_review,
+              f"work claim {ok_w} ({t_w[:60]}), release {ok_wr}; review refused without session "
+              f"{not ok_ns}, inferred {not ok_inf}, same session {not ok_same}; other session "
+              f"{ok_rv} ({t_rv[:60]}); mandate {mandate.get('purpose')}/{mandate.get('session')}")
+    c.call("item_release", sb.args(n, done="checked", remaining="none", next="close"))
 
     # C3 race
     if c2:

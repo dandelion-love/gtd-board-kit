@@ -24,10 +24,10 @@ name.
    a lane that is on: claim `explicit` with `asked_by` (`board-lane`).
    Unpointed: only `agent-ready`, Size XS to M, no `agent:<x>` naming someone else,
    claim `inferred`. Never take `agent:human`, `agent-proposed` or a `needs:*` item.
-5. **One holder per item.** `item_claim` each item you work, even on a shared branch;
-   a refusal means it is held. Renew before the lease ends; then release.
-6. **Report, don't go quiet.** `item_report` at each milestone and the end:
-   progress, waiting, ready, blocked, failed or dropped, with links.
+5. **One holder per item.** `item_claim` each item you work, with your `session`, even
+   on a shared branch; a refusal means it is held. Renew, then release. Never review
+   your own session's work (`board-review`).
+6. **Report, don't go quiet.** `item_report` at each milestone and the end, with links.
 7. **Ask instead of guessing.** What only a person can give: `item_report` with
    `attention` and `needs`, then stop that item. In a lane, ask on that item and keep
    the lane running.

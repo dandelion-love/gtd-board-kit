@@ -32,7 +32,7 @@ reports pass, fail, skip or manual for every id below.
 | P1 | `profile_get` of every listed profile returns every field in [repo-context-and-profiles](repo-context-and-profiles.md#profiles), and every profile declares every base label |
 | P2 | Every `needs` value has a matching `needs:*` label; `owner_needs` is one of them |
 | P3 | Every profile's `status_for_label` maps `agent-running`, `waiting-for-review`, `agent-failed` and every `needs:*` label, and names only columns in `board.status` |
-| P4 | `issue_labels` adds and removes a profile label and an `area:x` label; refuses a label outside the profile and lists the real ones; refuses adding `run-agent` and adding `agent-review`, and removes `agent-review`; never changes Status |
+| P4 | `issue_labels` adds and removes a profile label and an `area:x` label; refuses a label outside the profile and lists the real ones; refuses adding `run-agent`; adds and removes `agent-review`; never changes Status |
 | P5 | A repo or board outside the allowlist is refused before any GitHub call (the fake sees no request) |
 | P6 | `list_next_actions` with a label returns only open issues with that label, never a PR. GitHub's label-filtered lists can lag a label write by seconds, so the runner re-reads for up to 30 seconds before failing |
 | P7 | `project_items` returns items in the board's manual order and pages with a cursor |
@@ -58,6 +58,7 @@ reports pass, fail, skip or manual for every id below.
 | C12 | With a board, the claim tools write `Agent` and `Last report` and nothing else; a failing board write returns a warning and the record still posts |
 | C13 | Fold golden tests: the fixtures in this folder's table below give the stated `holder`, `lease_until`, `stale`, `last_report`, `handoff_to` |
 | C14 | One caller claims two issues with the same `branch`: both succeed and each `item_get` shows the caller as holder with `mandate.branch` equal to it; releasing the first leaves the second held with its own lease; a `branch` of `bad..name` refuses |
+| C15 | Review claims: a caller claims an issue with `session=A` and releases it. `purpose=review` then refuses with no `session`, with `basis=inferred`, and with `session=A`; with `session=B` it succeeds and `item_get` shows `mandate.purpose` `review` and `mandate.session` `B` |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
 

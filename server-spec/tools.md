@@ -50,7 +50,7 @@ can still let go of an item a person closed to stop it (a standing lane's fast s
 | Tool | Class | Further arguments | Refuses when |
 | --- | --- | --- | --- |
 | `item_get` | read | none | never, for an allowlisted issue |
-| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `project?` | someone else holds an unexpired lease; `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
+| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `project?` | someone else holds an unexpired lease; `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
 | `item_renew` | work | `lease?`, `project?` | the caller is not the holder |
 | `item_release` | work | `done`, `remaining`, `next` (all required), `handoff_to?`, `project?` | the caller is not the holder |
 | `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
@@ -62,6 +62,17 @@ branch itself. A valid name is 1 to 200 characters of letters, digits, `.`, `_`,
 `/`; it does not start with `-` or `/`, end with `/`, `.` or `.lock`, or contain `..` or
 `//`. Each call claims **one** item; claiming several stories for one branch is one call
 per story (see [claim records](claim-records.md#several-items-one-branch)).
+
+**Review claims.** `purpose="review"` claims an item to review it (the kit's
+`board-review` skill), not to build it. It is a normal claim: one holder, a lease, the
+same records and fold. `session` is an opaque name the caller gives for its own session
+(a runtime session id, or a token it makes once and reuses); the server stores it as
+`mandate.session` and never checks it against anything else. A review claim refuses
+when its `session` matches the `mandate.session` of any earlier `claim` record on the
+issue whose purpose is `work` (a missing `purpose` reads as `work`), so **no session
+reviews work it did**. A fresh session of the same principal may review: the principal is
+not compared. The check is honest-mistake protection, not a defence against a caller that
+lies about its session. `item_ready` is not run for a review claim, and `ready` is null.
 
 **The ready verdict on a claim.** A server that offers `item_ready`
 ([ready check](ready-check.md)) runs it on the issue before it writes the claim and returns
@@ -85,9 +96,9 @@ values (the skill then picks the profile's `owner_needs`).
 
 | Tool | Class | Arguments | Notes |
 | --- | --- | --- | --- |
-| `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (so `run-agent` and `agent-review` refuse), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
+| `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (so `run-agent` refuses and `agent-review` is allowed), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
 | `issue_comment` | work | `repo`, `number`, `body` | Plain comment on an issue or PR. A body containing a record marker ([claim-records](claim-records.md#record-format)) refuses: records come only from the `item_*` tools |
-| `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` or `agent-review` refuses (a person, or a server's own dispatch tool, starts a run or a review); removing them is allowed. `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
+| `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` refuses (a person, or a server's own dispatch tool, starts a run); adding `agent-review` is allowed (an agent may ask another session to review its work); removing either is allowed. `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
 
 ### Optional on Core, needed by some skills
 
@@ -226,8 +237,10 @@ that should stay on the issue after its PR merges
 ## Review requests
 
 `agent-review` is a person's request for an agent to **review an issue**, distinct from
-`agent-ready` (permission to build) and `run-agent` (build now). Only a person adds it
-(`issue_labels` and `capture` refuse it from an agent). A server in the Dispatch group
+`agent-ready` (permission to build) and `run-agent` (build now). A person adds it, or an
+agent asks for a second look at its own finished work; either way the reviewer is another
+session, because a review claim (`item_claim` with `purpose="review"`) refuses the session
+that claimed the item to work it. A server in the Dispatch group
 that starts runs from `run-agent` treats `agent-review` the same way, with the review
 procedure of the kit's `board-review` skill as the task. Without such a server, an agent
 that is pointed at the board finds these items with `list_next_actions(context=

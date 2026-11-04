@@ -17,7 +17,7 @@ data, tokens or board contents.
 | `skills/board-claim` | Claim it, work it on `gtd/issue-<n>`, hand back a PR |
 | `skills/board-report` | Report progress, renew, release, record failure |
 | `skills/board-needs-person` | Ask a person with the right `needs:*` label, then stop |
-| `skills/board-review` | Review an issue a person labelled `agent-review`: shape, criteria, ready check, fields; one comment of findings |
+| `skills/board-review` | Review an issue labelled `agent-review` (never by the session that worked it): shape, criteria, ready check, fields; one comment of findings |
 | `skills/board-lane`, `tools/lanes.py` | Standing lanes: recurring pre-approved work with its own switch; run a tick, resume schedules, lint lanes and workflow grants |
 | `okf/`, `skills/okf-knowledge`, `tools/okf_lint.py` | The pinned Open Knowledge Format spec, the authoring skill, and its linter |
 | `knowledge/` | The kit's own design notes, as an OKF bundle |
