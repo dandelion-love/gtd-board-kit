@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.6.1
+  version: 0.7.0
 ---
 
 # Claim an item and work it
@@ -95,7 +95,7 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
 5. Only under a merge grant covering every changed file, with checks green, no changes
    requested and no conflict: merge it, and report with the merged link (`grants.md`).
 6. `item_release(repo, number, done, remaining, next, project)`, or keep holding (renew)
-   if you will answer review comments yourself.
+   to answer review comments yourself (`activity_since`).
 
 Never approve or close the issue yourself, and never merge unless a merge grant covers
 every file (above): a person's merge completes it.

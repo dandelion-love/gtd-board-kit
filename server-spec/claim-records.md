@@ -118,7 +118,9 @@ Walk record comments in ascending comment id (GitHub assigns ids in creation ord
 After the walk:
 
 - `stale` is true when there is a holder and `lease_until` is in the past.
-- `follow_ups` are non-record comments newer than the holder's latest record.
+- `follow_ups` are non-record comments newer than the holder's latest record other than
+  a `renew`. A renew is a heartbeat, not a reply, so it never hides a comment the holder
+  has not answered.
 
 `item_get` returns at least: `holder`, `lease_until`, `stale`, `mandate`, `handoff_to`,
 `last_report`, `last_note`, `attention` (`{question, by, url}` or null), `lost_claims`,

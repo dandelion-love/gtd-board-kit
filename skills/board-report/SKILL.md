@@ -3,7 +3,7 @@ name: board-report
 description: Report progress on a claimed board item, renew or release its claim, or record a failure, through the gtd MCP server. Use at each milestone of work on a claimed issue, before a lease runs out, when work stops for any reason, and when handing an item to someone else.
 metadata:
   author: gtd-board-kit
-  version: 0.7.0
+  version: 0.8.0
 ---
 
 # Report on a claimed item
@@ -44,7 +44,18 @@ item_report(repo, number, state, note, links, project)
 - **Waiting on a lane or its resource** (a run only a lane starts, a card a lane owns):
   `waiting` alone reaches nobody. Also `issue_comment` on that lane's item (its `item` in
   `.gtd/BOARD.local.md`): your item's link and what you wait for. The lane's next tick
-  reads it in `follow_ups` (`board-lane`, Hand-offs) and answers there.
+  reads it in `activity_since` (`board-lane`) and answers there.
+
+## New activity
+
+At each tick, before each report and before you release: `activity_since(repo,
+since=<the read_at you kept>)`. It lists what others wrote since then on items you hold,
+PRs opened for you by `pr_open` (comments and reviews) and the repo's channels. Answer
+each entry where it was written, or say in your next report why not. While
+`has_next_page`, call again with `next_cursor` and the same `since`. Then keep
+`read_at` (the same on every page); with none kept, omit `since` (last 24 hours) and skip what you already
+answered. Skip only entries whose url your own writes returned. No such tool on the server: read each held
+item's `follow_ups` (`item_get`) and each channel (`channel_comments_read`).
 
 ## Cadence
 

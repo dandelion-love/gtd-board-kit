@@ -8,3 +8,4 @@
 * [OKF is pinned by the kit](okf-pinned-by-the-kit.md) - Knowledge docs follow one OKF version, moved with the kit
 * [Work items live on the board; a local file is only a cache](work-items-live-on-the-board.md) - The issue is the record, a markdown copy is never committed
 * [How work decomposes into epics, stories and steps](decomposition-standard.md) - Levels, Kinds, ready and done, the unit of agent work, PR authorship and gates
+* [Agents pull new activity with one read](agents-pull-new-activity.md) - activity_since over held items, PRs opened for the agent and channels, with a read_at cursor

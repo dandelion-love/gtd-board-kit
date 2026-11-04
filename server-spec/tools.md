@@ -92,6 +92,55 @@ idempotent; it never removes one). A failed label write is a warning, the record
 person's value; when the agent omits it with an `attention`, refuse and list the profile's
 values (the skill then picks the profile's `owner_needs`).
 
+### New activity
+
+An agent that holds an item, opened a PR through `pr_open`, or takes part in a channel
+must see what other people and agents wrote there since it last looked, without reading
+each issue in turn. `activity_since` is that one read. It is a **pull**: it sends no
+notification to anyone, so it never adds to a person's inbox (a person is notified only
+when they must act).
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `activity_since` | read | `repo`, `since?` (RFC 3339; default 24 hours before the read), `limit?` (1 to 100, default 50), `cursor?` | `since` (the one used), `read_at`, `entries`, `scanned` (`{held, prs, channels}`), `warnings`, `has_next_page`, `next_cursor` |
+
+What it covers, in `repo`, for the **caller's principal** only:
+
+| `source` | Which issues | Which conversation |
+| --- | --- | --- |
+| `held` | every issue, open or closed, whose fold names the caller as holder | issue comments |
+| `pr` | every pull request whose `gtd-pr` marker names the caller in `by` ([opening pull requests](#opening-pull-requests)) | issue comments, reviews (any state, with or without a body) and inline review comments |
+| `channel` | every channel issue of the repo (the Channels group's rule) | issue comments |
+
+An entry is conversation created **after** `since`: never a claim record, a run-state
+record, an item body or anything else a reader parses as a record (a pasted marker from
+an untrusted author is conversation, as in the fold). Entries are oldest first, ordered
+by `created_at` then the entry's own id. Each has `source`, `repo`, `number`, `title`
+(of the issue or PR), `kind` (`comment`, `review` or `review_comment`), `author` (the
+GitHub login), `via_server`, `created_at`, `url` (of the entry) and `excerpt` (the first
+500 characters of its body, empty for a bare review), plus `review_state` on a review
+and `path` on a review comment.
+
+`via_server` is true when the author is an identity the server writes as (a record
+author). The server writes for every agent under that identity, and some deployments
+write as a person's own account, so such an entry may be the caller's own comment,
+another agent's or that person's. The caller skips only the entries whose `url` its own
+writes returned.
+
+A server may find the issues by listing those **updated** after `since` (a new comment
+or review updates its issue). It caps that scan; past the cap it reads the most recently
+updated first and adds a warning naming the cap.
+
+**The cursor.** `read_at` is the read's watermark: the server's clock when the first
+page was read (GitHub times are whole seconds, so a server may set it a second early). A
+read lists only entries created at or before `read_at`, and every page of it returns the
+same `read_at`: `next_cursor` carries it, so an entry written while the caller pages
+waits for the next read instead of slipping past the cursor. Pass `next_cursor` with the
+same `since` until `has_next_page` is false, then keep `read_at` and pass it as `since`
+next time: each entry comes once. A caller with nothing kept omits `since` and gets the
+last 24 hours; a caller that keeps `read_at` before the last page skips the entries
+still unread.
+
 ### Issues
 
 | Tool | Class | Arguments | Notes |
