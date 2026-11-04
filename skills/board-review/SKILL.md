@@ -3,7 +3,7 @@ name: board-review
 description: Review a board issue labelled agent-review (by a person, or by an agent asking another session to check its work), against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.4.0
+  version: 0.5.0
 ---
 
 # Review an issue
@@ -64,14 +64,18 @@ Read the issue, its parent, its sub-issues and its blockers (`item_get`,
 
 ## 3. Post one comment
 
-`issue_comment(repo, number, body)` with:
+`issue_comment(repo, number, body, session, review_stage, review_verdict)`, while you
+hold the review claim. `review_stage` is `plan` (no PR yet: is it ready to build?) or
+`work` (a PR exists: is the work done?); `review_verdict` is `looks-ready`,
+`needs-changes` or `needs-person`. The server writes the verdict line (`Work review:
+Needs changes`) and signs the comment as yours
+(`.gtd/kit/knowledge/model/who-said-what.md`); never write a sign-off yourself. A server
+whose `issue_comment` has no `review_stage`: start the body with that verdict line. The
+body:
 
-1. A verdict line that names the stage, then the verdict. `Plan review` (no PR yet: is
-   it ready to build?) or `Work review` (a PR exists: is the work done?), then `Looks
-   ready`, `Needs changes` or `Needs a person`. E.g. `Work review: Needs changes`.
-2. Findings, most important first, each with the section it is about and a suggested
+1. Findings, most important first, each with the section it is about and a suggested
    text a person can paste.
-3. What you did not check, and why.
+2. What you did not check, and why.
 
 Never edit the person's text, never add `agent-ready` or `run-agent`, never start a
 build, never close the issue. A finding that is new work: `capture` it with

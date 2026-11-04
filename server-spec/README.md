@@ -25,6 +25,7 @@ sense of RFC 2119 and leaves the how open.
 | [work-plan.md](work-plan.md) | The same spec cut into work units a coding agent can plan and build one at a time |
 | [ready-check.md](ready-check.md) | The read-only ready check: its verdicts and the five rules every server applies the same way |
 | [typed-links.md](typed-links.md) | Typed links between items: the record, the kinds and their native forms, the fold, the Related section, the graph render |
+| [sign-offs.md](sign-offs.md) | The sign-off the server ends every write with: who, in which role, which act, which session |
 
 The agent-side halves live elsewhere in the kit and are normative here too:
 [agent sign-in](../knowledge/model/agent-sign-in.md) (the join wire shape),
@@ -37,7 +38,7 @@ The agent-side halves live elsewhere in the kit and are normative here too:
 
 | Level | A server at this level | Kit skills that work |
 | --- | --- | --- |
-| **Core** | Transport, identity, presets, `whoami`, repo and board reads, issue labels and comments, the claim tools | `board-pickup`, `board-claim`, `board-report`, `board-needs-person`, `board-lane` (with a bridge in the repo) |
+| **Core** | Transport, identity, presets, `whoami`, repo and board reads, issue labels and comments, the claim tools, sign-offs | `board-pickup`, `board-claim`, `board-report`, `board-needs-person`, `board-lane` (with a bridge in the repo) |
 | **Join** | Core, plus the device-code join on its own routes, and optionally the connector entrance | Everything above, for agents with their own `agent:<name>` identity, whatever the host |
 | **Board** | Core, plus board writes (Status, fields, card order, drafts) | Everything, in repos without a label bridge too |
 | **Extended** | Any of the optional tool groups in [tools.md](tools.md#optional-groups) | Repo-specific procedures in `.gtd/BOARD.local.md` that name them |

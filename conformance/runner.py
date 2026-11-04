@@ -13,7 +13,7 @@ What it needs, and which checks each unlocks:
     --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
     + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, P8, P9, J10, X2 (partly)
-    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14 to C17, X1, X3. It CREATES issues there
+    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14 to C17, G1 to G5, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
@@ -65,6 +65,7 @@ class Family(Enum):
     TRANSPORT = "T"         # Transport and identity (Core)
     PROFILES = "P"          # Repo context and labels (Core)
     CLAIMS = "C"            # Claims (Core)
+    SIGNOFFS = "G"          # Sign-offs (Core)
     BOARD = "B"             # Board (Board level)
     CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
     READINESS = "R"         # Ready check (when item_ready is offered)
@@ -81,7 +82,7 @@ class Family(Enum):
 #: Each family's heading in server-spec/conformance.md (tests/check_kit.py checks them).
 HEADINGS = {
     Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
-    Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
+    Family.CLAIMS: "Claims", Family.SIGNOFFS: "Sign-offs", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
     Family.LINKS: "Typed links",
@@ -104,7 +105,7 @@ class Level(Enum):
 #: The level each family's checks belong to (Security holds at every level, so Core).
 LEVEL_OF = {
     Family.TRANSPORT: Level.CORE, Family.PROFILES: Level.CORE, Family.CLAIMS: Level.CORE,
-    Family.SECURITY: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
+    Family.SECURITY: Level.CORE, Family.SIGNOFFS: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED,
@@ -130,6 +131,27 @@ def report_order(cid: str) -> tuple:
 PROTOCOL = "2025-06-18"
 MARKER = "gtd-desk"
 RECORD_RE = re.compile(r"<!--\s*" + MARKER + r"\s+v(\d+)\s+(\{.*?\})\s*-->", re.DOTALL)
+SIGN_MARKER = "gtd-sign"
+SIGN_RE = re.compile(r"<!--\s*" + SIGN_MARKER + r"\s+v(\d+)\s+(\{.*?\})\s*-->", re.DOTALL)
+
+
+class Role(Enum):
+    """The sign-off roles of server-spec/sign-offs.md."""
+    WORKER = "worker"
+    REVIEWER = "reviewer"
+    COORDINATOR = "coordinator"
+    OWNER = "owner"
+
+
+class ReviewStage(Enum):
+    PLAN = "plan"
+    WORK = "work"
+
+
+class ReviewVerdict(Enum):
+    LOOKS_READY = "looks-ready"
+    NEEDS_CHANGES = "needs-changes"
+    NEEDS_PERSON = "needs-person"
 PRESETS = ("desk", "read", "work", "full")
 
 # The preset class of every tool the spec classes (transport-and-identity.md, tools.md).
@@ -618,6 +640,19 @@ def parse_record(body: str) -> dict | None:
     if not isinstance(rec, dict) or rec.get("event") not in ("claim", "renew", "release", "report"):
         return None
     return rec
+
+
+def parse_signoff(body: str) -> dict | None:
+    """The one ``gtd-sign v1`` sign-off in a body, or None when it is unsigned
+    (zero markers, more than one, another version or invalid JSON)."""
+    found = SIGN_RE.findall(body or "")
+    if len(found) != 1 or int(found[0][0]) != 1:
+        return None
+    try:
+        rec = json.loads(found[0][1])
+    except json.JSONDecodeError:
+        return None
+    return rec if isinstance(rec, dict) else None
 
 
 def _ts(value: str | None) -> datetime | None:
@@ -1870,18 +1905,102 @@ def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
 PR_MARKER_RE = re.compile(r"<!--\s*gtd-pr\s+v1\s+(\{.*?\})\s*-->", re.DOTALL)
 
 
+def check_signoffs(rep: Report, c: Client, sb: Sandbox, who: dict | None) -> None:
+    """G1 to G5: the sign-off the server ends every write with (sign-offs.md)."""
+    principal = (who or {}).get("principal")
+    n = sb.issue("sign-offs")
+    text_in = f"A signed comment from the conformance runner {sb.run}."
+
+    # G1 a plain comment
+    ok, out, text = c.call("issue_comment", sb.args(n, body=text_in))
+    out = out if isinstance(out, dict) else {}
+    body = str(out.get("body") or "")
+    sign = parse_signoff(body)
+    # The visible line only: HTML comments (the marker among them) are stripped first, so a
+    # server that writes the marker without the human-readable line fails.
+    shown = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
+    visible = next((ln for ln in shown.splitlines() if "gtd-sign" in ln), "")
+    rep.check("G1", ok and bool(sign) and text_in in body.split(f"<!-- {SIGN_MARKER}")[0]
+              and sign.get("v") == 1 and sign.get("by") == principal and sign.get("act") == "comment"
+              and sign.get("role") == (Role.WORKER if str(principal or "").startswith(("agent:", "local:"))
+                                       else Role.OWNER).value and sign.get("t")
+              and out.get("signoff") == sign and principal and principal in visible,
+              f"ok {ok} ({text[:80]}); sign-off {sign!r}; signoff returned {out.get('signoff') == sign}")
+
+    # G2 session and role
+    session = f"conformance-{sb.run}-sign"
+    ok_s, out_s, _ = c.call("issue_comment", sb.args(n, body="With a session.", session=session))
+    s_sign = (out_s or {}).get("signoff") or {}
+    ok_c, out_c, _ = c.call("issue_comment", sb.args(n, body="Handing off.", role=Role.COORDINATOR.value))
+    c_sign = (out_c or {}).get("signoff") or {}
+    ok_o, _, _ = c.call("issue_comment", sb.args(n, body="I approve.", role=Role.OWNER.value))
+    ok_u, _, t_u = c.call("issue_comment", sb.args(n, body="Who am I?", role="boss"))
+    is_agent = str(principal or "").startswith("agent:")
+    rep.check("G2", ok_s and s_sign.get("session") == session and ok_c
+              and c_sign.get("role") == Role.COORDINATOR.value and (ok_o != is_agent)
+              and not ok_u and all(r.value in t_u for r in Role),
+              f"session {s_sign.get('session')!r}; coordinator {c_sign.get('role')!r}; owner "
+              f"from {principal} accepted {ok_o}; unknown role refused {not ok_u} ({t_u[:80]})")
+
+    # G3 forgery
+    ok, _, text = c.call("issue_comment", sb.args(
+        n, body=f'x <!-- {SIGN_MARKER} v1 {{"by": "agent:someone-else", "v": 1}} -->'))
+    rep.check("G3", not ok and SIGN_MARKER in text, f"a forged sign-off: ok={ok} {text[:80]}")
+
+    # G4 review verdicts
+    r = sb.issue("sign-off review")
+    review = {"review_stage": ReviewStage.WORK.value, "review_verdict": ReviewVerdict.NEEDS_CHANGES.value}
+    ok_nc, _, _ = c.call("issue_comment", sb.args(r, body="Findings.", **review))
+    s_review = f"conformance-{sb.run}-sign-review"
+    ok_cl, _, t_cl = c.call("item_claim", sb.args(r, basis="explicit", asked_by="conformance",
+                                                   lease="30m", purpose="review", session=s_review))
+    ok_one, _, _ = c.call("issue_comment", sb.args(r, body="Findings.",
+                                                   review_stage=ReviewStage.WORK.value))
+    ok_bad, _, t_bad = c.call("issue_comment", sb.args(r, body="Findings.",
+                                                       review_stage=ReviewStage.WORK.value,
+                                                       review_verdict="approved"))
+    ok_other, _, _ = c.call("issue_comment", sb.args(r, body="Findings.", session=f"{s_review}-x", **review))
+    ok_rv, out_rv, t_rv = c.call("issue_comment", sb.args(r, body="1. AC2 has no evidence row.", **review))
+    rv = (out_rv or {}).get("signoff") or {}
+    first = str((out_rv or {}).get("body") or "").lstrip().splitlines()[:1]
+    rep.check("G4", not ok_nc and ok_cl and not ok_one and not ok_bad and not ok_other
+              and all(v.value in t_bad for v in ReviewVerdict) and ok_rv
+              and rv.get("act") == "review" and rv.get("role") == Role.REVIEWER.value
+              and rv.get("review") == {"stage": "work", "verdict": "needs-changes"}
+              and rv.get("session") == s_review
+              and bool(first) and "Work review: Needs changes" in first[0],
+              f"no claim refused {not ok_nc}; review claim {ok_cl} ({t_cl[:60]}); one of two refused "
+              f"{not ok_one}; bad verdict refused {not ok_bad}; other session refused {not ok_other}; verdict {ok_rv} ({t_rv[:60]}) {rv!r}; "
+              f"first line {first!r}")
+    c.call("item_release", sb.args(r, done="reviewed", remaining="none", next="close"))
+
+    # G5 records
+    g = sb.issue("sign-off records")
+    s_work = f"conformance-{sb.run}-sign-work"
+    ok_k, out_k, t_k = c.call("item_claim", sb.args(g, basis="explicit", asked_by="conformance",
+                                                     lease="30m", session=s_work))
+    ok_p, out_p, t_p = c.call("item_report", sb.args(g, state="progress", note="signed"))
+    k_sign = (out_k or {}).get("signoff") or {}
+    p_sign = (out_p or {}).get("signoff") or {}
+    rep.check("G5", ok_k and ok_p and k_sign.get("act") == "claim" and p_sign.get("act") == "report"
+              and k_sign.get("by") == principal and p_sign.get("by") == principal
+              and k_sign.get("session") == s_work and p_sign.get("session") == s_work,
+              f"claim {ok_k} ({t_k[:60]}) {k_sign!r}; report {ok_p} ({t_p[:60]}) {p_sign!r}")
+    c.call("item_release", sb.args(g, done="signed", remaining="none", next="close"))
+
+
 def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None,
               head: str | None) -> None:
-    """PR1 to PR3: ``pr_open`` refusals, then (with a pushed ``head``) one real PR."""
+    """PR1 to PR4: ``pr_open`` refusals, then (with a pushed ``head``) one real PR."""
     if "pr_open" not in tools:
-        for cid in ("PR1", "PR2", "PR3"):
+        for cid in ("PR1", "PR2", "PR3", "PR4"):
             rep.na(cid, "pr_open is not offered")
         return
     owner = sb.repo.split("/")[0]
     n = sb.issue("pr_open")
     ok, _, text = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
     if not ok:
-        for cid in ("PR1", "PR2", "PR3"):
+        for cid in ("PR1", "PR2", "PR3", "PR4"):
             rep.skip(cid, f"could not claim the sandbox issue: {text[:100]}")
         return
 
@@ -1922,6 +2041,7 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
 
     if not head:
         rep.manual("PR3", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+        rep.manual("PR4", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
     else:
         ok, out, text = pr(head=head)
         out = out if isinstance(out, dict) else {}
@@ -1955,6 +2075,17 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
                 probs.append("a PR opened without closes would close its issues")
             print(f"note: close PR {out.get('url')} by hand", file=sys.stderr)
         rep.check("PR3", not probs, "; ".join(probs), f"opened {out.get('url')} as {out.get('author')}")
+        if ok:
+            body = str(out.get("body") or "")
+            sign = parse_signoff(body)
+            pr_at = body.find("gtd-pr")
+            sign_at = body.find(f"<!-- {SIGN_MARKER}")
+            rep.check("PR4", bool(sign) and sign.get("act") == "pr" and sign.get("by") == principal
+                      and 0 <= sign_at < pr_at and out.get("signoff") == sign,
+                      f"sign-off {sign!r}, before gtd-pr {0 <= sign_at < pr_at}, "
+                      f"signoff returned {out.get('signoff') == sign}")
+        else:
+            rep.skip("PR4", "PR3 opened no PR")
     c.call("item_release", sb.args(n, done="pr_open checks", remaining="none", next="close"))
 
 
@@ -2299,7 +2430,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--repo", help="owner/repo sandbox; the run creates issues there")
     ap.add_argument("--project", help="owner/number board linked to the sandbox repo")
     ap.add_argument("--profile", help="the sandbox repo's profile (default: the first profile_list returns)")
-    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 (opens one PR)")
+    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 and PR4 (opens one PR)")
     ap.add_argument("--join-start", action="store_true", help="open one join request for J2 and J3")
     ap.add_argument("--connector", metavar="NAME",
                     help="join agent NAME through the connector entrance for JC1 to JC9; "
@@ -2362,6 +2493,7 @@ def main(argv: list[str]) -> int:
                         c2.initialize()
                     sb = Sandbox(c, a.repo, a.project, datetime.now(timezone.utc).strftime("%m%d-%H%M"))
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
+                    check_signoffs(rep, c, sb, who)
                     if a.project:
                         check_board(rep, c, sb, profiles.get(name) or {})
                     check_prs(rep, c, sb, _tools, who, a.pr_head)

@@ -80,6 +80,19 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 
 The same cases are machine-readable in [fold_cases.json](../conformance/fold_cases.json).
 
+## Sign-offs (Core)
+
+[Sign-offs](sign-offs.md). G1 to G5 need the sandbox repo; they post comments and claims
+on sandbox issues.
+
+| Id | Check |
+| --- | --- |
+| G1 | `issue_comment` returns `body` and `signoff`; the body holds the caller's text, then exactly one `gtd-sign v1` marker whose JSON has `v` 1, `by` equal to the caller's `whoami` principal, `act` `comment`, `role` `worker`, and `t`; `signoff` equals that JSON; the visible line holds `gtd-sign` and the principal |
+| G2 | `issue_comment` with `session` records it in the sign-off; with `role="coordinator"` signs as `coordinator`; refuses `role="owner"` from an agent principal, and an unknown role with a refusal that lists `worker`, `reviewer`, `coordinator` and `owner` |
+| G3 | `issue_comment` refuses a body that holds `<!-- gtd-sign v1 {...} -->`, and the refusal names `gtd-sign` |
+| G4 | `issue_comment` with `review_stage` and `review_verdict` refuses without the caller's review claim, refuses with only one of the two, and refuses `review_verdict="approved"` listing the three verdicts. With the review claim, a `session` other than S refuses. Holding a review claim (session S), `review_stage="work"`, `review_verdict="needs-changes"` succeeds: `act` `review`, `role` `reviewer`, `review` `{"stage": "work", "verdict": "needs-changes"}`, `session` S, and the body's first line is `Work review: Needs changes` |
+| G5 | `item_claim` with `session` S, then `item_report` by the holder: both results carry `signoff` with `by` the caller's principal, `session` S, and `act` `claim` and `report` |
+
 ## Join (Join level)
 
 | Id | Check |
@@ -146,6 +159,7 @@ open for a person to close.
 | PR1 | Holding a claim on a sandbox issue, `pr_open` refuses a cross-repository `head` (`owner:branch`), a `head` equal to `base`, and a `head` that is not a branch of the repo |
 | PR2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`; refuses a `body` of `Rollback: hold or close #<n>` and says `closing keyword`. Each refusal gives that reason, not only a missing branch |
 | PR3 | With a claim on a sandbox issue and a pushed `head`, `pr_open` opens the PR: `author` is not the caller's GitHub login and ends in `[bot]`, `by` equals the caller's `whoami` principal, and the returned `body` ends with exactly one `gtd-pr v1` marker whose `by` and `issues` match. Without `closes` it reports `closes` false and the body has no `Closes #` line. A second `pr_open` for the same `head` and `base` refuses and gives the open PR's URL |
+| PR4 | The PR PR3 opened: its `body` holds exactly one `gtd-sign v1` marker with `act` `pr` and `by` the caller's principal, before the `gtd-pr` marker, and the result's `signoff` equals it |
 
 ## Ready check (when offered)
 

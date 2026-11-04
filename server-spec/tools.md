@@ -86,6 +86,9 @@ when `item_ready` would refuse the issue (an epic), or when the check fails; a f
 adds a warning and the claim goes ahead. Only `item_claim` returns it; `item_renew` does
 not re-run the check.
 
+Every record these tools post ends with a [sign-off](sign-offs.md) carrying the claim's
+`session`, and each result returns it as `signoff`.
+
 `item_report` with `attention` also adds the label `needs:<needs>` to the issue (adding is
 idempotent; it never removes one). A failed label write is a warning, the record stands.
 `state=dropped` releases the claim. A server MUST NOT default `needs` to a particular
@@ -146,7 +149,7 @@ still unread.
 | Tool | Class | Arguments | Notes |
 | --- | --- | --- | --- |
 | `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (so `run-agent` refuses and `agent-review` is allowed), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
-| `issue_comment` | work | `repo`, `number`, `body` | Plain comment on an issue or PR. A body containing a record marker ([claim-records](claim-records.md#record-format)) refuses: records come only from the `item_*` tools |
+| `issue_comment` | work | `repo`, `number`, `body`, `session?`, `role?`, `review_stage?`, `review_verdict?` | Comment on an issue or PR, ended with the server's [sign-off](sign-offs.md); returns `body` and `signoff`. A body containing a record marker ([claim-records](claim-records.md#record-format)) or a sign-off marker refuses: records come only from the `item_*` tools and sign-offs only from the server. `role` is `worker`, `reviewer`, `coordinator` or `owner` (a person only). `review_stage` and `review_verdict` go together and need the caller's live review claim ([review verdicts](sign-offs.md#review-verdicts)) |
 | `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` refuses (a person, or a server's own dispatch tool, starts a run); adding `agent-review` is allowed (an agent may ask another session to review its work); removing either is allowed. `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
 
 ### Optional on Core, needed by some skills
@@ -219,7 +222,8 @@ The server MUST, in this order, refuse before it creates anything when:
 
 1. `repo` is not allowed (P5);
 2. `title` or `body` is too long (X3), or `body` already holds a `gtd-pr` marker (below),
-   or `body` holds a **closing keyword** before an issue reference (below);
+   or a sign-off marker ([sign-offs](sign-offs.md)), or `body` holds a **closing keyword**
+   before an issue reference (below);
 3. `issues` is empty, or the caller does not hold an unexpired lease on one of them. The
    refusal names each such issue and says to claim it first;
 4. `head` is cross-repository, equals `base`, is not a branch of `repo`, or already has an
@@ -245,6 +249,11 @@ server that otherwise acts as the caller. A server without such a credential doe
 ---
 Opened through the gtd MCP server for **agent:example**. Works on #<first issue>, #<second issue>.
 
+---
+<sub>gtd-sign · agent:example · worker · pr · session build-3 · 2026-01-01T12:00:00Z</sub>
+
+<!-- gtd-sign v1 {"act": "pr", "by": "agent:example", "role": "worker", "session": "build-3", "t": "2026-01-01T12:00:00Z", "v": 1} -->
+
 <!-- gtd-pr v1 {"by": "agent:example", "issues": [12, 15], "t": "2026-01-01T12:00:00Z", "v": 1} -->
 ```
 
@@ -255,10 +264,12 @@ Opened through the gtd MCP server for **agent:example**. Works on #<first issue>
   after testing.
 - The JSON follows the record rules in [claim-records](claim-records.md#record-format):
   `<` and `>` escaped, keys sorted.
+- The [sign-off](sign-offs.md) sits between the visible line and the `gtd-pr` marker,
+  which stays last. Its `session` is that of the caller's claim on the first issue.
 
 It returns `number`, `url`, `author` (the login GitHub shows as author), `by`, `head`,
-`base`, `draft`, `issues`, `closes` (whether merging closes the issues) and `body` (the
-body as written, with the block).
+`base`, `draft`, `issues`, `closes` (whether merging closes the issues), `body` (the
+body as written, with the block) and `signoff`.
 
 `pr_open` is `work`, so a `work` agent can use it. It changes nothing else: no labels, no
 Status, no claim records; the agent reports with the `item_*` tools as usual.
@@ -290,7 +301,8 @@ that should stay on the issue after its PR merges
   file). Any other value refuses and lists the four.
 - `name` is 1 to 256 characters; `body` is at most 60000 characters (X3). A `link` body
   that is not a single `https` URL refuses.
-- A body holding a record marker or a `gtd-pr` marker refuses, as `issue_comment` does.
+- A body holding a record marker, a `gtd-pr` marker or a sign-off marker refuses, as
+  `issue_comment` does. An artifact is not signed ([sign-offs](sign-offs.md#what-carries-one)).
 - There is no delete tool: deleting an artifact also deletes its history, so only a
   person deletes one. A server offers all four tools or none.
 - The repo and issue are checked against the allowlist first (P5); a pull request number
