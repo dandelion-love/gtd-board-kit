@@ -3,7 +3,7 @@ name: board-review
 description: Review a board issue labelled agent-review (by a person, or by an agent asking another session to check its work), against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.3.0
+  version: 0.4.0
 ---
 
 # Review an issue
@@ -52,14 +52,19 @@ Read the issue, its parent, its sub-issues and its blockers (`item_get`,
   its verdict and `missing`.
 - **Board.** The fields `.gtd/kit/knowledge/model/board-fields.md` names; for an epic,
   the Stories table against its sub-issues.
-- **Evidence.** For a story with a merged PR: every criterion has its evidence where
-  `.gtd/kit/knowledge/model/evidence-places.md` says.
+- **Evidence.** For a story with an open or merged PR (a work review): every criterion
+  has a passing row in the PR's evidence table, its box is ticked with that pointer, and
+  the PR is a `link` artifact on the issue, as
+  `.gtd/kit/knowledge/model/evidence-places.md` says. A missing tick, pointer or
+  artifact is a finding.
 
 ## 3. Post one comment
 
 `issue_comment(repo, number, body)` with:
 
-1. A verdict line: `Looks ready`, `Needs changes` or `Needs a person`.
+1. A verdict line that names the stage, then the verdict. `Plan review` (no PR yet: is
+   it ready to build?) or `Work review` (a PR exists: is the work done?), then `Looks
+   ready`, `Needs changes` or `Needs a person`. E.g. `Work review: Needs changes`.
 2. Findings, most important first, each with the section it is about and a suggested
    text a person can paste.
 3. What you did not check, and why.

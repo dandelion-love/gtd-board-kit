@@ -26,6 +26,13 @@ issue, after the PR is merged as well as before. Put each kind in one place:
 
 - The issue's criterion line names where its evidence is: `Evidence: PR #n, AC2 row` or
   `Evidence: artifact "<name>"`.
+- **Ticking.** At its `ready` report the worker ticks each criterion's box whose evidence
+  row passes, and adds that pointer to the line. A box stays empty while its row fails or
+  is missing. A work review checks every tick against its row, and the person's merge
+  confirms them. The worker edits only the boxes and pointers, never the criterion's text.
+- An artifact name holds only letters, numbers, spaces, periods, hyphens and underscores,
+  and starts and ends with a letter or number (GitHub refuses `#` or `:`):
+  `PR n evidence`, not `PR #n: evidence`.
 - A **sub-issue is never evidence.** Sub-issues are work: stories under an epic, and
   steps where `.gtd/BOARD.local.md` allows them.
 - Artifacts are versioned: update one rather than adding a second of the same name.
