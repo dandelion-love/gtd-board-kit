@@ -145,6 +145,16 @@ FILLED = """## Standing lanes
 - granted_by: owner
 - date: 2026-01-01
 - link: https://example.com/approval
+
+## Merge grants
+
+### merge: register
+- paths:
+  - data/register.jsonl
+  - data/notes.md
+- granted_by: owner
+- date: 2026-01-01
+- link: https://example.com/approval
 """
 import tempfile  # noqa: E402
 BAD = FILLED.replace("switch: observe", "switch: maybe").replace("workflows/ci.yml", "workflows/**")
@@ -178,6 +188,24 @@ with tempfile.TemporaryDirectory() as tmp:
         r = subprocess.run(lanes + [path], cwd=work, capture_output=True, text=True)
         if r.returncode != want:
             fail(f"check --merged --covers {path} returned {r.returncode}, wanted {want}")
+    # A merge grant covers a PR only when ONE merged grant names every changed file, and
+    # never a path under .github/ or .gtd/.
+    merge = [sys.executable, str(ROOT / "tools" / "lanes.py"), "check", "--merged", "--merge"]
+    for files, want in ((["data/register.jsonl"], 0),
+                        (["data/register.jsonl", "data/notes.md"], 0),
+                        (["data/register.jsonl", "src/app.py"], 1),
+                        ([".gtd/BOARD.local.md"], 1), ([], 1)):
+        r = subprocess.run(merge + files, cwd=work, capture_output=True, text=True)
+        if r.returncode != want:
+            fail(f"check --merged --merge {files} returned {r.returncode}, wanted {want}")
+BAD_MERGE = FILLED.replace("data/notes.md", "data/*")
+with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+    fh.write(BAD_MERGE.replace("data/register.jsonl", ".gtd/BOARD.local.md"))
+r = subprocess.run([sys.executable, str(ROOT / "tools" / "lanes.py"), "check", fh.name],
+                   capture_output=True, text=True)
+Path(fh.name).unlink()
+if r.returncode != 1 or "pattern or folder" not in r.stdout or "never granted" not in r.stdout:
+    fail("lanes.py check missed a pattern or a .gtd/ path in a merge grant")
 
 # OKF: the pinned spec is present, PIN.json agrees with it, and the kit's own bundle lints.
 import json  # noqa: E402

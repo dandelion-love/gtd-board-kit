@@ -111,9 +111,11 @@ Each repo layers its own rules on top of the kit without touching it:
   (`auto`, `observe`, `hold`, `off`), its own board item whose lease is the heartbeat,
   and `may` / `never` lists. Scheduled prompts only point at the lane; the
   `board-lane` skill re-creates schedules after a restart.
-- **Workflow grants** in `.gtd/BOARD.local.md`: the one way rule 9 opens. Each grant
-  names the workflow files, who granted it, when, and a link. Agents still branch, open
-  a PR and never merge. No grant: never.
+- **Workflow grants and merge grants** in `.gtd/BOARD.local.md`: the only ways rule 9
+  opens (`knowledge/model/grants.md`). A workflow grant names workflow files an agent may
+  edit on a branch; a merge grant names exact files, and an agent may merge its own green
+  PR only when one merge grant names every file it changes. Each says who granted it,
+  when, and a link, and counts only on the default branch. No grant: never.
 - A real folder at `.claude/skills/<name>` (and `.codex/skills/<name>`, `.agents/skills/<name>`) is the repo's own
   skill. One named like a kit skill replaces it; the installer leaves it alone.
 - The label-to-Status bridge already takes a local map at

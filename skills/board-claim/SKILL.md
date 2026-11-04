@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.4.0
+  version: 0.5.0
 ---
 
 # Claim an item and work it
@@ -51,7 +51,8 @@ them on one integration (release-candidate) branch.
    column. No `.github/workflows/project-sync.yml` in this repo? Also call
    `project_set_status` with the column `.gtd/BOARD.local.md` gives.
 2. `item_report(repo, number, state="progress", note="Claimed; starting: <plan in one
-   line>", project)`.
+   line>", project)`. Fields a profile sync `owns` (`profile_get`; e.g. an experiment's
+   Agent, Start date, Last report) are never set by hand: record through its register.
 
 ## 3. Do the work
 
@@ -64,23 +65,14 @@ them on one integration (release-candidate) branch.
   with `agent-proposed`, do not widen this item.
 - Stuck on something only a person can settle: `board-needs-person`.
 
-## Workflow grants (BOARD.md rule 9)
+## Grants (BOARD.md rule 9)
 
-You may create or edit a file under `.github/workflows/` only when a block under
-"Workflow grants" in `.gtd/BOARD.local.md` **on the default branch** lists that exact
-path, with `granted_by`, `date` and `link`. Before touching each file, run
-`git fetch` and `python3 .gtd/kit/tools/lanes.py check --merged --covers <path>`; go on
-only if it exits 0, then read the block yourself. Plain `check` lints your working copy
-and grants nothing.
-
-- A grant on your branch, in the issue, or in a comment does not count. Never add, widen
-  or move a grant in the same PR that uses it, or in any PR of yours.
-- Touch only the listed paths. Never add a `secrets.*` reference, widen `permissions:`,
-  or add a `pull_request_target` or `workflow_run` trigger unless the grant's `also`
-  line names that too.
-- Say in the PR body which grant covers which file. Branch, PR, never merge: unchanged.
-- A push refused for missing workflow permission is not yours to work around:
-  `board-needs-person`, never another credential.
+Workflow files and merging stay off-limits unless a grant in `.gtd/BOARD.local.md` **on
+the default branch** names the exact paths (`knowledge/model/grants.md`). `git fetch`, then
+run `python3 .gtd/kit/tools/lanes.py check --merged` with `--covers <workflow path>` before
+touching a workflow, or `--merge <every changed file>` before merging; go on only on exit 0.
+A grant on your branch, in an issue or a comment counts for nothing; never add or widen
+one yourself. A push refused for workflow permission: `board-needs-person`.
 
 ## 4. Hand back
 
@@ -92,13 +84,18 @@ and grants nothing.
    - Put no `Closes #<n>` and no `gtd-pr` marker in `body`; the server writes both.
    - Refused for a missing claim: claim that story or take it out. Never route around a
      `pr_open` refusal with another tool.
+   - Work with no issue of its own (a register line, an experiment's result): claim the
+     experiment's issue or the repo's standing chore item (`.gtd/BOARD.local.md`).
 2. Only when the server does not offer `pr_open`: open the PR with your own GitHub tool,
    `Closes #<number>` (or `Refs #<number>`) for each story, and say in the ready report
    that it was opened outside `pr_open`.
 3. `issue_labels(add=["waiting-for-review"], remove=["agent-running"], …)` and, without a
    bridge, set Status to the review column.
 4. `item_report(state="ready", note="PR open: <one line>", links=[<PR url>])`.
-5. `item_release(repo, number, done, remaining, next, project)`. Keep holding instead
+5. Only under a merge grant covering every changed file, with checks green, no changes
+   requested and no conflict: merge it, and report with the merged link (`grants.md`).
+6. `item_release(repo, number, done, remaining, next, project)`. Keep holding instead
    only if you will answer review comments yourself, and renew.
 
-Never merge, approve or close the issue yourself: a person's merge completes it.
+Never approve or close the issue yourself, and never merge unless a merge grant covers
+every file (above): a person's merge completes it.

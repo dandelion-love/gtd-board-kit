@@ -3,7 +3,7 @@ name: board-report
 description: Report progress on a claimed board item, renew or release its claim, or record a failure, through the gtd MCP server. Use at each milestone of work on a claimed issue, before a lease runs out, when work stops for any reason, and when handing an item to someone else.
 metadata:
   author: gtd-board-kit
-  version: 0.4.0
+  version: 0.5.0
 ---
 
 # Report on a claimed item
@@ -66,6 +66,11 @@ defaults are below.
 - **Other fields:** `.gtd/kit/knowledge/model/board-fields.md` says who writes each
   field and when. Waiting on a person's gate: `Gates` names it and the report note is
   the one-line ask; once it passes, update `Gates` and clear the `needs:*` label.
+- **Sync-owned fields:** a field a profile sync `owns` (`profile_get`; in ml-lab an
+  experiment's Agent, Start date and Last report) is written by the sync from its
+  register. Never set it by hand, not even for an ETA or a note: record the event
+  (`experiment_record`) and let the sync write the card. A Status stuck after a run
+  ended means its register event or PR never landed: land it, never move the card.
 
 ## Long runs on compute hosts
 

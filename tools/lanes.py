@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""lanes.py: read the standing lanes and workflow grants in a repo's .gtd/BOARD.local.md.
+"""lanes.py: read the standing lanes, workflow grants and merge grants in a repo's .gtd/BOARD.local.md.
 
   python3 .gtd/kit/tools/lanes.py resume [FILE]   list lanes to re-schedule, with the pointer prompt
   python3 .gtd/kit/tools/lanes.py check  [FILE]   lint lanes and workflow grants; exit 1 on a problem
   python3 .gtd/kit/tools/lanes.py check --merged [--covers PATH]
                                                   lint the default branch's copy only; with --covers,
                                                   exit 0 only if a merged grant names PATH
+  python3 .gtd/kit/tools/lanes.py check --merged --merge PATH [PATH ...]
+                                                  exit 0 only if ONE merged merge grant names
+                                                  every PATH (the PR's changed files, from
+                                                  git diff --name-only --no-renames)
 
 Without FILE, `resume` reads .gtd/BOARD.local.md from the default branch (origin/HEAD),
 because only what a person merged counts, and falls back to the working copy with a
@@ -26,6 +30,9 @@ LANE_KEYS = ("asked_by", "basis", "grant", "policy", "switch", "item", "every", 
 SWITCHES = ("auto", "observe", "hold", "off")
 BOARD_DOWN = ("continue", "hold")
 GRANT_KEYS = ("paths", "granted_by", "date", "link")
+MERGE_KEYS = ("paths", "granted_by", "date", "link")
+# A merge grant can never cover these: they hold the rules and the grants themselves.
+NEVER_MERGE = (".github/", ".gtd/")
 PROMPT = "Run lane {name} as .gtd/BOARD.local.md defines it."
 
 
@@ -117,7 +124,32 @@ def check(text: str) -> list[str]:
                 problems.append(f"workflow grant {n}: path {p} is not under .github/workflows/")
             if p.strip("`") in (".github/workflows/**", ".github/workflows/*", ".github/workflows/"):
                 problems.append(f"workflow grant {n}: name the workflows; a whole-folder grant is refused")
+    for grant in blocks(section(text, "Merge grants"), "merge"):
+        n = grant["name"]
+        for k in MERGE_KEYS:
+            if not grant.get(k):
+                problems.append(f"merge grant {n}: missing {k}")
+        paths = grant.get("paths") or []
+        for p in paths if isinstance(paths, list) else [paths]:
+            p = p.strip("`")
+            if p.startswith(NEVER_MERGE):
+                problems.append(f"merge grant {n}: {p} is under .github/ or .gtd/; never granted")
+            if any(c in p for c in "*?[") or p.endswith("/"):
+                problems.append(f"merge grant {n}: name exact files; {p} is a pattern or folder")
     return problems
+
+
+def merge_covers(text: str, paths: list[str]) -> list[str]:
+    """Names of merged merge grants that list every one of ``paths`` (exact match)."""
+    want = {p.strip() for p in paths if p.strip()}
+    if not want or any(p.startswith(NEVER_MERGE) for p in want):
+        return []
+    out = []
+    for g in blocks(section(text, "Merge grants"), "merge"):
+        listed = g.get("paths") if isinstance(g.get("paths"), list) else []
+        if want <= {p.strip("`") for p in listed} and all(g.get(k) for k in MERGE_KEYS):
+            out.append(g["name"])
+    return out
 
 
 def main() -> int:
@@ -134,6 +166,14 @@ def main() -> int:
         problems = check(text)
         for p in problems:
             print(f"FAIL {p}")
+        if "--merge" in args:
+            files = args[args.index("--merge") + 1:]
+            named = merge_covers(text, files)
+            if problems or not named:
+                print(f"FAIL no merged merge grant names every changed file: {' '.join(files) or '(none)'}")
+                return 1
+            print(f"ok: {len(files)} file(s) covered by merge grant {', '.join(named)}")
+            return 0
         if covers:
             named = [g["name"] for g in blocks(section(text, "Workflow grants"), "grant")
                      if covers in [p.strip("`") for p in (g.get("paths") or [])

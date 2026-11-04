@@ -8,3 +8,4 @@
 * [Server version and levels](server-version.md) - The server declares its spec version and honest levels; agents run only skills whose level is claimed
 * [Where evidence goes](evidence-places.md) - The PR's evidence table is the gate; issue artifacts keep plans and evidence on the issue; sub-issues are never evidence
 * [Board fields and who writes them](board-fields.md) - Each standard field has a writer and a moment; a card waiting on a person names the gate and the ask
+* [Grants that widen rule 9](grants.md) - A merged, named BOARD.local grant lets an agent merge a PR whose every file it lists, or edit a named workflow

@@ -2,7 +2,7 @@
 
 Read after `.gtd/kit/BOARD.md`. Where this file differs from the kit, this file wins,
 except that it can never relax the kit's rule 1 (board only through the gtd MCP server)
-or rule 9 (hard limits), apart from the workflow grants rule 9 allows below. It lives in this repo, not in the public kit, so it is the place
+or rule 9 (hard limits), apart from the workflow and merge grants rule 9 allows below. It lives in this repo, not in the public kit, so it is the place
 for anything specific to this repo. Delete any section you don't need.
 
 ## Board and profile
@@ -12,6 +12,7 @@ for anything specific to this repo. Delete any section you don't need.
 - Other boards or channels agents here may write to: <!-- e.g. a run-state channel -->
 - Knowledge bundle: <!-- folder of this repo's OKF knowledge docs; default docs/knowledge/ -->
 - The owner's `needs` value: <!-- the needs:* label that means "only the owner can unblock this" -->
+- Standing chore item: <!-- owner/repo#n: a Chore issue agents claim for work with no issue of its own (register lines, upkeep), so pr_open can land it -->
 
 ## Labels this repo adds or uses differently
 
@@ -83,8 +84,8 @@ for anything specific to this repo. Delete any section you don't need.
 ## Workflow grants
 
 <!-- Kit rule 9 forbids creating or editing .github/workflows/** unless a grant here, on
-     the default branch, names the path. Agents still work on a branch, open a PR and never
-     merge. Name each workflow file; a whole-folder grant is refused. With no grant here,
+     the default branch, names the path. Agents still work on a branch and open a PR; a
+     workflow file is never under a merge grant. Name each workflow file; a whole-folder grant is refused. With no grant here,
      the default stays "never". Copy the block below once per grant. -->
 
 ### grant: example-grant
@@ -95,3 +96,19 @@ for anything specific to this repo. Delete any section you don't need.
 - date: <!-- YYYY-MM-DD -->
 - link: <!-- the owner's message, comment or PR -->
 - also: <!-- optional: secrets, permissions or triggers the grant also allows; default none -->
+
+## Merge grants
+
+<!-- Kit rule 9 forbids an agent merging unless ONE grant here, on the default branch,
+     names every file the PR changes (knowledge/model/grants.md). Name exact files, never
+     a folder or pattern; nothing under .github/ or .gtd/ can be granted. With no grant
+     here, the default stays "never merge". Copy the block below once per grant. -->
+
+### merge: example-merge
+
+- paths:
+  - <!-- an exact file, e.g. a register an agent appends to -->
+- granted_by: <!-- the owner's handle -->
+- date: <!-- YYYY-MM-DD -->
+- link: <!-- the owner's message, comment or PR -->
+- also: <!-- optional: extra conditions, e.g. "only PRs opened with pr_open"; default none -->
