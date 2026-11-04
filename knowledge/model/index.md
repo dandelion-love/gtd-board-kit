@@ -10,3 +10,4 @@
 * [Items that speak for themselves](self-reviewable-items.md) - A person judges an item from the issue alone: ticked criteria linking their proof, Status, labels, one short ready report
 * [Board fields and who writes them](board-fields.md) - Each standard field has a writer and a moment; a card waiting on a person names the gate and the ask
 * [Grants that widen rule 9](grants.md) - A merged, named BOARD.local grant lets an agent merge a PR whose every file it lists, or edit a named workflow
+* [Typed links between items](typed-links.md) - A fixed set of link kinds; only depends-on is a native blocked-by, the rest are Related lines on both ends, and one fold feeds the issues and the OKF graph

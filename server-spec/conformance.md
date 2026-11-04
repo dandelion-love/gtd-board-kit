@@ -270,6 +270,45 @@ nothing.
 | A3 | `issue_artifact_update` of the generic artifact's body returns the new body, and `versions` is one more than before |
 | A4 | Each refuses and says why: `type` `report` (the refusal lists the four types); an empty `name`; a `link` body that is not one `https` URL; a body with a record marker; a body over 60000 characters |
 
+## Typed links (when offered)
+
+A server that offers the Repo setup group (`work_items_plan`, a read tool, or
+`work_items_sync`, which a caller below `full` does not see) must also pass these
+([typed links](typed-links.md)). The runner runs L1 whenever it is given `--link-cmd`.
+
+| Id | Check |
+| --- | --- |
+| L1 | The golden cases below, fed to the server's own link fold (`--link-cmd`), give the stated Related lines on each end, native blockers and refusals |
+| L2 | A sync of a scratch repo whose register holds a `refines` and a `depends-on` link shows a Related section on both ends of each, with the far end's inverse name and its issue reference, and makes the dependent issue blocked by the other; a second sync plans no body edit |
+
+L1 cases ([link_cases.json](../conformance/link_cases.json); the items are `EXP-1` to
+`EXP-3`, `BM-1` and `FINDING-F1`, and one source adds the prefix `FINDING-`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `out-and-inverse` | one edge shows on both ends, the far end by its inverse name | 1 edge |
+| `symmetric` | a symmetric kind reads the same from both ends | 1 edge |
+| `symmetric-both-ways` | a symmetric link written from each end is one edge | 1 edge |
+| `directed-both-ways` | a directed kind written from each end is two edges | 2 edges |
+| `repeat` | the same link twice is one edge | 1 edge |
+| `two-kinds` | two kinds between the same ends are two edges | 2 edges |
+| `id-form` | a register keyed on id names the source as id | 1 edge |
+| `artifact-link` | a link with a url and no to is an artifact pointer, not an edge | no edge |
+| `other-events` | registrations and results are not links | no edge |
+| `unknown-kind` | a kind outside the table is refused | refused: `unknown-kind` |
+| `unknown-end` | an end that is no item is refused | refused: `unknown-end` |
+| `self-link` | an item linked to itself is refused | refused: `self-link` |
+| `prefix` | a record id resolves through a source's id prefix | 1 edge |
+| `depends-on` | depends-on is also a native blocked-by | 1 edge; blocked-by |
+| `unlink` | unlink removes the edge | no edge |
+| `unlink-missing` | unlink of an edge that is not there is refused | refused: `no-such-link` |
+| `unlink-other-kind` | unlink removes only its own kind | refused: `no-such-link`; the rest stands |
+| `relink` | a link after its unlink stands again | 1 edge |
+| `unlink-symmetric` | a symmetric edge is unlinked from either end | no edge |
+| `unlink-depends-on` | unlinking depends-on drops the blocked-by too | no edge |
+| `chain` | a follow-up chain lists each step on both sides | 2 edges |
+| `every-kind` | each kind's inverse name | 11 edges; blocked-by |
+
 ## Security (all levels)
 
 | Id | Check |
