@@ -1218,15 +1218,17 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     c.call("item_release", sb.args(b, done="checked", remaining="none", next="close"))
 
     # C15 review claims: no session reviews work it did
-    n = sb.issue("review claim")
+    # Labelled for an unpointed pickup, so only the review rule can refuse the inferred try.
+    n = sb.issue("review claim", labels=["agent-ready", "agent:any"])
     s_work, s_review = f"conformance-{sb.run}-work", f"conformance-{sb.run}-review"
     ok_w, _, t_w = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
                                                lease="30m", session=s_work))
     ok_wr, _, _ = c.call("item_release", sb.args(n, done="worked", remaining="review", next="review"))
     ok_ns, _, _ = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
                                                 purpose="review"))
-    ok_inf, _, _ = c.call("item_claim", sb.args(n, basis="inferred", purpose="review",
-                                                 session=s_review))
+    inferred = sb.args(n, basis="inferred", purpose="review", session=s_review)
+    inferred.pop("project", None)  # no board: the Size gate does not apply
+    ok_inf, _, _ = c.call("item_claim", inferred)
     ok_same, _, _ = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
                                                   purpose="review", session=s_work))
     ok_rv, _, t_rv = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
