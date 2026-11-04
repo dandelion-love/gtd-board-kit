@@ -24,6 +24,7 @@ sense of RFC 2119 and leaves the how open.
 | [conformance.md](conformance.md) | Numbered checks a server must pass, and how to run them |
 | [work-plan.md](work-plan.md) | The same spec cut into work units a coding agent can plan and build one at a time |
 | [ready-check.md](ready-check.md) | The read-only ready check: its verdicts and the five rules every server applies the same way |
+| [typed-links.md](typed-links.md) | Typed links between items: the record, the kinds and their native forms, the fold, the Related section, the graph render |
 
 The agent-side halves live elsewhere in the kit and are normative here too:
 [agent sign-in](../knowledge/model/agent-sign-in.md) (the join wire shape),

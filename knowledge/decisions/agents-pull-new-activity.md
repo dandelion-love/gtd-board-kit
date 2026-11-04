@@ -39,7 +39,7 @@ Three shapes were weighed:
 # Consequences
 
 - A lane reads once per tick and answers hand-offs, reviews and directions together
-  (`board-lane` 0.4.0, `board-report` 0.7.0).
+  (`board-lane` 0.4.0, `board-report` 0.8.0).
 - The server writes for every agent under one identity, so it cannot tell which agent
   wrote a comment it posted; `via_server` marks those and the caller skips its own.
 - A new session that kept no `read_at` sees the last day again and must skip what it

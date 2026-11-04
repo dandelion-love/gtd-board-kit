@@ -1,0 +1,927 @@
+{
+  "about": "Golden cases for the typed-link fold (server-spec/typed-links.md; check L1). Input: items, the ids a repo's sources produce; prefixes, the id prefixes a source adds to its record ids; records, register lines in order. Expect: related, each item's lines as '<kind or inverse> <other id>', sorted; blocked_by, each dependent item's native blockers, sorted; refused, [record index, rule] in record order. An item with no edge is absent from related.",
+  "cases": [
+    {
+      "name": "out-and-inverse",
+      "what": "one edge shows on both ends, the far end by its inverse name",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-2": [
+            "refines EXP-1"
+          ],
+          "EXP-1": [
+            "refined-by EXP-2"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "symmetric",
+      "what": "a symmetric kind reads the same from both ends",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "BM-1",
+          "to": "EXP-1",
+          "kind": "contradicts",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "BM-1": [
+            "contradicts EXP-1"
+          ],
+          "EXP-1": [
+            "contradicts BM-1"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "symmetric-both-ways",
+      "what": "a symmetric link written from each end is one edge",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-1",
+          "to": "EXP-2",
+          "kind": "corroborates",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "corroborates",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-1": [
+            "corroborates EXP-2"
+          ],
+          "EXP-2": [
+            "corroborates EXP-1"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "directed-both-ways",
+      "what": "a directed kind written from each end is two edges",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-1",
+          "to": "EXP-2",
+          "kind": "refines",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-1": [
+            "refined-by EXP-2",
+            "refines EXP-2"
+          ],
+          "EXP-2": [
+            "refined-by EXP-1",
+            "refines EXP-1"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "repeat",
+      "what": "the same link twice is one edge",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-2": [
+            "refines EXP-1"
+          ],
+          "EXP-1": [
+            "refined-by EXP-2"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "two-kinds",
+      "what": "two kinds between the same ends are two edges",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "follows-up",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "references",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-2": [
+            "follows-up EXP-1",
+            "references EXP-1"
+          ],
+          "EXP-1": [
+            "followed-up-by EXP-2",
+            "referenced-by EXP-2"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "id-form",
+      "what": "a register keyed on id names the source as id",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "id": "EXP-3",
+          "to": "EXP-2",
+          "kind": "follows-up",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-3": [
+            "follows-up EXP-2"
+          ],
+          "EXP-2": [
+            "followed-up-by EXP-3"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "artifact-link",
+      "what": "a link with a url and no to is an artifact pointer, not an edge",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "id": "EXP-1",
+          "kind": "pr",
+          "url": "https://example.com/page"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "other-events",
+      "what": "registrations and results are not links",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "register",
+          "id": "EXP-1"
+        },
+        {
+          "event": "result",
+          "id": "EXP-1",
+          "verdict": "A"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "unknown-kind",
+      "what": "a kind outside the table is refused",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "inspired-by",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": [
+          [
+            0,
+            "unknown-kind"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "unknown-end",
+      "what": "an end that is no item is refused",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-9",
+          "kind": "refines",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": [
+          [
+            0,
+            "unknown-end"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "self-link",
+      "what": "an item linked to itself is refused",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-1",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": [
+          [
+            0,
+            "self-link"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "prefix",
+      "what": "a record id resolves through a source's id prefix",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "BM-1",
+          "to": "F1",
+          "kind": "references",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "BM-1": [
+            "references FINDING-F1"
+          ],
+          "FINDING-F1": [
+            "referenced-by BM-1"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "depends-on",
+      "what": "depends-on is also a native blocked-by",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "depends-on",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-2": [
+            "depends-on EXP-1"
+          ],
+          "EXP-1": [
+            "blocks EXP-2"
+          ]
+        },
+        "blocked_by": {
+          "EXP-2": [
+            "EXP-1"
+          ]
+        },
+        "refused": []
+      }
+    },
+    {
+      "name": "unlink",
+      "what": "unlink removes the edge",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        },
+        {
+          "event": "unlink",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "unlink-missing",
+      "what": "unlink of an edge that is not there is refused",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "unlink",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": [
+          [
+            0,
+            "no-such-link"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "unlink-other-kind",
+      "what": "unlink removes only its own kind",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        },
+        {
+          "event": "unlink",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "supersedes",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-2": [
+            "refines EXP-1"
+          ],
+          "EXP-1": [
+            "refined-by EXP-2"
+          ]
+        },
+        "blocked_by": {},
+        "refused": [
+          [
+            1,
+            "no-such-link"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "relink",
+      "what": "a link after its unlink stands again",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        },
+        {
+          "event": "unlink",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "refines",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-2": [
+            "refines EXP-1"
+          ],
+          "EXP-1": [
+            "refined-by EXP-2"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "unlink-symmetric",
+      "what": "a symmetric edge is unlinked from either end",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-1",
+          "to": "EXP-2",
+          "kind": "shares-listener",
+          "why": "w"
+        },
+        {
+          "event": "unlink",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "shares-listener",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "unlink-depends-on",
+      "what": "unlinking depends-on drops the blocked-by too",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-3",
+          "to": "EXP-2",
+          "kind": "depends-on",
+          "why": "w"
+        },
+        {
+          "event": "unlink",
+          "from": "EXP-3",
+          "to": "EXP-2",
+          "kind": "depends-on",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {},
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "chain",
+      "what": "a follow-up chain lists each step on both sides",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "EXP-1",
+          "kind": "follows-up",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-3",
+          "to": "EXP-2",
+          "kind": "follows-up",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "EXP-2": [
+            "followed-up-by EXP-3",
+            "follows-up EXP-1"
+          ],
+          "EXP-1": [
+            "followed-up-by EXP-2"
+          ],
+          "EXP-3": [
+            "follows-up EXP-2"
+          ]
+        },
+        "blocked_by": {},
+        "refused": []
+      }
+    },
+    {
+      "name": "every-kind",
+      "what": "each kind's inverse name",
+      "items": [
+        "EXP-1",
+        "EXP-2",
+        "EXP-3",
+        "BM-1",
+        "FINDING-F1"
+      ],
+      "prefixes": [
+        "FINDING-"
+      ],
+      "records": [
+        {
+          "event": "link",
+          "from": "BM-1",
+          "to": "EXP-1",
+          "kind": "depends-on",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "FINDING-F1",
+          "kind": "follows-up",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "BM-1",
+          "to": "EXP-3",
+          "kind": "references",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-1",
+          "to": "FINDING-F1",
+          "kind": "evaluates",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "BM-1",
+          "to": "EXP-2",
+          "kind": "rests-on",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-3",
+          "to": "FINDING-F1",
+          "kind": "refines",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "BM-1",
+          "to": "EXP-1",
+          "kind": "contradicts",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-2",
+          "to": "FINDING-F1",
+          "kind": "corroborates",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "BM-1",
+          "to": "EXP-3",
+          "kind": "supersedes",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "EXP-1",
+          "to": "FINDING-F1",
+          "kind": "reuses-material",
+          "why": "w"
+        },
+        {
+          "event": "link",
+          "from": "BM-1",
+          "to": "EXP-2",
+          "kind": "shares-listener",
+          "why": "w"
+        }
+      ],
+      "expect": {
+        "related": {
+          "BM-1": [
+            "contradicts EXP-1",
+            "depends-on EXP-1",
+            "references EXP-3",
+            "rests-on EXP-2",
+            "shares-listener EXP-2",
+            "supersedes EXP-3"
+          ],
+          "EXP-1": [
+            "blocks BM-1",
+            "contradicts BM-1",
+            "evaluates FINDING-F1",
+            "reuses-material FINDING-F1"
+          ],
+          "EXP-2": [
+            "corroborates FINDING-F1",
+            "follows-up FINDING-F1",
+            "shares-listener BM-1",
+            "supports BM-1"
+          ],
+          "FINDING-F1": [
+            "corroborates EXP-2",
+            "evaluated-by EXP-1",
+            "followed-up-by EXP-2",
+            "material-reused-by EXP-1",
+            "refined-by EXP-3"
+          ],
+          "EXP-3": [
+            "referenced-by BM-1",
+            "refines FINDING-F1",
+            "superseded-by BM-1"
+          ]
+        },
+        "blocked_by": {
+          "BM-1": [
+            "EXP-1"
+          ]
+        },
+        "refused": []
+      }
+    }
+  ]
+}
