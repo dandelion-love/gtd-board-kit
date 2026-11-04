@@ -281,8 +281,27 @@ def pre_tool_use(adapter: Adapter, event: dict) -> int:
     return deny(reason) if reason else 0
 
 
-def session_start() -> int:
+def lanes_to_resume(cwd: str) -> str:
+    """``lanes.py resume`` output for this checkout, or "" (no lanes, or any failure).
+
+    Session schedules die with the session, so every new session is shown the lanes to
+    resume (board-lane, Resume). Never fails the session."""
+    root = repo_root(cwd)
+    if not (root / ".gtd" / "BOARD.local.md").exists():
+        return ""
+    try:
+        r = subprocess.run([sys.executable, str(Path(__file__).with_name("lanes.py")), "resume"],
+                           cwd=str(root), capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return r.stdout.strip()
+
+
+def session_start(event: dict) -> int:
     print(REMINDER)
+    lanes = lanes_to_resume(str(event.get("cwd") or os.getcwd()))
+    if lanes:
+        print(lanes)
     return 0
 
 
@@ -295,7 +314,7 @@ def run(adapter: Adapter, raw: str) -> int:
         return 0
     name = event.get("hook_event_name")
     if name == Event.SESSION_START.value:
-        return session_start()
+        return session_start(event)
     if name == Event.PRE_TOOL_USE.value or (name is None and "tool_name" in event):
         return pre_tool_use(adapter, event)
     return 0

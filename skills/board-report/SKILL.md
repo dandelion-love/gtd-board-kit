@@ -3,7 +3,7 @@ name: board-report
 description: Report progress on a claimed board item, renew or release its claim, or record a failure, through the gtd MCP server. Use at each milestone of work on a claimed issue, before a lease runs out, when work stops for any reason, and when handing an item to someone else.
 metadata:
   author: gtd-board-kit
-  version: 0.5.0
+  version: 0.6.0
 ---
 
 # Report on a claimed item
@@ -36,6 +36,10 @@ item_report(repo, number, state, note, links, project)
 - Remove `blocked` when you resume. Without `.github/workflows/project-sync.yml`, also
   set Status to the column `.gtd/BOARD.local.md` gives.
 - A question for a person is not a state: use `board-needs-person`.
+- **Waiting on a lane or its resource** (a run only a lane starts, a card a lane owns):
+  `waiting` alone reaches nobody. Also `issue_comment` on that lane's item (its `item` in
+  `.gtd/BOARD.local.md`): your item's link and what you wait for. The lane's next tick
+  reads it in `follow_ups` (`board-lane`, Hand-offs) and answers there.
 
 ## Cadence
 
