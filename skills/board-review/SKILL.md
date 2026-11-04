@@ -3,7 +3,7 @@ name: board-review
 description: Review a board issue a person labelled agent-review, against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Review an issue
@@ -11,6 +11,15 @@ metadata:
 Read `.gtd/kit/BOARD.md`, then `.gtd/BOARD.local.md` if it exists, first if you have not
 this session; the local file wins. `agent-review` is a person asking for a second look at
 an issue before they approve or build it. It is not `agent-ready` and not `run-agent`.
+
+## Finding the requests (a lane)
+
+Nothing starts a review on its own yet. A standing lane (`board-lane`) whose `may` names
+board reviews runs this skill on a schedule: each tick, `issue_list(repo,
+labels=["agent-review"], state="open")` for every repo the lane watches, oldest first,
+and reviews each one as below, with `asked_by` the lane's. An item someone holds is
+skipped until next tick. One comment per request: never review an issue twice for one
+label.
 
 ## 1. Claim it
 

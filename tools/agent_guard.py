@@ -241,8 +241,11 @@ def shell_pr_create(command: str) -> bool:
 
 def pr_denial() -> str:
     return ("open the PR with the gtd server's pr_open, never your own GitHub tool "
-            "(BOARD.md, board-claim). If this repo's gtd server does not offer pr_open, "
-            f"your person sets {PR_OPEN_ENV}=off for it.")
+            "(BOARD.md, board-claim). pr_open needs a claimed issue: for work with none "
+            "of its own (a register line, a result), claim the experiment's issue or the "
+            "standing chore item in .gtd/BOARD.local.md and list it. No pr_open tool in "
+            "this session? Check with ToolSearch, then ask your person; if this repo's gtd "
+            f"server does not offer pr_open, your person sets {PR_OPEN_ENV}=off for it.")
 
 
 def pre_tool_use(adapter: Adapter, event: dict) -> int:

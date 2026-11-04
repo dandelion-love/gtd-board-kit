@@ -17,7 +17,8 @@ at `.gtd/kit/ONBOARDING.md`.
 - Never print, paste or log a credential, and never ask your person to paste one.
 - Every detail about this repo (board, labels, people, channels, hosts) goes into this repo's
   `.gtd/BOARD.local.md`. **Nothing goes upstream into the kit**: it is a public repo.
-- Work on a branch. Commit nothing to the default branch, and never merge your own PR.
+- Work on a branch. Commit nothing to the default branch, and never merge your own PR
+  unless a merge grant in `.gtd/BOARD.local.md` covers every file in it.
 
 ## 1. Look at the repo
 

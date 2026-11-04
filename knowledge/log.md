@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-04
+
+* **Added**: merge grants and work with no issue (kit 0.22.0). Rule 9 now opens two ways, both only through a grant merged into `.gtd/BOARD.local.md`: a workflow grant (unchanged) and a new merge grant. A merge grant names exact files, never a folder, a pattern or anything under `.github/` or `.gtd/`; an agent may merge its own green PR only when one merge grant names every file the PR changes. `lanes.py check --merged --merge <files>` is the check, and the new model concept `grants` holds both. `board-claim` 0.5.0 says how to land work that has no issue of its own (claim the experiment's issue or the repo's standing chore item, a new template line), never to hand-write a field a profile sync `owns`, and when a grant allows a merge; the agent guard's refusal says the same. `board-report` 0.5.0 adds the sync-owned rule, `board-decompose` 0.3.0 parents items a sync creates once they exist, `board-review` 0.2.0 says how a lane finds `agent-review` requests, and BOARD.md rule 3 names sync-owned fields.
+
 ## 2026-11-03
 
 * **Added**: evidence on the issue and review requests (kit 0.21.0). The new model concept `evidence-places` says where each kind of evidence goes: the PR's evidence table stays the gate, and GitHub issue artifacts keep the approved plan, outside links and reports on the issue; a sub-issue is never evidence. The server spec gains the optional Issue artifacts group (`issue_artifact_list`, `_get`, `_create`, `_update`; no delete) and conformance A1 to A4. A new base label `agent-review` is a person's request for an agent to review an issue: `issue_labels` and `capture` refuse it from an agent (P4), a dispatching server starts a review run from it, and the new skill `board-review` does the review and posts one comment of findings. `board-report` 0.4.0 and `board-decompose` 0.2.1 point at the evidence rule. Profiles must add `agent-review` when they repin.

@@ -3,7 +3,7 @@ name: board-lane
 description: Run one tick of a standing lane, or resume every lane's schedule after a session starts, through the gtd MCP server. A standing lane is recurring, pre-approved work declared in .gtd/BOARD.local.md with its own switch. Use when a scheduled prompt says "run lane X", at session start in a repo with lanes, or when asked to start, hold, check or stop a lane.
 metadata:
   author: gtd-board-kit
-  version: 0.2.0
+  version: 0.2.1
 ---
 
 # Run a standing lane
@@ -69,7 +69,7 @@ item, an item it claims, or one it captures. No work happens off the board.
    files before repeating an outside action: a previous tick may have done it.
 4. **Work.** Take items in the order of the lane's `queue` view and keep their ETA
    (`board-report`, Queue order and ETA). Do only what `may` lists, never `never`. Each concrete item gets
-   its own `item_claim` and the normal `board-claim` path (branch, PR, never merge).
+   its own `item_claim` and the normal `board-claim` path (branch, PR, no merge without a merge grant).
    Under `observe`, do the reading and write `item_report(state="progress",
    note="would: <what you would have done>")` on the lane item, and change nothing else.
 5. **Questions don't stop the lane** (rule 7): ask on the item the question is about
