@@ -60,7 +60,7 @@ reports pass, fail, skip or manual for every id below.
 | C14 | One caller claims two issues with the same `branch`: both succeed and each `item_get` shows the caller as holder with `mandate.branch` equal to it; releasing the first leaves the second held with its own lease; a `branch` of `bad..name` refuses |
 | C15 | Review claims: a caller claims an issue with `session=A` and releases it. `purpose=review` then refuses with no `session`, with `basis=inferred`, and with `session=A`; with `session=B` it succeeds and `item_get` shows `mandate.purpose` `review` and `mandate.session` `B` |
 | C16 | `activity_since` after a claim and a plain comment on the held issue: the comment is an entry with `source` `held`, `kind` `comment` and the issue's `number`, and no entry is a record; with `since` after the comment it is absent; with a second token, the second caller sees no entry for that issue |
-| C17 | `activity_since` with `limit=1` over two new comments: the first page has one entry and `has_next_page`; `next_cursor` gives the other, with no repeat. Every result has `read_at` |
+| C17 | `activity_since` with `limit=1` over two new comments: the first page has one entry and `has_next_page`; `next_cursor` gives the other, with no repeat, and the same `read_at` as the first page |
 | C18 | (by hand) A review on a PR opened through `pr_open` appears for the PR's `by` principal as `source` `pr`, `kind` `review`, with its `review_state`; a comment on a channel issue appears as `source` `channel` |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):

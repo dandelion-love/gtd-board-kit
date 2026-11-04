@@ -1138,7 +1138,7 @@ def check_activity(rep: Report, c: Client, c2: Client | None, sb: Sandbox, n: in
     second = _entries(p2, repo, n)
     rep.check("C17", ok1 and ok2 and len(first) == 1 and (p1 or {}).get("has_next_page") and cur
               and len(second) == 1 and first[0].get("url") != second[0].get("url")
-              and (p1 or {}).get("read_at") and (p2 or {}).get("read_at"),
+              and (p1 or {}).get("read_at") and (p2 or {}).get("read_at") == (p1 or {}).get("read_at"),
               f"page 1 {t1[:60] if not ok1 else len(first)} next {bool(cur)}; page 2 {len(second)}")
 
 

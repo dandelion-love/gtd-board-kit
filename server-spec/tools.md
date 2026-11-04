@@ -131,13 +131,15 @@ A server may find the issues by listing those **updated** after `since` (a new c
 or review updates its issue). It caps that scan; past the cap it reads the most recently
 updated first and adds a warning naming the cap.
 
-**The cursor.** `read_at` is the server's clock when the read began. A caller that keeps
-it passes it as `since` next time and sees each entry once (GitHub times are whole
-seconds, so a server may set `read_at` a second early: an entry from that second can come
-twice, never not at all). A caller with nothing kept
-omits `since` and gets the last 24 hours. `next_cursor` pages within one read; pass it
-with the same `since`. A caller drains every page before it keeps a `read_at`, and keeps
-the last page's: a `read_at` kept from an earlier page skips the entries still unread.
+**The cursor.** `read_at` is the read's watermark: the server's clock when the first
+page was read (GitHub times are whole seconds, so a server may set it a second early). A
+read lists only entries created at or before `read_at`, and every page of it returns the
+same `read_at`: `next_cursor` carries it, so an entry written while the caller pages
+waits for the next read instead of slipping past the cursor. Pass `next_cursor` with the
+same `since` until `has_next_page` is false, then keep `read_at` and pass it as `since`
+next time: each entry comes once. A caller with nothing kept omits `since` and gets the
+last 24 hours; a caller that keeps `read_at` before the last page skips the entries
+still unread.
 
 ### Issues
 
