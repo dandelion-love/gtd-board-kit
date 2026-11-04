@@ -8,7 +8,8 @@
                                                   exit 0 only if a merged grant names PATH
   python3 .gtd/kit/tools/lanes.py check --merged --merge PATH [PATH ...]
                                                   exit 0 only if ONE merged merge grant names
-                                                  every PATH (the PR's changed files)
+                                                  every PATH (the PR's changed files, from
+                                                  git diff --name-only --no-renames)
 
 Without FILE, `resume` reads .gtd/BOARD.local.md from the default branch (origin/HEAD),
 because only what a person merged counts, and falls back to the working copy with a

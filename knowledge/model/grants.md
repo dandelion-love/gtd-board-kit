@@ -35,8 +35,9 @@ pattern, never under `.github/` or `.gtd/`), `granted_by`, `date`, `link` and an
 `also` for extra conditions. An agent may merge a PR only when all of these hold:
 
 1. **One** merged merge grant names **every** file the PR changes:
-   `lanes.py check --merged --merge $(git diff --name-only origin/HEAD...<head>)` exits 0.
-   Two grants that each cover part of a PR do not add up.
+   `lanes.py check --merged --merge $(git diff --name-only --no-renames origin/HEAD...<head>)`
+   exits 0. `--no-renames` lists both sides of a rename, so a file moved into a granted
+   path from anywhere else is caught. Two grants that each cover part of a PR do not add up.
 2. The PR is one the agent opened with `pr_open` for an item it holds, and targets the
    default branch.
 3. Every required check is green on the PR's current head, nobody has requested changes,
