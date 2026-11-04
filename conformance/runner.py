@@ -1720,7 +1720,11 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
     ok, _, text = pr(head=missing, body='x <!-- gtd-pr v1 {"by": "agent:x", "issues": [1], "v": 1} -->')
     if ok or "gtd-pr" not in text:
         bad.append("a body with a gtd-pr marker was not refused for the marker")
-    rep.check("PR2", not bad, "; ".join(bad), "empty issues, an unclaimed issue and a marker refused")
+    ok, _, text = pr(head=missing, body=f"Rollback: hold or close #{n}.")
+    if ok or "closing keyword" not in text.lower():
+        bad.append("a body with a closing keyword was not refused for the keyword")
+    rep.check("PR2", not bad, "; ".join(bad),
+              "empty issues, an unclaimed issue, a marker and a closing keyword refused")
 
     if not head:
         rep.manual("PR3", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
