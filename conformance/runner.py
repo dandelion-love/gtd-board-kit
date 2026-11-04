@@ -1114,6 +1114,9 @@ def check_activity(rep: Report, c: Client, c2: Client | None, sb: Sandbox, n: in
         rep.check("C16", False, "activity_since gave no read_at")
         rep.check("C17", False, "activity_since gave no read_at")
         return
+    # A server may set read_at a second early (whole-second times), so a comment from the
+    # read's last second belongs to the next read. Wait past that before reading.
+    time.sleep(2)
     ok, out, text = c.call("activity_since", {"repo": repo, "since": r0, "limit": 100})
     got = _entries(out, repo, n)
     records = [e for e in got if MARKER in (e.get("excerpt") or "")]
@@ -1131,6 +1134,7 @@ def check_activity(rep: Report, c: Client, c2: Client | None, sb: Sandbox, n: in
               f"{'not run' if other is None else len(other)}")
     for i in (1, 2):
         c.call("issue_comment", sb.args(n, body=f"Paging comment {i} from the conformance runner."))
+    time.sleep(2)
     ok1, p1, t1 = c.call("activity_since", {"repo": repo, "since": r1, "limit": 1})
     first = _entries(p1, repo, n)
     cur = (p1 or {}).get("next_cursor")
