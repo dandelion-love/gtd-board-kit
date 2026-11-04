@@ -46,8 +46,9 @@ item_report(repo, number, state, note, links, project)
 At each tick, before each report and before you release: `activity_since(repo,
 since=<the read_at you kept>)`. It lists what others wrote since then on items you hold,
 PRs opened for you by `pr_open` (comments and reviews) and the repo's channels. Answer
-each entry where it was written, or say in your next report why not. Keep the new
-`read_at`; with none kept, omit `since` (last 24 hours) and skip what you already
+each entry where it was written, or say in your next report why not. While
+`has_next_page`, call again with `next_cursor` and the same `since`. Then keep the last
+page's `read_at`; with none kept, omit `since` (last 24 hours) and skip what you already
 answered. Skip only entries whose url your own writes returned. No such tool on the server: read each held
 item's `follow_ups` (`item_get`) and each channel (`channel_comments_read`).
 

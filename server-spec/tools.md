@@ -136,7 +136,8 @@ it passes it as `since` next time and sees each entry once (GitHub times are who
 seconds, so a server may set `read_at` a second early: an entry from that second can come
 twice, never not at all). A caller with nothing kept
 omits `since` and gets the last 24 hours. `next_cursor` pages within one read; pass it
-with the same `since`.
+with the same `since`. A caller drains every page before it keeps a `read_at`, and keeps
+the last page's: a `read_at` kept from an earlier page skips the entries still unread.
 
 ### Issues
 
