@@ -260,6 +260,10 @@ kind_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Kind and parent rul
 kind_json = [c["name"] for c in json.loads((ROOT / "conformance" / "kind_cases.json").read_text())["cases"]]
 if kind_table != kind_json:
     fail(f"K1 case table {kind_table} differs from kind_cases.json {kind_json}")
+link_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Typed links"), re.M)
+link_json = [c["name"] for c in json.loads((ROOT / "conformance" / "link_cases.json").read_text())["cases"]]
+if link_table != link_json:
+    fail(f"L1 case table {link_table} differs from link_cases.json {link_json}")
 
 # Every check id in the table belongs to a Family, and the report sorts by family order.
 for cid in spec_ids:

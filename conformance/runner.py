@@ -24,7 +24,9 @@ What it needs, and which checks each unlocks:
                             Issue Types Epic, Story, Chore, Spike and Finding)
     issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
                             artifacts are available; it creates two artifacts, deletes none)
-    no --server             C13, R1 and K1, against the reference fold, ready check and Kind rules
+    work_items_sync offered L1 (with --link-cmd); L2 is manual
+    no --server             C13, R1, K1 and L1, against the reference fold, ready check, Kind
+                            rules and link fold
 
 Tokens are read from environment variables, never from the command line, and are never
 printed. Checks that need a person (J4 to J9, C4, C10, T4) are listed as manual with what
@@ -68,6 +70,7 @@ class Family(Enum):
     PULL_REQUESTS = "PR"    # Pull requests (when pr_open is offered)
     KINDS = "K"             # Kind and parent rules (when the Issue structure tools are offered)
     ARTIFACTS = "A"         # Issue artifacts (when the issue_artifact_* tools are offered)
+    LINKS = "L"             # Typed links (when work_items_sync is offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -80,6 +83,7 @@ HEADINGS = {
     Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
+    Family.LINKS: "Typed links",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -103,6 +107,7 @@ LEVEL_OF = {
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED,
+    Family.LINKS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -323,6 +328,92 @@ def reference_kind(case: dict) -> dict:
     else:
         rule = kind_link_rule(case.get("parent"), case.get("child"))
     return {"allowed": rule is None, "rule": rule}
+
+
+class LinkKind(Enum):
+    """The typed-link kinds of server-spec/typed-links.md, in the order an item's Related
+    section lists them (check L1). Only DEPENDS_ON has a native GitHub form."""
+    DEPENDS_ON = "depends-on"
+    FOLLOWS_UP = "follows-up"
+    REFERENCES = "references"
+    EVALUATES = "evaluates"
+    RESTS_ON = "rests-on"
+    REFINES = "refines"
+    CONTRADICTS = "contradicts"
+    CORROBORATES = "corroborates"
+    SUPERSEDES = "supersedes"
+    REUSES_MATERIAL = "reuses-material"
+    SHARES_LISTENER = "shares-listener"
+
+
+#: Each kind's name as its far end reads it. A symmetric kind reads the same both ways.
+LINK_INVERSE = {
+    LinkKind.DEPENDS_ON: "blocks", LinkKind.FOLLOWS_UP: "followed-up-by",
+    LinkKind.REFERENCES: "referenced-by", LinkKind.EVALUATES: "evaluated-by",
+    LinkKind.RESTS_ON: "supports", LinkKind.REFINES: "refined-by",
+    LinkKind.CONTRADICTS: "contradicts", LinkKind.CORROBORATES: "corroborates",
+    LinkKind.SUPERSEDES: "superseded-by", LinkKind.REUSES_MATERIAL: "material-reused-by",
+    LinkKind.SHARES_LISTENER: "shares-listener",
+}
+SYMMETRIC_LINKS = {k for k, inv in LINK_INVERSE.items() if inv == k.value}
+
+
+class LinkRefusal(Enum):
+    """Why a link record folds to no edge (check L1)."""
+    UNKNOWN_KIND = "unknown-kind"
+    UNKNOWN_END = "unknown-end"
+    SELF_LINK = "self-link"
+    NO_SUCH_LINK = "no-such-link"
+
+
+def reference_links(case: dict) -> dict:
+    """L1: fold one case of conformance/link_cases.json (``items``, ``prefixes``,
+    ``records``) to ``related``, ``blocked_by`` and ``refused``, by the reference rules."""
+    items = set(case.get("items") or [])
+    prefixes = case.get("prefixes") or []
+
+    def resolve(name):
+        if not isinstance(name, str) or not name:
+            return None
+        if name in items:
+            return name
+        hits = [p + name for p in prefixes if p + name in items]
+        return hits[0] if len(hits) == 1 else None
+
+    edges: dict[tuple, LinkKind] = {}
+    refused = []
+    for n, rec in enumerate(case.get("records") or []):
+        event = rec.get("event")
+        if event not in ("link", "unlink") or "to" not in rec:
+            continue                      # not an item link (an artifact pointer, a result)
+        try:
+            kind = LinkKind(rec.get("kind"))
+        except ValueError:
+            refused.append([n, LinkRefusal.UNKNOWN_KIND.value])
+            continue
+        a, b = resolve(rec.get("from", rec.get("id"))), resolve(rec.get("to"))
+        if a is None or b is None:
+            refused.append([n, LinkRefusal.UNKNOWN_END.value])
+            continue
+        if a == b:
+            refused.append([n, LinkRefusal.SELF_LINK.value])
+            continue
+        key = (kind.value, *sorted((a, b))) if kind in SYMMETRIC_LINKS else (kind.value, a, b)
+        if event == "link":
+            edges[key] = kind
+        elif key in edges:
+            del edges[key]
+        else:
+            refused.append([n, LinkRefusal.NO_SUCH_LINK.value])
+    related: dict[str, list[str]] = {}
+    blocked: dict[str, list[str]] = {}
+    for (_, a, b), kind in edges.items():
+        related.setdefault(a, []).append(f"{kind.value} {b}")
+        related.setdefault(b, []).append(f"{LINK_INVERSE[kind]} {a}")
+        if kind is LinkKind.DEPENDS_ON:
+            blocked.setdefault(a, []).append(b)
+    return {"related": {k: sorted(v) for k, v in related.items()},
+            "blocked_by": {k: sorted(v) for k, v in blocked.items()}, "refused": refused}
 
 
 IDENTITY_ARGS = {"principal", "author", "identity", "caller", "as_user", "by", "actor"}
@@ -1444,6 +1535,50 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
     rep.check("R8", not probs, "; ".join(probs[:3]), "verdict matches item_ready; not ready warns, never refuses")
 
 
+LINK_CASE_KEYS = ("items", "prefixes", "records")
+
+
+def check_link_cases(rep: Report, link_cmd: str | None) -> None:
+    """L1: the golden typed-link cases, against the reference or a server's own fold
+    (--link-cmd)."""
+    fixtures = json.loads((HERE / "link_cases.json").read_text())
+    bad = []
+    for case in fixtures["cases"]:
+        inp = {k: case[k] for k in LINK_CASE_KEYS if k in case}
+        if link_cmd:
+            proc = subprocess.run(link_cmd, shell=True, input=json.dumps(inp),
+                                  capture_output=True, text=True, timeout=60, check=False)
+            try:
+                got = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                bad.append(f"{case['name']}: no JSON from --link-cmd")
+                continue
+        else:
+            got = reference_links(inp)
+        exp = case["expect"]
+        norm = {k: sorted(v) for k, v in (got.get("related") or {}).items()}
+        blocked = {k: sorted(v) for k, v in (got.get("blocked_by") or {}).items()}
+        if norm != exp["related"] or blocked != exp["blocked_by"] \
+                or [list(x) for x in got.get("refused") or []] != exp["refused"]:
+            bad.append(f"{case['name']} ({case['what']}): {json.dumps(got)[:160]}")
+    who = "--link-cmd" if link_cmd else "the reference link fold"
+    rep.check("L1", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
+
+
+def check_links(rep: Report, tools: dict, link_cmd: str | None) -> None:
+    """L1 and L2: typed links, when the server offers work_items_sync."""
+    if "work_items_sync" not in tools:
+        for cid in ("L1", "L2"):
+            rep.na(cid, "work_items_sync is not offered")
+        return
+    if link_cmd:
+        check_link_cases(rep, link_cmd)
+    else:
+        rep.manual("L1", "run the golden link cases against the server's own fold: --link-cmd CMD")
+    rep.manual("L2", "sync a scratch repo whose register holds a refines and a depends-on link: "
+                     "both issues show the Related lines, and the dependent issue is blocked by the other")
+
+
 KIND_TYPES = ("Epic", "Story", "Chore", "Spike", "Finding")
 
 
@@ -2117,6 +2252,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--fold-cmd", help="a command that folds {now, comments} from stdin to JSON on stdout")
     ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
+    ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
 
@@ -2125,6 +2261,7 @@ def main(argv: list[str]) -> int:
     if not a.server:
         check_ready_cases(rep, a.ready_cmd)
         check_kind_cases(rep, a.kind_cmd)
+        check_link_cases(rep, a.link_cmd)
     seen: list[str] = []
     secrets: list[str] = []
 
@@ -2174,6 +2311,7 @@ def main(argv: list[str]) -> int:
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb)
+                check_links(rep, _tools, a.link_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
