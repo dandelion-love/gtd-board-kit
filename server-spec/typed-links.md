@@ -101,7 +101,9 @@ finding's Related section; it still shows as `supports` on the far end.
 
 A tool that appends a `link` line for a caller MUST refuse, before it writes, a line the
 fold would refuse (`unknown-kind`, `unknown-end`, `self-link`), a link that already stands
-with the same kind and ends, and a link with no `why`. It records the caller as `by` and
+with the same kind and ends, and a link with no `why`. Registers fold one after another, so an
+`unlink` cancels only a link written before it in the fold: the tool writes an `unlink` in
+the register that holds the link, and refuses one whose link stands only in another. It records the caller as `by` and
 the time as `t` with its offset, and refreshes both ends' issues after the write.
 
 ## Rendering the graph
