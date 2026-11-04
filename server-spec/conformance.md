@@ -272,8 +272,9 @@ nothing.
 
 ## Typed links (when offered)
 
-A server that lists `work_items_sync` in `tools/list` must also pass these
-([typed links](typed-links.md)).
+A server that offers the Repo setup group (`work_items_plan`, a read tool, or
+`work_items_sync`, which a caller below `full` does not see) must also pass these
+([typed links](typed-links.md)). The runner runs L1 whenever it is given `--link-cmd`.
 
 | Id | Check |
 | --- | --- |

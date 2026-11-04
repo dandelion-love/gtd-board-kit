@@ -24,7 +24,8 @@ What it needs, and which checks each unlocks:
                             Issue Types Epic, Story, Chore, Spike and Finding)
     issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
                             artifacts are available; it creates two artifacts, deletes none)
-    work_items_sync offered L1 (with --link-cmd); L2 is manual
+    work_items_plan/_sync   L1 (with --link-cmd, which runs it whatever the token sees);
+    offered                 L2 is manual
     no --server             C13, R1, K1 and L1, against the reference fold, ready check, Kind
                             rules and link fold
 
@@ -1566,17 +1567,21 @@ def check_link_cases(rep: Report, link_cmd: str | None) -> None:
 
 
 def check_links(rep: Report, tools: dict, link_cmd: str | None) -> None:
-    """L1 and L2: typed links, when the server offers work_items_sync."""
-    if "work_items_sync" not in tools:
-        for cid in ("L1", "L2"):
-            rep.na(cid, "work_items_sync is not offered")
-        return
+    """L1 and L2: typed links, when the server offers the Repo setup group. The plan is
+    a read tool, so a caller at work sees it even where the fenced sync is hidden; a
+    --link-cmd runs L1 whatever the token sees."""
+    offered = "work_items_plan" in tools or "work_items_sync" in tools
     if link_cmd:
         check_link_cases(rep, link_cmd)
-    else:
+    elif offered:
         rep.manual("L1", "run the golden link cases against the server's own fold: --link-cmd CMD")
-    rep.manual("L2", "sync a scratch repo whose register holds a refines and a depends-on link: "
-                     "both issues show the Related lines, and the dependent issue is blocked by the other")
+    else:
+        rep.na("L1", "the Repo setup group (work_items_plan, work_items_sync) is not offered")
+    if offered:
+        rep.manual("L2", "sync a scratch repo whose register holds a refines and a depends-on link: "
+                         "both issues show the Related lines, and the dependent issue is blocked by the other")
+    else:
+        rep.na("L2", "the Repo setup group (work_items_plan, work_items_sync) is not offered")
 
 
 KIND_TYPES = ("Epic", "Story", "Chore", "Spike", "Finding")
