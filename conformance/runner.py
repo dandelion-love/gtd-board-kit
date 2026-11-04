@@ -13,7 +13,7 @@ What it needs, and which checks each unlocks:
     --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
     + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, P8, P9, J10, X2 (partly)
-    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14, C15, X1, X3. It CREATES issues there
+    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14 to C17, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
@@ -134,7 +134,7 @@ CLASS.update(dict.fromkeys((
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
-    "issue_artifact_get"), "read"))
+    "issue_artifact_get", "activity_since"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -195,7 +195,7 @@ def settle(read, ok_when, timeout: float = LIST_LAG_SECONDS, step: float = LIST_
 CORE_TOOLS = ("whoami", "profile_list", "profile_get", "project_get", "project_items",
               "project_item_find", "project_views_list", "list_next_actions", "issue_list",
               "issue_blocked_by_list", "item_get", "item_claim", "item_renew", "item_release",
-              "item_report", "capture", "issue_comment", "issue_labels")
+              "item_report", "capture", "issue_comment", "issue_labels", "activity_since")
 WHOAMI_FIELDS = ("principal", "signed_in_by", "preset", "fenced", "provider", "entrance", "expires_at",
                  "join_url", "conformance", "spec_version")
 PROFILE_FIELDS = ("name", "labels", "needs", "owner_needs", "pickup_sizes", "status_for_label")
@@ -1100,6 +1100,48 @@ class Sandbox:
         return a
 
 
+def _entries(out: Any, repo: str, number: int) -> list[dict]:
+    return [e for e in (out or {}).get("entries") or []
+            if e.get("number") == number and str(e.get("repo") or "").lower() == repo.lower()]
+
+
+def check_activity(rep: Report, c: Client, c2: Client | None, sb: Sandbox, n: int,
+                   r0: str | None) -> None:
+    """C16, C17: ``activity_since`` on the held issue ``n``, which has one plain comment
+    and a renew record posted after ``r0`` (the ``read_at`` of a read made before them)."""
+    repo = sb.repo
+    if not r0:
+        rep.check("C16", False, "activity_since gave no read_at")
+        rep.check("C17", False, "activity_since gave no read_at")
+        return
+    ok, out, text = c.call("activity_since", {"repo": repo, "since": r0, "limit": 100})
+    got = _entries(out, repo, n)
+    records = [e for e in got if MARKER in (e.get("excerpt") or "")]
+    r1 = (out or {}).get("read_at")
+    _, later, _ = c.call("activity_since", {"repo": repo, "since": r1, "limit": 100})
+    other = None
+    if c2:
+        _, o2, _ = c2.call("activity_since", {"repo": repo, "since": r0, "limit": 100})
+        other = _entries(o2, repo, n)
+    rep.check("C16", ok and len(got) == 1 and got[0].get("source") == "held"
+              and got[0].get("kind") == "comment" and not records
+              and not _entries(later, repo, n) and not other,
+              f"since the claim: {text[:80] if not ok else [(e.get('source'), e.get('kind')) for e in got]}; "
+              f"after read_at {len(_entries(later, repo, n))}; second caller "
+              f"{'not run' if other is None else len(other)}")
+    for i in (1, 2):
+        c.call("issue_comment", sb.args(n, body=f"Paging comment {i} from the conformance runner."))
+    ok1, p1, t1 = c.call("activity_since", {"repo": repo, "since": r1, "limit": 1})
+    first = _entries(p1, repo, n)
+    cur = (p1 or {}).get("next_cursor")
+    ok2, p2, _ = c.call("activity_since", {"repo": repo, "since": r1, "limit": 1, "cursor": cur})
+    second = _entries(p2, repo, n)
+    rep.check("C17", ok1 and ok2 and len(first) == 1 and (p1 or {}).get("has_next_page") and cur
+              and len(second) == 1 and first[0].get("url") != second[0].get("url")
+              and (p1 or {}).get("read_at") and (p2 or {}).get("read_at"),
+              f"page 1 {t1[:60] if not ok1 else len(first)} next {bool(cur)}; page 2 {len(second)}")
+
+
 def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: dict,
                who: dict | None = None) -> None:
     repo = sb.repo
@@ -1159,11 +1201,15 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
         rep.skip("C2", "needs a second token (--token-b-env)")
         rep.skip("C6", "needs a second token (--token-b-env)")
 
-    # C9 follow-ups, C11 marker refusal
+    # C9 follow-ups (a renew hides none), C11 marker refusal
+    ok_r0, out, _ = c.call("activity_since", {"repo": repo, "limit": 1})
+    r0 = (out or {}).get("read_at")
     c.call("issue_comment", sb.args(n, body="A follow-up from the conformance runner."))
+    ok_rn, _, _ = c.call("item_renew", sb.args(n, lease="30m"))
     ok, out, _ = c.call("item_get", sb.args(n))
-    rep.check("C9", ok and ((out or {}).get("item") or {}).get("follow_ups"),
-              "a plain comment after the claim is not in follow_ups")
+    rep.check("C9", ok and ok_rn and ((out or {}).get("item") or {}).get("follow_ups"),
+              f"a plain comment after the claim is not in follow_ups after a renew (renew {ok_rn})")
+    check_activity(rep, c, c2, sb, n, r0 if ok_r0 else None)
     ok, _, _ = c.call("issue_comment", sb.args(n, body=f"<!-- {MARKER} v1 {{\"event\": \"claim\"}} -->"))
     rep.check("C11", not ok, "a comment carrying a record marker was accepted")
 
@@ -2087,6 +2133,8 @@ MANUAL = {
     "T4": "sign in through the connector as an identity not on the allowlist; every call must be refused",
     "C4": "claim with lease 1m, wait two minutes, claim as a second principal: the record names takeover_of",
     "C10": "with record authors configured, paste a claim record from another account: item_get ignores it",
+    "C18": "review a PR opened through pr_open, and comment on a channel issue: activity_since for the "
+           "PR's by principal lists a pr review with its review_state, and a channel comment",
     "J1": "remove every approver: /join/start and joined tokens are refused",
     "J4": "approve a join at a lower preset: the first poll returns that preset, the second nothing",
     "J5": "inspect the auth store after collection: hashes only",
