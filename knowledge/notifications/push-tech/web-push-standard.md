@@ -61,7 +61,9 @@ Stable RFCs. The W3C draft is still moving, now with a declarative message forma
 
 - No vendor account, no fee: a key pair and an HTTPS page are enough.
 - Map "agent is blocked" to `Urgency: high` and a long TTL; "PR ready" to `normal`.
-- Use `Topic` per board item so a newer state replaces an unread older one.
+- Use `Topic` per board item so a newer state replaces an older one still queued at the
+  push service. `Topic` never reaches the browser, so also set the same key as the
+  notification `tag` to replace one already on screen.
 - Keep payloads tiny (well under 3993 bytes): title, one line, a link.
 - Generate the VAPID key once per deployment and never rotate it casually.
 

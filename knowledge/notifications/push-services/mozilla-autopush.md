@@ -27,7 +27,7 @@ guidance was not reviewed here.
 
 Standard Web Push (RFC 8030) to the subscription's `/wpush/...` endpoint.[^ap-docs][^ap-http]
 
-- Headers seen: `TTL`, `Topic` (replaces an unread message with the same topic),
+- Headers seen: `TTL`, `Topic` (replaces an undelivered message with the same topic),
   `Authorization: Vapid ...`.[^ap-http]
 - Payload up to 4096 bytes; about 2744 when bridged to FCM.[^ap-http]
 - Returns 201 on success; 404 invalid and 410 gone mean drop the subscription.[^ap-http]
@@ -57,7 +57,8 @@ Active (repo footer 2026; Mozilla runs it for Firefox).[^ap-repo] Releases not c
 
 - Proof that one Web Push endpoint can front both a browser socket and APNs/FCM
   bridges; a kit server need not invent a protocol.
-- `Topic` collapsing suits "PR ready" updates: a newer push replaces the older one.
+- `Topic` collapsing suits "PR ready" updates: a newer push replaces an older one still
+  queued; a notification `tag` is still needed for one already shown.
 - Too heavy to embed (Bigtable/Redis, two services). Reuse it indirectly through Sunup
   or browsers, not as the kit's own server.
 

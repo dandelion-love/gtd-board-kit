@@ -54,7 +54,8 @@ on phones.
 2. Payload: Declarative Web Push JSON with `navigate` to the board item; a small service
    worker for Chrome and Firefox that reads the same JSON.
 3. Headers: `Urgency: high` + long `TTL` for "blocked"; `normal` for "PR ready";
-   `Topic` per item so updates replace stale alerts.[^rfc8030]
+   `Topic` per item so an update replaces one not yet delivered,[^rfc8030] plus the same
+   key as the notification `tag` so it replaces one already shown.
 4. Setup guide: install the PWA on iPhone, allow it in Focus; raise the site's Android
    channel to Urgent.
 5. Escalation for missed "blocked" alerts: re-send after a delay, then an optional

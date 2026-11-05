@@ -4,7 +4,7 @@ title: Notify a person only when they must act
 description: A push goes to a person only for an ask, a pull request ready for review or work that cannot finish, through GitHub's own mention or review request; everything else, new issues included, waits in views; a repo may add a louder Web Push channel for asks.
 tags: [notifications, attention, needs, decision]
 status: draft
-generated: { by: claude-code/cloud, at: 2026-11-05T05:00:00Z }
+generated: { by: claude-code/cloud, at: 2026-11-05T05:10:00Z }
 ---
 
 # Context
@@ -48,8 +48,10 @@ record in the system of record and make any push a copy that points at it.
    push loses nothing.
 6. **What a louder push carries.** A title, one sentence (at most 100 words), the item's
    link as the tap target, the reason (`ask`, `review`, `stopped`), `Urgency: high` for
-   an ask or a stop and `normal` for a review, and the item plus reason as its `Topic` so
-   a newer push replaces an unread one. No token, secret or private text beyond what the
+   an ask or a stop and `normal` for a review, and one stable key (the item plus the
+   reason) used twice: as the notification's `tag`, so a newer push replaces the one
+   already on screen where the platform supports tags, and as the Web Push `Topic`,
+   which only replaces a message still waiting at the push service. No token, secret or private text beyond what the
    item shows.
 7. **Actions only open or defer.** The tap opens the item. Where buttons exist, the kit's
    set is **Open**, **Snooze** (remind at the next sitting) and **Answer**, which opens a
@@ -72,8 +74,8 @@ record in the system of record and make any push a copy that points at it.
 - A server can do better later, as server-spec work with its own conformance checks:
   `item_report` adds the mention itself from the repo's map (so agents cannot forget or
   repeat it), `pr_open` requests the owner's review, and an optional notifier sends the
-  Web Push copy with `Urgency: high` and the item as its `Topic`, so a re-ask replaces
-  the old notification instead of stacking.
+  Web Push copy with `Urgency: high` and the item's key as both `tag` and `Topic`, so a
+  re-ask replaces the old notification instead of stacking.
 - Two tiers only: GitHub's ordinary push, and the repo's louder channel for asks.
   Escalation exists only through an adapter the owner chose; quiet hours belong to the
   phone (Focus, Do Not Disturb, GitHub Mobile working hours), not the kit.
