@@ -22,7 +22,7 @@ What it needs, and which checks each unlocks:
                             with --project)
     sub_issue_add offered   K1 (with --kind-cmd), K2 to K4 (with --repo whose owner has the
                             Issue Types Epic, Story, Chore, Spike and Finding)
-    issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
+    issue_artifact_* offered  A1 (with a token), A2 to A4 and A6 (with --repo where GitHub's issue
                             artifacts are available; it creates two artifacts, deletes none)
     intake_* offered        I1 (with a token), I2 to I4 (with --repo and a second token: the
                             second files one labelled request, the first acks it); I5 is manual
@@ -1767,7 +1767,7 @@ def check_kinds(rep: Report, c: Client, tools: dict, sb: Sandbox | None, kind_cm
 
 ARTIFACT_TOOLS = ("issue_artifact_list", "issue_artifact_get", "issue_artifact_create",
                   "issue_artifact_update")
-ARTIFACT_IDS = ("A1", "A2", "A3", "A4")
+ARTIFACT_IDS = ("A1", "A2", "A3", "A4", "A5", "A6")
 
 
 INTAKE_IDS = ("I1", "I2", "I3", "I4")
@@ -2008,8 +2008,10 @@ def check_notify(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profil
               "claim, renew, progress and release ping nobody")
 
 
-def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
-    """A1 to A4: the issue artifact tools, when any is offered. Creates, never deletes."""
+def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
+                    source: tuple[str, str] | None = None) -> None:
+    """A1 to A6: the issue artifact tools, when any is offered. Creates, never deletes.
+    ``source`` is A5's page: (``source_url``, its ``sha256``)."""
     offered = [t for t in tools if t.startswith("issue_artifact_")]
     if not offered:
         for cid in ARTIFACT_IDS:
@@ -2035,7 +2037,7 @@ def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> 
                            at(type="link", name="conformance link", body="https://example.com/conformance"))
     if not (ok1 and ok2):
         rep.fail("A2", f"create refused: {(t1 if not ok1 else t2)[:120]}")
-        for cid in ("A3", "A4"):
+        for cid in ("A3", "A4", "A5", "A6"):
             rep.skip(cid, "the A2 creates failed")
         return
     fields = all(isinstance(a, dict) and {"number", "type", "name", "url"} <= set(a) for a in (gen, link))
@@ -2077,6 +2079,53 @@ def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> 
         elif what == "type report" and not all(t in text for t in ("generic", "link", "plan", "embedded_html")):
             refused.append("type refusal does not list the four types")
     rep.check("A4", not refused, "; ".join(refused), "five bad creates refused, with reasons")
+    check_artifact_source(rep, c, at, nums, source)
+
+
+def check_artifact_source(rep: Report, c: Client, at: Any, nums: Any,
+                          source: tuple[str, str] | None) -> None:
+    """A5 and A6: an embedded_html page by ``source_url`` + ``sha256``."""
+    if source is None:
+        rep.skip("A5", "needs --artifact-source-url and --artifact-source-sha256")
+    else:
+        url, sha = source
+        ok, made, text = c.call("issue_artifact_create",
+                                at(type="embedded_html", name="conformance page",
+                                   source_url=url, sha256=sha))
+        made = made or {}
+        if not ok:
+            rep.fail("A5", f"create from source_url refused: {text[:120]}")
+        else:
+            _, slim, _ = c.call("issue_artifact_get",
+                                at(artifact=made.get("number"), include_body=False))
+            _, full, _ = c.call("issue_artifact_get", at(artifact=made.get("number")))
+            slim, full = slim or {}, full or {}
+            body = full.get("body")
+            got = hashlib.sha256(body.encode("utf-8")).hexdigest() if isinstance(body, str) else None
+            rep.check("A5", made.get("sha256") == sha and (made.get("bytes") or 0) > 0
+                      and slim.get("sha256") == sha and slim.get("body") is None and got == sha,
+                      f"create sha256 {made.get('sha256') == sha}, bytes {made.get('bytes')}; "
+                      f"get without body {slim.get('sha256') == sha and slim.get('body') is None}; "
+                      f"body hash {got == sha}",
+                      "page fetched, hash and bytes returned, read back byte for byte")
+    _, rows, _ = c.call("issue_artifact_list", at())
+    before = nums(rows)
+    page = "https://example.com/conformance.html"
+    bad = [("source_url on generic", at(type="generic", name="x", source_url=page, sha256="0" * 64)),
+           ("body and source_url", at(type="embedded_html", name="x", body="<html></html>",
+                                      source_url=page, sha256="0" * 64)),
+           ("no sha256", at(type="embedded_html", name="x", source_url=page)),
+           ("http source_url", at(type="embedded_html", name="x",
+                                  source_url="http://example.com/conformance.html", sha256="0" * 64))]
+    if source is not None:
+        bad.append(("hash mismatch", at(type="embedded_html", name="x", source_url=source[0],
+                                        sha256="0" * 64)))
+    accepted = [what for what, args in bad if c.call("issue_artifact_create", args)[0]]
+    _, rows, _ = c.call("issue_artifact_list", at())
+    grew = nums(rows) - before
+    rep.check("A6", not accepted and not grew,
+              f"accepted {', '.join(accepted) or '-'}; new artifacts {sorted(grew) or '-'}",
+              f"{len(bad)} bad source_url creates refused, nothing written")
 
 
 def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
@@ -2662,6 +2711,17 @@ MANUAL = {
 }
 
 
+def _artifact_source(a: argparse.Namespace) -> tuple[str, str] | None:
+    """A5's page from the command line, or None to skip A5."""
+    url, sha = a.artifact_source_url, a.artifact_source_sha256
+    if not url and not sha:
+        return None
+    if not (url and sha and re.fullmatch(r"[0-9a-fA-F]{64}", sha)):
+        raise SystemExit("--artifact-source-url and --artifact-source-sha256 go together, "
+                         "the hash as 64 hex characters")
+    return url, sha.lower()
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--server", help="the server's base URL, no path")
@@ -2685,6 +2745,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
     ap.add_argument("--github-token-env",
                     help="a read-only GitHub token for the sandbox repo, so N2 reads the ping's author from GitHub")
+    ap.add_argument("--artifact-source-url",
+                    help="an https HTML page the server may fetch, for A5 and A6's hash check")
+    ap.add_argument("--artifact-source-sha256", help="that page's SHA-256 (64 hex characters)")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
 
@@ -2743,7 +2806,7 @@ def main(argv: list[str]) -> int:
                     check_prs(rep, c, sb, _tools, who, a.pr_head)
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
-                check_artifacts(rep, c, _tools, sb)
+                check_artifacts(rep, c, _tools, sb, _artifact_source(a))
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
