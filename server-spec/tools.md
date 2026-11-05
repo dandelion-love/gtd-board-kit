@@ -324,7 +324,7 @@ page itself.
 - The limit is at least 10 MiB (10 x 1024 x 1024 bytes), and the tool description states it.
 - Each refuses, says why and writes nothing: a hash that does not match the fetched
   bytes; a file over the limit; a file that is not UTF-8 or does not start as an HTML
-  document (`<!doctype html` or `<html`, after an optional byte order mark); a URL the server may not fetch; a page holding
+  document (`<!doctype html` or `<html`, after an optional byte order mark, whitespace and HTML comments); a URL the server may not fetch; a page holding
   a marker, as for `body`.
 - The result leaves the body out and carries `sha256` and `bytes`, so megabytes do not
   come back through the tool call.

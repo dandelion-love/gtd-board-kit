@@ -2050,11 +2050,13 @@ def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
 
     _, got, _ = c.call("issue_artifact_get", at(artifact=gen["number"]))
     got = got or {}
+    raw = body.encode("utf-8")
+    hashed = got.get("sha256") == hashlib.sha256(raw).hexdigest() and got.get("bytes") == len(raw)
     rep.check("A2", fields and {gen["number"], link["number"]} <= nums(rows)
-              and nums(links) == {link["number"]} and got.get("body") == body,
+              and nums(links) == {link["number"]} and got.get("body") == body and hashed,
               f"fields {fields}; list {sorted(nums(rows))}; link list {sorted(nums(links))}; "
-              f"body as written {got.get('body') == body}",
-              "two created, listed, filtered by type, body read back")
+              f"body as written {got.get('body') == body}; sha256 and bytes match {hashed}",
+              "two created, listed, filtered by type, body read back with its hash")
 
     before = got.get("versions")
     body2 = body + " Updated."
@@ -2085,6 +2087,7 @@ def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
 def check_artifact_source(rep: Report, c: Client, at: Any, nums: Any,
                           source: tuple[str, str] | None) -> None:
     """A5 and A6: an embedded_html page by ``source_url`` + ``sha256``."""
+    good_ok = False
     if source is None:
         rep.skip("A5", "needs --artifact-source-url and --artifact-source-sha256")
     else:
@@ -2093,6 +2096,7 @@ def check_artifact_source(rep: Report, c: Client, at: Any, nums: Any,
                                 at(type="embedded_html", name="conformance page",
                                    source_url=url, sha256=sha))
         made = made or {}
+        good_ok = bool(ok)
         if not ok:
             rep.fail("A5", f"create from source_url refused: {text[:120]}")
         else:
@@ -2111,6 +2115,9 @@ def check_artifact_source(rep: Report, c: Client, at: Any, nums: Any,
     if source is None:
         rep.skip("A6", "needs --artifact-source-url and --artifact-source-sha256: each case "
                        "breaks one rule of an otherwise good create")
+        return
+    if not good_ok:
+        rep.fail("A6", "the good create by URL (A5) was refused, so its refusals prove nothing")
         return
     url, sha = source
     _, rows, _ = c.call("issue_artifact_list", at())
@@ -2752,6 +2759,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--artifact-source-sha256", help="that page's SHA-256 (64 hex characters)")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
+    artifact_source = _artifact_source(a)  # bad flags stop before any write
 
     rep = Report()
     check_fold(rep, a.fold_cmd)
@@ -2808,7 +2816,7 @@ def main(argv: list[str]) -> int:
                     check_prs(rep, c, sb, _tools, who, a.pr_head)
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
-                check_artifacts(rep, c, _tools, sb, _artifact_source(a))
+                check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
