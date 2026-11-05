@@ -65,6 +65,9 @@ record in the system of record and make any push a copy that points at it.
 
 # Consequences
 
+- Requests from other projects are intake, not pushes
+  ([intake and acks](/decisions/intake-and-acks.md)); an overdue one becomes a
+  `needs:*` ask on the filer's item, and only then pings.
 - Agents gain no new tool: an ask's `attention` text carries the mention today.
 - A server can do better later, as server-spec work with its own conformance checks:
   `item_report` adds the mention itself from the repo's map (so agents cannot forget or

@@ -24,6 +24,8 @@ What it needs, and which checks each unlocks:
                             Issue Types Epic, Story, Chore, Spike and Finding)
     issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
                             artifacts are available; it creates two artifacts, deletes none)
+    intake_* offered        I1 (with a token), I2 to I4 (with --repo and a second token: the
+                            second files one labelled request, the first acks it); I5 is manual
     work_items_plan/_sync   L1 (with --link-cmd, which runs it whatever the token sees);
     offered                 L2 is manual
     no --server             C13, R1, K1 and L1, against the reference fold, ready check, Kind
@@ -72,6 +74,7 @@ class Family(Enum):
     PULL_REQUESTS = "PR"    # Pull requests (when pr_open is offered)
     KINDS = "K"             # Kind and parent rules (when the Issue structure tools are offered)
     ARTIFACTS = "A"         # Issue artifacts (when the issue_artifact_* tools are offered)
+    INTAKE = "I"            # Intake (when intake_list or intake_ack is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
@@ -85,7 +88,7 @@ HEADINGS = {
     Family.CLAIMS: "Claims", Family.SIGNOFFS: "Sign-offs", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
-    Family.LINKS: "Typed links",
+    Family.INTAKE: "Intake", Family.LINKS: "Typed links",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -108,7 +111,7 @@ LEVEL_OF = {
     Family.SECURITY: Level.CORE, Family.SIGNOFFS: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
-    Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED,
+    Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
     Family.LINKS: Level.EXTENDED,
 }
 
@@ -162,7 +165,7 @@ CLASS.update(dict.fromkeys((
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
-    "issue_artifact_get", "activity_since"), "read"))
+    "issue_artifact_get", "activity_since", "intake_list"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -171,7 +174,7 @@ CLASS.update(dict.fromkeys((
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
-    "issue_artifact_update"), "work"))
+    "issue_artifact_update", "intake_ack"), "work"))
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -1766,6 +1769,94 @@ ARTIFACT_TOOLS = ("issue_artifact_list", "issue_artifact_get", "issue_artifact_c
 ARTIFACT_IDS = ("A1", "A2", "A3", "A4")
 
 
+INTAKE_IDS = ("I1", "I2", "I3", "I4")
+INTAKE_LABEL = "agent-proposed"
+
+
+def _request(out: Any, n: int) -> dict | None:
+    for r in (out or {}).get("requests") or []:
+        if r.get("number") == n:
+            return r
+    return None
+
+
+def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
+                 who: dict | None = None, c2: Client | None = None) -> None:
+    """I1 to I4: the intake tools, when either is offered. The second principal files one
+    request and the first acks it, because a project never acks its own request."""
+    have = [t for t in ("intake_list", "intake_ack") if t in tools]
+    if not have:
+        for cid in INTAKE_IDS:
+            rep.na(cid, "the intake tools are not offered")
+        rep.na("I5", "the intake tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("I1", classes == {"intake_list": "read", "intake_ack": "work"},
+              f"offered {classes}", "intake_list read, intake_ack work")
+    rep.manual("I5", "paste an ack marker in a comment from a login that is not a record "
+                     "author; intake_list must still show the trusted ack, or null")
+    if sb is None or len(have) < 2 or c2 is None:
+        for cid in INTAKE_IDS[1:]:
+            rep.skip(cid, "needs --repo, --token-b-env (a second principal files the request) "
+                          "and both tools")
+        return
+    _, before, _ = c.call("intake_list", {"repo": sb.repo})
+    r0 = (before or {}).get("read_at")
+    plain = sb.issue("intake: not a request")
+    ok_f, filed, t_f = c2.call("capture", {
+        "title": f"[conformance {sb.run}] intake request", "repo": sb.repo,
+        "labels": [INTAKE_LABEL],
+        "note": "Filed by the gtd-board-kit conformance runner. Safe to close."})
+    if not ok_f:
+        raise CheckError(f"capture (second principal): {t_f[:160]}")
+    n = int(filed["number"])
+    sb.made.append(n)
+    time.sleep(2)
+
+    def listed(**more: Any) -> tuple[bool, Any, str]:
+        return c.call("intake_list", {"repo": sb.repo, **more})
+
+    ok, out, text = listed(since=r0, ack_within="0m")
+    got = _request(out, n)
+    _, slow, _ = listed(since=r0, ack_within="24h")
+    late = _request(slow, n)
+    rep.check("I2", ok and got is not None and got.get("ack") is None and got.get("new") is True
+              and got.get("overdue") is True and late is not None and late.get("overdue") is False
+              and _request(out, plain) is None,
+              f"{text[:80] if not ok else got}; 24h overdue {None if late is None else late.get('overdue')}; "
+              f"unlabelled listed {_request(out, plain) is not None}",
+              "listed, unacked, new, overdue only at 0m")
+
+    ok1, a1, t1 = c.call("intake_ack", {"repo": sb.repo, "number": n, "state": "received",
+                                        "note": "Conformance run: received."})
+    _, after, _ = listed(ack_within="0m")
+    ack = (_request(after, n) or {}).get("ack") or {}
+    ok2, a2, t2 = c.call("intake_ack", {"repo": sb.repo, "number": n, "state": "received"})
+    ok3, _, t3 = c.call("intake_ack", {"repo": sb.repo, "number": n, "state": "parked"})
+    _, last, _ = listed(ack_within="0m")
+    final = (_request(last, n) or {}).get("ack") or {}
+    principal = (who or {}).get("principal")
+    by_ok = principal is None or ack.get("by") == principal
+    rep.check("I3", bool(ok1 and (a1 or {}).get("url") and ack.get("state") == "received" and by_ok
+                         and not (_request(after, n) or {}).get("overdue")
+                         and ok2 and (a2 or {}).get("unchanged") is True
+                         and ok3 and final.get("state") == "parked"),
+              f"ack {t1[:60] if not ok1 else ack.get('state')}; again unchanged "
+              f"{(a2 or {}).get('unchanged') if ok2 else t2[:40]}; parked {final.get('state') if ok3 else t3[:40]}",
+              "acked, shown with by and not overdue, repeat unchanged, then parked")
+
+    refused = []
+    for what, args in (("no label", {"number": plain, "state": "received"}),
+                       ("state done", {"number": n, "state": "done"}),
+                       ("record marker", {"number": n, "state": "taken",
+                                          "note": f"<!-- {MARKER} v1 {{\"event\": \"claim\"}} -->"})):
+        okx, _, tx = c.call("intake_ack", {"repo": sb.repo, **args})
+        if okx or not tx.strip():
+            refused.append(what)
+    rep.check("I4", not refused, f"accepted or gave no reason: {', '.join(refused)}",
+              "no label, bad state and a record marker refused with a reason")
+
+
 def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """A1 to A4: the issue artifact tools, when any is offered. Creates, never deletes."""
     offered = [t for t in tools if t.startswith("issue_artifact_")]
@@ -2500,6 +2591,7 @@ def main(argv: list[str]) -> int:
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb)
+                check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_links(rep, _tools, a.link_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
