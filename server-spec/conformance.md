@@ -287,6 +287,20 @@ nothing.
 | A3 | `issue_artifact_update` of the generic artifact's body returns the new body, and `versions` is one more than before |
 | A4 | Each refuses and says why: `type` `report` (the refusal lists the four types); an empty `name`; a `link` body that is not one `https` URL; a body with a record marker; a body over 60000 characters |
 
+## Intake (when offered)
+
+A server that lists `intake_list` or `intake_ack` in `tools/list` must also pass these
+([intake](tools.md#intake)). I2 to I4 need a sandbox repo; they create one request issue
+and post acks on it.
+
+| Id | Check |
+| --- | --- |
+| I1 | `tools/list` has both `intake_list` (class `read`) and `intake_ack` (class `work`) |
+| I2 | A new open issue with the label is in `intake_list` with `ack` null and `new` true for a `since` before it; it is `overdue` with `ack_within=0m` and not with `24h`; an issue without the label is not listed |
+| I3 | `intake_ack` with `state=received` returns a `url`, and `intake_list` then shows `ack.state` `received` with `by` the caller and `overdue` false at `0m`; the same ack again returns `unchanged` true and adds no comment; `state=parked` then shows `parked` |
+| I4 | `intake_ack` refuses and says why: an issue without the label; `state` `done` (the refusal lists the four); a `note` holding a record marker |
+| I5 | (by hand) An ack marker pasted in a comment by a login that is not a record author is ignored: `intake_list` still shows the trusted ack, or null |
+
 ## Typed links (when offered)
 
 A server that offers the Repo setup group (`work_items_plan`, a read tool, or
