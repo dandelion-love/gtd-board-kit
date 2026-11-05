@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: Attention budget
-description: Treat the owner's attention as the scarce input; every gate, message and setting must give more value than the attention it costs, or it goes.
+description: Treat the owner's attention as the scarce input; every gate, message and setting must give more value than the attention it costs, or it goes. Names the four stop reasons, the only times an agent asks first.
 tags: [attention, gates, design-principle]
 status: draft
 generated: { by: claude-code/cloud, at: 2026-11-02T12:00:00Z }
@@ -31,6 +31,22 @@ reference page already records this principle;[^kit-dsh] this page applies it to
 | "Should I continue?" prompts waste their time | Superpowers[^sp-sdd] | no mid-plan check-ins |
 | A session parked on a question "costs their whole day and buys nothing" | Superpowers[^sp-sdd] | decide, record the ruling, keep going, unless one of the stop reasons applies |
 | One reserved worker slot for a person's follow-up | dsh[^dsh-exec] | the owner's reply is never queued behind agent work |
+
+# Decide, or stop and ask
+
+A mandate already given is acted on, not re-approved. Inside the item's scope, decide
+each reversible choice, record the choice and how to undo it on the item, and keep going;
+report it with the work. These are the **stop reasons**, the only times an agent asks
+first:
+
+1. **Spending, deleting, or anything irreversible.**
+2. **Grants, policy and lane switches.**
+3. **Research or product direction**: which measure decides, what runs next.
+4. **Work outside the item's scope.**
+
+Anything else is decided and recorded. An ask that does not block the work waits for the
+hand-back: it is the one action in the ready report, not a stop. BOARD.md rule 7 and the
+`board-needs-person` and `board-report` skills apply this list; it is named only here.
 
 # A budget, not a slogan
 
