@@ -3,7 +3,7 @@ name: board-needs-person
 description: Ask a person for a decision, a spec, access or a ruling on a board item, mark it on the board with the right needs:* label, and stop work on it, through the gtd MCP server. Use whenever you would otherwise guess at something only a person can settle.
 metadata:
   author: gtd-board-kit
-  version: 0.3.1
+  version: 0.4.0
 ---
 
 # Ask a person, then stop
@@ -33,12 +33,16 @@ item_report(repo, number, attention="<the question>", needs="<needs>",
 
 - The server adds `needs:<needs>`; the bridge moves the card to the profile's
   needs-a-person column.
-- Start `attention` with the @handle `.gtd/BOARD.local.md` maps to that `needs`
-  ("Notifications"); with no map, mention nobody. That mention is the only ping: one
-  per ask, again only if the question changes. Never mention for progress or thanks.
-  A mention written under the mentioned person's own account notifies nobody: if
-  `.gtd/BOARD.local.md` says records are written as that person, leave it out and tell
-  your person the ask is on the board but unpinged.
+- **Who gets pinged.** If the server lists `notify_get`, it pings for you: write no
+  @mention in `attention`. Check the result's `ping`: `posted` or `unchanged` is fine;
+  `no-map` or `no-identity` means nobody was pinged, so tell your person the ask is on
+  the board but unpinged. One ping per ask; asking the same question again pings nobody.
+- Without `notify_get`, start `attention` with the @handle `.github/gtd-context.json`
+  maps to that `needs` under `notify.mentions` (or `.gtd/BOARD.local.md`,
+  "Notifications"); with no map, mention nobody. Mention once per ask, again only if the
+  question changes, never for progress or thanks. A mention written under the mentioned
+  person's own account notifies nobody: if records are written as that person, leave it
+  out and tell your person the ask is unpinged.
 - Write one question a person can answer in a minute. Give the options and your
   recommendation, and what you will do with each answer. Link evidence, do not paste it.
 - Omit `state` if you do not hold the item: anyone may ask, only the holder reports.

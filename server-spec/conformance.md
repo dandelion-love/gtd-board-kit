@@ -301,6 +301,24 @@ second files one request issue, the first acks it (a project never acks its own 
 | I4 | `intake_ack` refuses and says why: an issue without the label; `state` `done` (the refusal lists the four); a `note` holding a record marker |
 | I5 | (by hand) An ack marker pasted in a comment by a login that is not a record author is ignored: `intake_list` still shows the trusted ack, or null |
 
+## Notifications (when offered)
+
+A server that lists `notify_get` in `tools/list` must also pass these
+([notifications](notifications.md)). N2 to N5 need a sandbox repo whose
+`.github/gtd-context.json` maps the profile's `owner_needs` under `notify.mentions` to a
+login that is not one the server writes records as (the runner skips them otherwise).
+
+| Id | Check |
+| --- | --- |
+| N1 | `tools/list` has `notify_get` with class `read`; `notify_get` on the sandbox returns `mentions`, `push`, `new_issues`, `ping_as` and `warnings`, and on a repo outside the allowlist refuses |
+| N2 | `item_report` with `attention` and the mapped `needs` returns `ping.posted` true with `to` the mapped login and `as` equal to `ping_as` and not `to`; `notify_get` with the number then lists exactly one ping with that `key` |
+| N3 | The same `attention` again returns `ping.reason` `unchanged` and the item still has one ping; a changed `attention` posts a second ping with a new `key` |
+| N4 | An `attention` with a `needs` the map does not name returns `ping.reason` `no-map`, posts no ping, and the record and the `needs:*` label stand |
+| N5 | `item_claim`, `item_renew`, `item_report` with only a `note`, and `item_release` return `ping` null or absent, and the item's ping count does not change |
+| N6 | (by hand) A non-draft `pr_open` returns `review_requested` the owner's login, and GitHub shows the request from the App; a draft `pr_open` requests no review |
+| N7 | (by hand) The mapped person's GitHub inbox shows one mention for the ask, from the `[bot]` author; with the map pointing at the login the server writes as, `ping.reason` is `no-identity` and `notify_get` warns |
+| N8 | (by hand, when `push` is offered) A push copy carries `tag` and `Topic` from the ping's `key`, no token in payload or URLs, at most Open, Snooze and Answer, and no second copy for an `unchanged` ping |
+
 ## Typed links (when offered)
 
 A server that offers the Repo setup group (`work_items_plan`, a read tool, or
