@@ -22,7 +22,7 @@ What it needs, and which checks each unlocks:
                             with --project)
     sub_issue_add offered   K1 (with --kind-cmd), K2 to K4 (with --repo whose owner has the
                             Issue Types Epic, Story, Chore, Spike and Finding)
-    issue_artifact_* offered  A1 (with a token), A2 to A4 and A6 (with --repo where GitHub's issue
+    issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
                             artifacts are available; it creates two artifacts, deletes none)
     intake_* offered        I1 (with a token), I2 to I4 (with --repo and a second token: the
                             second files one labelled request, the first acks it); I5 is manual
@@ -2108,18 +2108,20 @@ def check_artifact_source(rep: Report, c: Client, at: Any, nums: Any,
                       f"get without body {slim.get('sha256') == sha and slim.get('body') is None}; "
                       f"body hash {got == sha}",
                       "page fetched, hash and bytes returned, read back byte for byte")
+    if source is None:
+        rep.skip("A6", "needs --artifact-source-url and --artifact-source-sha256: each case "
+                       "breaks one rule of an otherwise good create")
+        return
+    url, sha = source
     _, rows, _ = c.call("issue_artifact_list", at())
     before = nums(rows)
-    page = "https://example.com/conformance.html"
-    bad = [("source_url on generic", at(type="generic", name="x", source_url=page, sha256="0" * 64)),
-           ("body and source_url", at(type="embedded_html", name="x", body="<html></html>",
-                                      source_url=page, sha256="0" * 64)),
-           ("no sha256", at(type="embedded_html", name="x", source_url=page)),
-           ("http source_url", at(type="embedded_html", name="x",
-                                  source_url="http://example.com/conformance.html", sha256="0" * 64))]
-    if source is not None:
-        bad.append(("hash mismatch", at(type="embedded_html", name="x", source_url=source[0],
-                                        sha256="0" * 64)))
+    good = {"type": "embedded_html", "name": "x", "source_url": url, "sha256": sha}
+    plain = "http://" + url.split("://", 1)[1]
+    bad = [("source_url on generic", at(**{**good, "type": "generic"})),
+           ("body and source_url", at(**good, body="<html></html>")),
+           ("no sha256", at(**{k: v for k, v in good.items() if k != "sha256"})),
+           ("http source_url", at(**{**good, "source_url": plain})),
+           ("hash mismatch", at(**{**good, "sha256": "0" * 64}))]
     accepted = [what for what, args in bad if c.call("issue_artifact_create", args)[0]]
     _, rows, _ = c.call("issue_artifact_list", at())
     grew = nums(rows) - before

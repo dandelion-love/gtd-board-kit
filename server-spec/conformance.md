@@ -278,8 +278,8 @@ and its sub-issues):
 A server that lists any `issue_artifact_*` tool in `tools/list` must also pass these
 ([issue artifacts](tools.md#issue-artifacts)). A1 to A6 need a sandbox repo where GitHub's
 issue artifacts are available; they create artifacts on a sandbox issue and delete
-nothing. A5 also needs an HTML page the server may fetch (`--artifact-source-url` and
-`--artifact-source-sha256`); without one it is skipped.
+nothing. A5 and A6 also need an HTML page the server may fetch (`--artifact-source-url`
+and `--artifact-source-sha256`); without one they are skipped.
 
 | Id | Check |
 | --- | --- |
@@ -288,7 +288,7 @@ nothing. A5 also needs an HTML page the server may fetch (`--artifact-source-url
 | A3 | `issue_artifact_update` of the generic artifact's body returns the new body, and `versions` is one more than before |
 | A4 | Each refuses and says why: `type` `report` (the refusal lists the four types); an empty `name`; a `link` body that is not one `https` URL; a body with a record marker; a body over 60000 characters |
 | A5 | `issue_artifact_create` of an `embedded_html` artifact from `source_url` and `sha256` returns that `sha256` and `bytes` over 0; `issue_artifact_get` with `include_body=false` returns the same `sha256` and no body, and with the body returns one whose UTF-8 SHA-256 is that hash |
-| A6 | Each refuses and says why, and the issue gains no artifact: `source_url` on a `generic` artifact; `body` and `source_url` together; `source_url` without `sha256`; an `http://` `source_url`; with A5's page, a `sha256` that does not match it |
+| A6 | Starting from A5's good create (its page and correct `sha256`), each case breaks one rule and refuses, and the issue gains no artifact: `type` `generic`; `body` added; `sha256` left out; the URL as `http://`; a `sha256` that does not match the page |
 
 ## Intake (when offered)
 
