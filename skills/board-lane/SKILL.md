@@ -3,7 +3,7 @@ name: board-lane
 description: Run one tick of a standing lane, or resume every lane's schedule after a session starts, through the gtd MCP server. A lane is recurring, pre-approved work declared in .gtd/BOARD.local.md. Use when a scheduled prompt says "run lane X", at session start in a repo with lanes, or when asked to start, hold, check or stop a lane.
 metadata:
   author: gtd-board-kit
-  version: 0.5.0
+  version: 0.5.1
 ---
 
 # Run a standing lane
