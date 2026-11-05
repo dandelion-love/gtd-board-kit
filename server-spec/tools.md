@@ -318,13 +318,13 @@ page itself.
 
 - Only `embedded_html` takes `source_url`; any other type refuses. `body` and
   `source_url` together refuse, and `sha256` (64 hex characters) is required with it.
-- `source_url` is `https`, carries no user or password, and its host is on a list the
+- `source_url` is `https` on the default port, carries no user or password, and its host is on a list the
   server's operator sets (a signed storage URL is the usual source). With no list, the
   URL path refuses. The server sends no credential to it and follows no redirect.
 - The limit is at least 10 MiB (10 x 1024 x 1024 bytes), and the tool description states it.
 - Each refuses, says why and writes nothing: a hash that does not match the fetched
   bytes; a file over the limit; a file that is not UTF-8 or does not start as an HTML
-  document (`<!doctype html` or `<html`); a URL the server may not fetch; a page holding
+  document (`<!doctype html` or `<html`, after an optional byte order mark); a URL the server may not fetch; a page holding
   a marker, as for `body`.
 - The result leaves the body out and carries `sha256` and `bytes`, so megabytes do not
   come back through the tool call.
