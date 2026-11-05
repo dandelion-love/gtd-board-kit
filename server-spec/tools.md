@@ -151,7 +151,7 @@ still unread.
 | Tool | Class | Arguments | Notes |
 | --- | --- | --- | --- |
 | `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (so `run-agent` refuses and `agent-review` is allowed), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
-| `issue_comment` | work | `repo`, `number`, `body`, `session?`, `role?`, `review_stage?`, `review_verdict?` | Comment on an issue or PR, ended with the server's [sign-off](sign-offs.md); returns `body` and `signoff`. A body containing a record marker ([claim-records](claim-records.md#record-format)) or a sign-off marker refuses: records come only from the `item_*` tools and sign-offs only from the server. `role` is `worker`, `reviewer`, `coordinator` or `owner` (a person only). `review_stage` and `review_verdict` go together and need the caller's live review claim ([review verdicts](sign-offs.md#review-verdicts)) |
+| `issue_comment` | work | `repo`, `number`, `body`, `session?`, `role?`, `review_stage?`, `review_verdict?` | Comment on an issue or PR, ended with the server's [sign-off](sign-offs.md); returns `body` and `signoff`. A body containing a record marker ([claim-records](claim-records.md#record-format)) or a sign-off marker refuses: records come only from the `item_*` tools and sign-offs only from the server. `role` is `worker`, `reviewer`, `coordinator` or `owner` (a person only). `review_stage` and `review_verdict` go together and need the caller's live review claim ([review verdicts](sign-offs.md#review-verdicts)), and refuse on a PR number. On a PR number the comment follows [pull request writes](sign-offs.md#pull-request-writes): it is written under the server's App identity, so a server that offers `pr_open` must be able to read and comment on its PRs (PR5) |
 | `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` refuses (a person, or a server's own dispatch tool, starts a run); adding `agent-review` is allowed (an agent may ask another session to review its work); removing either is allowed. `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
 
 ### Optional on Core, needed by some skills
@@ -193,7 +193,7 @@ that offers the capability uses the name.
 | Channels | `channels_list`, `channel_comments_read` (read), `channel_comment_post` (work) | Long-lived discussion issues a repo names as channels |
 | Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps. A server that starts runs from `run-agent` also starts a review run from `agent-review`: see [review requests](#review-requests) |
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
-| Pull requests | `pr_open` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it. See [opening pull requests](#opening-pull-requests) |
+| Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
 | Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
 
@@ -285,6 +285,62 @@ Two GitHub settings decide whether the owner can then approve:
   that push. If the agent's host pushes with the owner's own credential, the owner cannot
   approve under that rule. Turn the rule off, or have the agent push with an identity that
   is not the owner's.
+
+## Reviewing pull requests
+
+`pr_review` and `pr_review_reply` let an agent review a PR, or answer a finding on one,
+through the server, so the review is signed like any comment
+([pull request writes](sign-offs.md#pull-request-writes)) instead of going out unsigned
+through the agent's own GitHub tool. Both are `work`, both write with the App credential
+`pr_open` uses (a server without one does not offer them), and both check the repo and
+the caller first, before any App call.
+
+### `pr_review`
+
+| Argument | Type | Notes |
+| --- | --- | --- |
+| `repo` | string | `owner/repo`, checked against the allowlist |
+| `number` | integer | A pull request in `repo`. An issue number refuses |
+| `body` | string | The review's summary, at most 60000 characters with its sign-off |
+| `event` | string | `comment` or `request-changes`. Nothing else: an agent never approves a PR, because approval is a person's gate. `approve` refuses by name |
+| `comments` | list, optional | Inline comments, each `path`, `line`, `body`, and optionally `side` (`LEFT` or `RIGHT`) and `start_line` for a range |
+| `session` | string, optional | As on `issue_comment` |
+| `role` | string, optional | As on `issue_comment`; the default is the [PR role default](sign-offs.md#pull-request-writes) |
+
+The server validates everything before it writes anything, and refuses with no review and
+no inline comment posted when: the repo is not allowed or the caller is denied; `number`
+is not an open PR the server can read; `event` is not one of the two; `body` or any inline
+`body` holds a sign-off (`gtd-sign`) or record (`gtd-desk`) marker, naming the marker and,
+for an inline comment, its position in `comments`; any body is too long once signed; or an
+inline comment's `path` and `line` are not in the PR's diff. A review is submitted in one
+GitHub call, so it lands whole or not at all.
+
+The review body and each inline body end with their own sign-off (`act` `pr-review`). It
+returns `review_id`, `url`, `author` (the login GitHub shows), `event`, `body`, `signoff`, and `comments`: each inline
+comment's `id`, `path`, `line` and signed `body`.
+
+### `pr_review_reply`
+
+| Argument | Type | Notes |
+| --- | --- | --- |
+| `repo` | string | `owner/repo`, checked against the allowlist |
+| `number` | integer | The pull request |
+| `comment_id` | integer | A review comment on that PR: the thread to answer |
+| `body` | string, optional | The reply, at most 65536 characters with its sign-off. Required unless `resolve` is true |
+| `resolve` | boolean, optional | Default false. Resolve the comment's review thread after the reply |
+| `session`, `role` | string, optional | As on `pr_review` |
+
+It refuses before any write when the repo is not allowed or the caller is denied, when
+`comment_id` is not a review comment on PR `number` in `repo` (naming `comment_id`), and on
+the marker and length rules of `issue_comment`. Then it posts the reply (`act`
+`pr-reply`) and, with `resolve`, resolves that thread.
+
+The reply and the resolve are two writes, reported apart: the result has `reply_id`,
+`url`, `author`, `body` and `signoff` (all null when no `body` was given), `resolved` (true, false,
+or null when not asked) and `resolve_error` (why a resolve failed). A reply that posted
+stands even when the resolve fails. To retry only the resolve, call again with `resolve`
+true and no `body`: it posts nothing, so a retry never duplicates the reply. Answering a
+review finding is one call: say what changed and the commit, with `resolve` true.
 
 ## Issue artifacts
 

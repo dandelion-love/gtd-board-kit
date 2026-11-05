@@ -3,7 +3,7 @@ name: board-review
 description: Review a board issue labelled agent-review (by a person, or by an agent asking another session to check its work), against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.5.1
+  version: 0.6.0
 ---
 
 # Review an issue
@@ -77,6 +77,12 @@ body:
 1. Findings, most important first, each with the section it is about and a suggested
    text a person can paste.
 2. What you did not check, and why.
+
+Findings about lines of a PR's code (a work review) may also go on the PR as one
+`pr_review(repo, number=<PR>, body, event="comment" or "request-changes", comments,
+session)` when the server offers it, linked from the issue comment. Never approve a PR,
+and never use your own GitHub tool for it when the server offers `pr_review`: the server
+signs it.
 
 Never edit the person's text, never add `agent-ready` or `run-agent`, never start a
 build, never close the issue. A finding that is new work: `capture` it with
