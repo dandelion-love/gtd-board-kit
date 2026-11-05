@@ -15,7 +15,8 @@ this session; the local file's labels, columns and rules win over anything below
 
 Ask only for a **stop reason** (`.gtd/kit/knowledge/decomposition/human-gates/attention-budget.md`):
 spending, deleting or anything irreversible; grants, policy or lane switches; research or
-product direction; work outside the item's scope. A missing acceptance spec, credentials
+product direction; work outside the item's scope. A missing acceptance spec, a judgement
+only a person can make (a listen, a look, a review reserved to a person), credentials
 or a click only a person can make also stop the item. Never guess at these.
 
 Anything else inside a mandate you already have is yours to decide: pick, record the
