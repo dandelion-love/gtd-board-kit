@@ -14,6 +14,19 @@ for anything specific to this repo. Delete any section you don't need.
 - The owner's `needs` value: <!-- the needs:* label that means "only the owner can unblock this" -->
 - Standing chore item: <!-- owner/repo#n: a Chore issue agents claim for work with no issue of its own (register lines, upkeep), so pr_open can land it; label it `standing` -->
 
+## Notifications
+
+<!-- Kit rule 7 and knowledge/decisions/notify-only-when-a-person-must-act.md: a person is
+     pinged only for an ask, a PR ready for review or work that cannot finish. The ask's
+     attention text @mentions the handle below, once. Use handles of real people, never
+     the account agents write under: GitHub does not notify you of your own actions. -->
+
+| `needs` value | Handle the ask @mentions | Louder channel for asks |
+| --- | --- | --- |
+| <!-- the owner's needs value --> | <!-- @handle --> | <!-- none, or web-push; see knowledge/notifications/ --> |
+
+- New issues: view <!-- view (default: they wait in the Inbox view) | digest (one comment a day on the standing chore item) | watch (the owner sets Watch > Custom > Issues) -->
+
 ## Labels this repo adds or uses differently
 
 | Label | Meaning here | What an agent does with it |
