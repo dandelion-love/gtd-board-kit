@@ -151,7 +151,7 @@ still unread.
 | Tool | Class | Arguments | Notes |
 | --- | --- | --- | --- |
 | `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (so `run-agent` refuses and `agent-review` is allowed), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
-| `issue_comment` | work | `repo`, `number`, `body`, `session?`, `role?`, `review_stage?`, `review_verdict?` | Comment on an issue or PR, ended with the server's [sign-off](sign-offs.md); returns `body` and `signoff`. A body containing a record marker ([claim-records](claim-records.md#record-format)) or a sign-off marker refuses: records come only from the `item_*` tools and sign-offs only from the server. `role` is `worker`, `reviewer`, `coordinator` or `owner` (a person only). `review_stage` and `review_verdict` go together and need the caller's live review claim ([review verdicts](sign-offs.md#review-verdicts)), and refuse on a PR number. On a PR number the comment follows [pull request writes](sign-offs.md#pull-request-writes): it is written under the server's App identity, so a server that offers `pr_open` must be able to read and comment on its PRs (PR5) |
+| `issue_comment` | work | `repo`, `number`, `body`, `session?`, `role?`, `review_stage?`, `review_verdict?` | Comment on an issue or PR, ended with the server's [sign-off](sign-offs.md); returns `url` (the posted comment's GitHub URL), `comment_id`, `body` and `signoff`. A body containing a record marker ([claim-records](claim-records.md#record-format)) or a sign-off marker refuses: records come only from the `item_*` tools and sign-offs only from the server. `role` is `worker`, `reviewer`, `coordinator` or `owner` (a person only). `review_stage` and `review_verdict` go together and need the caller's live review claim ([review verdicts](sign-offs.md#review-verdicts)), and refuse on a PR number. On a PR number the comment follows [pull request writes](sign-offs.md#pull-request-writes): it is written under the server's App identity, so a server that offers `pr_open` must be able to read and comment on its PRs (PR5) |
 | `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` refuses (a person, or a server's own dispatch tool, starts a run); adding `agent-review` is allowed (an agent may ask another session to review its work); removing either is allowed. `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
 
 ### Optional on Core, needed by some skills
@@ -302,14 +302,15 @@ the caller first, before any App call.
 | `repo` | string | `owner/repo`, checked against the allowlist |
 | `number` | integer | A pull request in `repo`. An issue number refuses |
 | `body` | string | The review's summary, at most 60000 characters with its sign-off |
-| `event` | string | `comment` or `request-changes`. Nothing else: an agent never approves a PR, because approval is a person's gate. `approve` refuses by name |
+| `event` | string | `comment` or `request-changes`. Nothing else: an agent never approves a PR, because approval is a person's gate. `approve` refuses by name. GitHub refuses `request-changes` from a PR's own author, so on a PR the server's identity opened (every `pr_open` PR) `request-changes` refuses before any write and says to use `comment` with the findings; it is never quietly turned into a comment |
 | `comments` | list, optional | Inline comments, each `path`, `line`, `body`, and optionally `side` (`LEFT` or `RIGHT`) and `start_line` for a range |
 | `session` | string, optional | As on `issue_comment` |
 | `role` | string, optional | As on `issue_comment`; the default is the [PR role default](sign-offs.md#pull-request-writes) |
 
 The server validates everything before it writes anything, and refuses with no review and
 no inline comment posted when: the repo is not allowed or the caller is denied; `number`
-is not an open PR the server can read; `event` is not one of the two; `body` or any inline
+is not an open PR the server can read; `event` is not one of the two, or is
+`request-changes` on a PR the server's identity authored; `body` or any inline
 `body` holds a sign-off (`gtd-sign`) or record (`gtd-desk`) marker, naming the marker and,
 for an inline comment, its position in `comments`; any body is too long once signed; or an
 inline comment's `path` and `line` are not in the PR's diff. A review is submitted in one

@@ -80,7 +80,8 @@ body:
 
 Findings about lines of a PR's code (a work review) may also go on the PR as one
 `pr_review(repo, number=<PR>, body, event="comment" or "request-changes", comments,
-session)` when the server offers it, linked from the issue comment. Never approve a PR,
+session)` when the server offers it, linked from the issue comment (`comment` on a PR
+the server opened: GitHub refuses changes requested by a PR's author). Never approve a PR,
 and never use your own GitHub tool for it when the server offers `pr_review`: the server
 signs it.
 

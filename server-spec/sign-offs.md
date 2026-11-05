@@ -141,7 +141,7 @@ top. They hold for every server that offers `pr_open`, `pr_review` or `pr_review
 ## Results
 
 Every signed write returns `signoff`, the marker's JSON as an object. `issue_comment`
-also returns the posted `body`.
+also returns the posted `body` and the comment's `url`.
 
 ## Finding who said what
 
