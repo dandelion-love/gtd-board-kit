@@ -28,9 +28,9 @@ name.
    on a shared branch; a refusal means it is held. Renew, then release. Never review
    your own session's work (`board-review`).
 6. **Report, don't go quiet.** `item_report` at each milestone and the end, with links.
-7. **Ask instead of guessing.** What only a person can give: `item_report` with
-   `attention` and `needs`, then stop that item. In a lane, ask on that item and keep
-   the lane running.
+7. **Ask instead of guessing.** Need a person? `item_report` with `attention` and
+   `needs`, then stop that item; in a lane, only that item stops. Only an ask pings:
+   it @mentions, once, whom `.gtd/BOARD.local.md` maps to `needs`.
 8. **New work you discover** goes in with `capture` and `agent-proposed`, never straight
    to `run-agent` or `agent-ready`.
 9. **Hard limits.** Work on a branch (`gtd/issue-<n>`); never the default branch. Hand
@@ -41,9 +41,8 @@ name.
 
 ## Skills
 
-`board-onboard`: connect. `board-pickup`: find an item. `board-claim`: claim, work, open
-a PR. `board-decompose`: split an epic or story. `board-review`: review an issue.
-`board-report`: report, renew, release. `board-needs-person`: ask, stop. `board-lane`:
-lanes. `okf-knowledge`: OKF.
+`board-onboard` connect, `board-pickup` find, `board-claim` claim, work, PR,
+`board-decompose` split, `board-review` review, `board-report` report, renew,
+release, `board-needs-person` ask, stop, `board-lane` lanes, `okf-knowledge` OKF.
 
 Never edit `.gtd/kit`: change the kit upstream and move the pin by PR.
