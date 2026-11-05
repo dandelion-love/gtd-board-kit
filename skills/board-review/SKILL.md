@@ -3,7 +3,7 @@ name: board-review
 description: Review a board issue labelled agent-review (by a person, or by an agent asking another session to check its work), against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.5.0
+  version: 0.5.1
 ---
 
 # Review an issue
@@ -57,7 +57,8 @@ Read the issue, its parent, its sub-issues and its blockers (`item_get`,
   the PR is a `link` artifact on the issue (a server without artifact tools: the report
   says so and the PR's evidence row holds the link instead), as
   `.gtd/kit/knowledge/model/evidence-places.md` says. A missing tick, pointer or
-  artifact is a finding.
+  artifact is a finding, and so is a row that describes a produced file (an export, a
+  screenshot, a render) without linking the file itself.
 - **Speaks for itself.** From the issue alone, without the PR body or chat, can a person
   tell where it is, who acts next and whether each criterion is met, each in one click
   (`.gtd/kit/knowledge/model/self-reviewable-items.md`)? Each gap is a finding.

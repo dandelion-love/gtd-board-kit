@@ -35,6 +35,11 @@ issue, after the PR is merged as well as before. Put each kind in one place:
 - An artifact name holds only letters, numbers, spaces, periods, hyphens and underscores,
   and starts and ends with a letter or number (GitHub refuses `#` or `:`):
   `PR n evidence`, not `PR #n: evidence`.
+- **Evidence is the thing, not a description of it.** When a criterion names a produced
+  file (an export, a render, a screenshot, a printout, a recording), that file is committed
+  in the PR or attached to the issue, and the evidence row links it. A row that only
+  reports what the file showed ("exported to PDF: 2 pages") with nothing to open is a
+  missing row, and its box stays empty.
 - A **sub-issue is never evidence.** Sub-issues are work: stories under an epic, and
   steps where `.gtd/BOARD.local.md` allows them.
 - Artifacts are versioned: update one rather than adding a second of the same name.
