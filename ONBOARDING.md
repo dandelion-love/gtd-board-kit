@@ -78,8 +78,9 @@ Fill it from what the repo and the board say, not from memory:
   steps agents must follow.
 - Ask your person for what only they know: which `needs` value means the owner, what agents
   may pick up without being pointed at it, and anything that must never be touched.
-- Ask who each `needs` value should @mention, and whether new issues should reach the
-  owner beyond the Inbox view ("Notifications"; default: they wait in the view).
+- Ask who each `needs` value should ping, and whether new issues should reach the
+  owner beyond the Inbox view (default: they wait in the view). Put the answer in
+  `.github/gtd-context.json` under `notify` and note it in "Notifications".
 
 - Ask whether agents here should run recurring work unpointed (standing lanes) or may
   edit named workflows (workflow grants). Draft those blocks with the person's own words

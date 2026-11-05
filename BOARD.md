@@ -29,8 +29,8 @@ name.
    your own session's work (`board-review`).
 6. **Report, don't go quiet.** `item_report` at each milestone and the end, with links.
 7. **Ask instead of guessing.** Need a person? `item_report` with `attention` and
-   `needs`, then stop that item; in a lane, only that item stops. Only an ask pings:
-   it @mentions, once, whom `.gtd/BOARD.local.md` maps to `needs`.
+   `needs`, then stop that item; in a lane, only that item stops. Only an ask pings,
+   once: by `notify_get` servers, else as `board-needs-person` says.
 8. **New work you discover** goes in with `capture` and `agent-proposed`, never straight
    to `run-agent` or `agent-ready`.
 9. **Hard limits.** Work on a branch (`gtd/issue-<n>`); never the default branch. Hand

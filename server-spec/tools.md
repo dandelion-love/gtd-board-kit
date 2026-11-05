@@ -93,7 +93,9 @@ Every record these tools post ends with a [sign-off](sign-offs.md) carrying the 
 idempotent; it never removes one). A failed label write is a warning, the record stands.
 `state=dropped` releases the claim. A server MUST NOT default `needs` to a particular
 person's value; when the agent omits it with an `attention`, refuse and list the profile's
-values (the skill then picks the profile's `owner_needs`).
+values (the skill then picks the profile's `owner_needs`). A server in the
+[Notifications](notifications.md) group also posts one ping comment for the ask and
+returns `ping`; any other server returns no `ping` and notifies nobody.
 
 ### New activity
 
@@ -193,6 +195,7 @@ that offers the capability uses the name.
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
 | Pull requests | `pr_open` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it. See [opening pull requests](#opening-pull-requests) |
 | Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
+| Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
