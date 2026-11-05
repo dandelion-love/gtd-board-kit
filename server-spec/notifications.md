@@ -44,7 +44,7 @@ The repo says who each `needs` value means in `.github/gtd-context.json`
 | Key | Meaning |
 | --- | --- |
 | `mentions` | `needs` value (without the `needs:` prefix) to a GitHub login, without `@`. A value missing here pings nobody |
-| `push` | The louder channel that copies asks: `none` (default) or `web-push` ([push copy](#push-copy)) |
+| `push` | The louder channel that copies the pushes: `none` (default) or `web-push` ([push copy](#push-copy)). It is repo-wide on purpose: one owner per repo is the common case, and a repo with several people gives each their own subscriptions on the deployment's subscribe page |
 | `new_issues` | `view` (default: they wait in the Inbox view), `digest` or `watch`. The server acts only on `digest`, and only if it offers a digest; `watch` is the owner's own GitHub setting |
 
 The server reads the file through the GitHub API, as for the profile. It MUST NOT trust
@@ -75,8 +75,9 @@ ask still stands on the board.
 - `warnings` names each mapped login the server cannot ping (`no identity other than
   @octo-owner can write`) and each `needs` value in the map that the profile does not have.
 - `pings` (with `number`) lists the item's trusted pings, oldest first, each `{key, to,
-  reason, url, created_at}`. Only comments written as `ping_as` count; a pasted marker from
-  anyone else is ignored, as in the claim fold.
+  reason, url, author, created_at}`, where `author` is the comment's author login as GitHub
+  returns it. Only comments written as `ping_as` count; a pasted marker from anyone else is
+  ignored, as in the claim fold.
 
 ## The ping comment
 
@@ -127,22 +128,29 @@ When the group is offered, a non-draft `pr_open` also requests a review, as the 
 authored the PR, from the login the map gives the profile's `owner_needs`. It returns
 `review_requested` (the login) or null with a warning saying why (no map, or GitHub refused).
 A draft requests no review; marking it ready later is the person's or a later tool's act.
-The review request is the `pr-ready` push: the server posts no ping comment for it.
+The review request is the `pr-ready` push: the server posts no ping comment for it. Its
+key is `<pr number>:review:<h>`, where `<h>` is the first 16 hex characters of the PR's
+head commit SHA, so a new push to the branch does not request again on its own (GitHub
+keeps the request until the reviewer acts).
 
 ## Push copy
 
 With `push` set to `web-push`, the server also sends each posted ping (never an
-`unchanged` one) to the owner's subscribed devices. A server that offers this:
+`unchanged` one) **and each review request `pr_open` makes** to the owner's subscribed
+devices. A server that offers this:
 
 - sends a payload with `title` (the repo and item), `body` (the ping's first line without
-  the URL, at most 100 words), `navigate` (the item's URL), `reason`, and `tag` set to the
-  ping's `key`; and sets the Web Push `Topic` header to a URL-safe form of the same key
-  and `Urgency: high` for an ask or stop;
+  the URL, at most 100 words; for a review request, the PR title), `navigate` (the item's
+  or PR's URL), `reason` (`ask`, `pr-ready` or `stop`, the names of the table
+  [above](#three-pushes-nothing-else)), and `tag` set to the ping's or review request's
+  `key`; and sets the Web Push `Topic` header to a URL-safe form of the same key, with
+  `Urgency: high` for an ask or stop and `normal` for `pr-ready`;
 - offers at most these actions: **Open** (navigate), **Snooze** (one reminder later) and
   **Answer** (opens a page where the owner, signed in, writes the answer as themselves);
 - puts no token, secret or one-time code in the payload, the action URL or the page URL;
-- sends at most one reminder per ping, at the owner's next sitting, and none for a key
-  that a person has answered or whose `needs:*` label was removed.
+- sends at most one reminder per key, at the owner's next sitting, and none for a key
+  that a person has answered, whose `needs:*` label was removed, or whose PR was reviewed,
+  merged or closed.
 
 The subscribe page, the answer page and their sign-in are the deployment's. The ping on
 GitHub stays the record; a push is only a copy.

@@ -311,13 +311,13 @@ login that is not one the server writes records as (the runner skips them otherw
 | Id | Check |
 | --- | --- |
 | N1 | `tools/list` has `notify_get` with class `read`; `notify_get` on the sandbox returns `mentions`, `push`, `new_issues`, `ping_as` and `warnings`, and on a repo outside the allowlist refuses |
-| N2 | `item_report` with `attention` and the mapped `needs` returns `ping.posted` true with `to` the mapped login and `as` equal to `ping_as` and not `to`; `notify_get` with the number then lists exactly one ping with that `key` |
-| N3 | The same `attention` again returns `ping.reason` `unchanged` and the item still has one ping; a changed `attention` posts a second ping with a new `key` |
+| N2 | `item_report` with `attention` and the mapped `needs` returns `ping.posted` true with `to` the mapped login and `as` equal to `ping_as` and not `to`; `notify_get` with the number then lists exactly one ping with that `key`, whose `author` is `ping_as`. With `--github-token-env`, the runner also reads the comment at `ping.url` from GitHub itself and checks that its author is `ping_as` and not `to` |
+| N3 | The same `attention` again returns `ping.reason` `unchanged` and the item still has one ping; a changed `attention` posts a second ping with a new `key`; when the map names a second `needs`, the same `attention` with that `needs` posts a third ping with a new `key` |
 | N4 | An `attention` with a `needs` the map does not name returns `ping.reason` `no-map`, posts no ping, and the record and the `needs:*` label stand |
 | N5 | `item_claim`, `item_renew`, `item_report` with only a `note`, and `item_release` return `ping` null or absent, and the item's ping count does not change |
 | N6 | (by hand) A non-draft `pr_open` returns `review_requested` the owner's login, and GitHub shows the request from the App; a draft `pr_open` requests no review |
 | N7 | (by hand) The mapped person's GitHub inbox shows one mention for the ask, from the `[bot]` author; with the map pointing at the login the server writes as, `ping.reason` is `no-identity` and `notify_get` warns |
-| N8 | (by hand, when `push` is offered) A push copy carries `tag` and `Topic` from the ping's `key`, no token in payload or URLs, at most Open, Snooze and Answer, and no second copy for an `unchanged` ping |
+| N8 | (by hand, when `push` is offered) A push copy of an ask and of a `pr_open` review request carries `reason` (`ask` or `pr-ready`) and `tag` and `Topic` from the key, no token in payload or URLs, at most Open, Snooze and Answer, and no second copy for an `unchanged` ping |
 
 ## Typed links (when offered)
 
