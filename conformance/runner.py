@@ -166,7 +166,7 @@ CLASS.update(dict.fromkeys((
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
-    "issue_artifact_get", "activity_since", "intake_list"), "read"))
+    "issue_artifact_get", "activity_since", "intake_list", "notify_get"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
