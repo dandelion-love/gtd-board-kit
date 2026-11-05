@@ -3,7 +3,7 @@ name: board-lane
 description: Run one tick of a standing lane, or resume every lane's schedule after a session starts, through the gtd MCP server. A lane is recurring, pre-approved work declared in .gtd/BOARD.local.md. Use when a scheduled prompt says "run lane X", at session start in a repo with lanes, or when asked to start, hold, check or stop a lane.
 metadata:
   author: gtd-board-kit
-  version: 0.5.0
+  version: 0.5.1
 ---
 
 # Run a standing lane
@@ -63,9 +63,9 @@ does lands on an issue.
    remove `agent-running` from the lane item.
 2. **Read, then heartbeat.** `activity_since` (`board-report`, New activity): an entry
    on the lane item is a hand-off from an item waiting on it: answer it there or take
-   it on (claim or `capture`). Answer the rest where written. Then `item_renew` the lane item and each
-   item whose long job this lane started that has no completion marker yet. The lease is
-   the heartbeat (a lapsed one means a dead lane or job): longer than two cadences.
+   it on (claim or `capture`). Answer the rest where written. Renew the lane item, and each item whose long
+   job it started that has no marker yet, only when under two cadences of lease remain.
+   The lease is the heartbeat (`resources-and-long-jobs.md`, Lane item size).
 3. **Recover before acting.** Check the repo, git history, the board and any marker
    files before repeating an outside action: a previous tick may have done it.
 4. **Work.** Take items in the order of the lane's `queue` view and keep their ETA
