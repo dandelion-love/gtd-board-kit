@@ -63,9 +63,9 @@ does lands on an issue.
    remove `agent-running` from the lane item.
 2. **Read, then heartbeat.** `activity_since` (`board-report`, New activity): an entry
    on the lane item is a hand-off from an item waiting on it: answer it there or take
-   it on (claim or `capture`). Answer the rest where written. Then `item_renew` the lane item and each
-   item whose long job this lane started that has no completion marker yet. The lease is
-   the heartbeat (a lapsed one means a dead lane or job): longer than two cadences.
+   it on (claim or `capture`). Answer the rest where written. Renew the lane item, and each item whose long
+   job it started that has no marker yet, only when under two cadences of lease remain.
+   The lease is the heartbeat (`resources-and-long-jobs.md`, Lane item size).
 3. **Recover before acting.** Check the repo, git history, the board and any marker
    files before repeating an outside action: a previous tick may have done it.
 4. **Work.** Take items in the order of the lane's `queue` view and keep their ETA
