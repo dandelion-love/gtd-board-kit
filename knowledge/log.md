@@ -3,6 +3,7 @@
 ## 2026-11-05
 
 * **Added**: an intake for requests between projects (kit 0.29.0). A project's intake is its repo plus a label (`agent-proposed` by default). The new optional Intake group has `intake_list` (read: open requests, each with its latest ack, `overdue` past `ack_within`, `new` since a cursor, `comments_since` and the `reply_on` issues it names) and `intake_ack` (work: a signed `gtd-ack` record, `received`, `taken`, `parked` or `handed-back`; a repeat posts nothing). `board-lane` 0.5.0 adds `intake.md`: the receiving end runs an observe-first intake lane that speaks to the owner only for a new request, and the filing end flags `needs:<owner>` on its own item when its request goes unacknowledged, so a dead path between projects reaches a person. The template gains an Intake section with a "Files to" list. Conformance gains I1 to I4 and I5 (by hand). Decision: [requests go through an intake](decisions/intake-and-acks.md).
+* **Changed**: lane items stay small (kit 0.29.0). A tick renews the lane item only when under two cadences of its lease remain, and the template's lease is now `26h`, so an hourly lane writes about one renew a day instead of 24. A lane item rolls over to a successor at 300 comments (`board-lane` `resources-and-long-jobs.md`, Lane item size). The cost: a dead lane shows up to a day later.
 
 ## 2026-11-04
 

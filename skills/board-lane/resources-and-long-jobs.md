@@ -49,3 +49,17 @@ Revalidation reads git, so it still runs. What happens next is the lane's
   with another holder. Queue each report
   you would have made, with its original time, and post them in order, times included,
   once the board is back; renew leases first.
+
+## Lane item size
+
+Every renew and report is a comment on the lane item, and a lane runs for weeks. An
+hourly renew alone is 24 comments a day, and the item becomes slow to read and fold.
+
+- **Renew only when less than two cadences of the lease remain.** With `every: 1h` and
+  `lease: 26h`, that is about one renew a day. The cost: a dead lane shows as a lapsed
+  lease up to a day later. A lane whose death must show sooner keeps a shorter lease.
+- **Report only on change** (`SKILL.md`, step 6). A quiet tick writes nothing.
+- **Roll over at 300 comments.** Open a successor lane item with the same body and
+  `standing`, claim it, `item_release` the old one with `handoff_to` the new item, close
+  the old one, and point the lane's `item` at the new one in a PR. Until a person merges
+  it, the tick reads the old item's last comment for the successor.
