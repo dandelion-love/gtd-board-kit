@@ -325,10 +325,12 @@ board.
 
 **A request** is an open issue (never a pull request) carrying the label. `requests` are
 oldest first; each has `number`, `title`, `url`, `author` (the GitHub login),
-`filed_by` (the `by` of the body's trusted sign-off, else null), `opened_at`, `ack` (the
+`filed_by` (the `by` of the body's trusted sign-off, else null; `capture` ends the body it writes with the caller's sign-off, `act` `capture`, so a request filed through it names its filer), `opened_at`, `ack` (the
 latest trusted ack: `state`, `by`, `at`, `thread`, `note`; null when none), `overdue`,
 `new`, `comments_since` and `reply_on`.
 
+- `unreadable` is true when the server could not read the request's comments whole; its
+  `ack` is then unknown, and it is neither `overdue` nor counted `unacked`.
 - `overdue` is true when the request has no ack and `opened_at + ack_within` is before
   `read_at`. An ack of any state stops the clock.
 - `new` is true when the request was opened after `since`. With no `since`, every
