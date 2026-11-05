@@ -3,7 +3,7 @@ name: board-needs-person
 description: Ask a person for a decision, a spec, access or a ruling on a board item, mark it on the board with the right needs:* label, and stop work on it, through the gtd MCP server. Use whenever you would otherwise guess at something only a person can settle.
 metadata:
   author: gtd-board-kit
-  version: 0.4.0
+  version: 0.5.0
 ---
 
 # Ask a person, then stop
@@ -13,9 +13,17 @@ this session; the local file's labels, columns and rules win over anything below
 
 ## When
 
-Use this instead of guessing when the answer needs a person: a product or design
-decision, a missing acceptance spec, credentials or a click only they can make, a
-deploy or merge, a review only a person can give, or an item you cannot classify. Do not use it for things you can find out yourself by reading the repo.
+Ask only for a **stop reason** (`.gtd/kit/knowledge/decomposition/human-gates/attention-budget.md`):
+spending, deleting or anything irreversible; grants, policy or lane switches; research or
+product direction; work outside the item's scope. A missing acceptance spec, a judgement
+only a person can make (a listen, a look, a review reserved to a person), credentials
+or a click only a person can make also stop the item. Never guess at these.
+
+Anything else inside a mandate you already have is yours to decide: pick, record the
+choice and how to undo it on the item, keep going. Do not re-ask for a go-ahead you were
+given. A question that does not block the work waits for the hand-back: it is the one
+action in your `ready` report (`board-report`), not a `waiting` stop. Do not use this
+for things you can find out yourself by reading the repo.
 
 ## Pick `needs`
 

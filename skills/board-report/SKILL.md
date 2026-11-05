@@ -3,7 +3,7 @@ name: board-report
 description: Report progress on a claimed board item, renew or release its claim, or record a failure, through the gtd MCP server. Use at each milestone of work on a claimed issue, before a lease runs out, when work stops for any reason, and when handing an item to someone else.
 metadata:
   author: gtd-board-kit
-  version: 0.8.0
+  version: 0.8.1
 ---
 
 # Report on a claimed item
@@ -36,7 +36,8 @@ item_report(repo, number, state, note, links, project)
   a name has no `#` or `:`). Tick each criterion whose evidence passes, with a link to
   the proof on its line (a permalink at the head commit, plus `PR #n AC2 row`); leave a
   failing one empty with the reason. The `ready` note is for a person: what is
-  delivered, the one action asked, what is not done. The issue must speak for itself
+  delivered, the one action asked, what is not done, choices you made
+  and their undo. The issue must speak for itself
   (`.gtd/kit/knowledge/model/self-reviewable-items.md`).
 - Remove `blocked` when you resume. Without `.github/workflows/project-sync.yml`, also
   set Status to the column `.gtd/BOARD.local.md` gives.
