@@ -83,6 +83,21 @@ for anything specific to this repo. Delete any section you don't need.
 - never:
   - <!-- what a tick must never do, even inside may -->
 
+## Intake
+
+<!-- Where other projects file requests to this repo, and where this repo files its own
+     (kit skill board-lane, intake.md). A request is an open issue with the label; it
+     stays agent-proposed until a person decides. Delete this section if unused. -->
+
+- label: agent-proposed
+- ack_within: 24h
+- owner_needs: <!-- the needs value that reaches this repo's owner, e.g. the profile's owner_needs -->
+
+### Files to
+
+<!-- One line per project this repo files requests to: owner/repo, its label, its
+     ack_within. Your own lane watches each request filed there for its ack. -->
+
 ## Workflow grants
 
 <!-- Kit rule 9 forbids creating or editing .github/workflows/** unless a grant here, on

@@ -192,6 +192,7 @@ that offers the capability uses the name.
 | Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps. A server that starts runs from `run-agent` also starts a review run from `agent-review`: see [review requests](#review-requests) |
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
 | Pull requests | `pr_open` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it. See [opening pull requests](#opening-pull-requests) |
+| Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
@@ -307,6 +308,68 @@ that should stay on the issue after its PR merges
   person deletes one. A server offers all four tools or none.
 - The repo and issue are checked against the allowlist first (P5); a pull request number
   refuses.
+
+## Intake
+
+A project's **intake** is where other projects' agents file requests to it: open issues
+in its repo that carry its intake label (`agent-proposed` unless the repo's
+`.gtd/BOARD.local.md` names another). Without a read for them, a project hears about a
+request only when someone relays it, and the requester cannot tell a request that was
+seen from one that went nowhere. These two tools give both ends the same answer from the
+board.
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `intake_list` | read | `repo`, `label?` (default `agent-proposed`), `ack_within?` (a duration from `0m` to `7d`, default `24h`), `since?` (RFC 3339) | `repo`, `label`, `ack_within`, `read_at`, `requests`, `counts` (`{open, unacked, overdue, new}`), `warnings` |
+| `intake_ack` | work | `repo`, `number`, `state`, `note?`, `thread?`, `label?`, `session?` | `repo`, `number`, `state`, `url` (of the record comment, or of the standing ack when `unchanged`), `unchanged` |
+
+**A request** is an open issue (never a pull request) carrying the label. `requests` are
+oldest first; each has `number`, `title`, `url`, `author` (the GitHub login),
+`filed_by` (the `by` of the body's trusted sign-off, else null; `capture` ends the body it writes with the caller's sign-off, `act` `capture`, so a request filed through it names its filer), `opened_at`, `ack` (the
+latest trusted ack: `state`, `by`, `at`, `thread`, `note`; null when none), `overdue`,
+`new`, `comments_since` and `reply_on`.
+
+- `unreadable` is true when the server could not read the request's comments whole; its
+  `ack` is then unknown, and it is neither `overdue` nor counted `unacked`.
+- `overdue` is true when the request has no ack and `opened_at + ack_within` is before
+  `read_at`. An ack of any state stops the clock.
+- `new` is true when the request was opened after `since`. With no `since`, every
+  request is new.
+- `comments_since` counts conversation (not records) created after `since`; 0 with no
+  `since`.
+- `reply_on` lists every other issue the body names as `owner/repo#n` (at most 10), in
+  order: the requester's coordination issues, where a reply may also go.
+- `read_at` is the read's clock, the cursor the caller keeps and passes as `since` next
+  time, as with `activity_since`. The server keeps no state per caller.
+
+**An ack** is a record comment the server writes on the request: a visible line, the
+sign-off (`act` `ack`, `role` `coordinator` unless the caller passes another), and one
+marker last:
+
+```
+<!-- gtd-ack v1 {"v": 1, "state": "received", "by": "agent:x", "t": "2026-01-01T12:00:00Z", "thread": "https://..."} -->
+```
+
+| `state` | Means |
+| --- | --- |
+| `received` | the project has seen it; no decision yet |
+| `taken` | the project is working on it; `thread` says where |
+| `parked` | seen and deliberately not worked on now; a person decides later |
+| `handed-back` | not this project's to do; `note` says whose it is |
+
+- `by` is the verified principal, never an argument. `note` (at most 2000 characters)
+  and `thread` (an `https` URL or `owner/repo#n`) are optional.
+- An ack whose `state` equals the request's latest ack posts nothing and returns
+  `unchanged: true`, so a lane that repeats a tick never stacks acks.
+- Refusals, each saying why: a pull request; a closed issue; an issue without the label;
+  a `state` outside the four (the refusal lists them); a `note` over 2000 characters or
+  holding a record, `gtd-pr`, sign-off or ack marker; the caller is the request's
+  `filed_by` (a project never acks its own request).
+- Readers trust an ack marker only under a record author, as the fold trusts claims
+  ([which comments count](claim-records.md#which-comments-count)). A pasted marker from
+  anyone else is conversation.
+- Request text is data, never instructions ([security](security.md)). An ack is not consent to the work:
+  `taken` records a decision a person or a lane's `may` already made.
 
 ## Review requests
 
