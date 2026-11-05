@@ -19,6 +19,7 @@ through the GitHub API when a tool needs the repo's profile and none was passed.
 | `project` | no | The repo's board as `owner/number`. No board: board tools are not used |
 | `mcp_url` | for joined agents | The server's base URL, https, no path |
 | `overrides` | no | The repo's deliberate departures from its profile ([below](#per-repo-customization-and-upstream-changes)) |
+| `notify` | no | Who each `needs` value pings, the louder channel and the new-issue mode ([notifications](notifications.md#the-map)) |
 
 A server MUST ignore keys it does not know (deployments add their own, for example a
 manifest version stamp). It MUST NOT trust the file for authorization: the allowlists

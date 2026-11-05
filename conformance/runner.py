@@ -75,6 +75,7 @@ class Family(Enum):
     KINDS = "K"             # Kind and parent rules (when the Issue structure tools are offered)
     ARTIFACTS = "A"         # Issue artifacts (when the issue_artifact_* tools are offered)
     INTAKE = "I"            # Intake (when intake_list or intake_ack is offered)
+    NOTIFY = "N"            # Notifications (when notify_get is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
@@ -88,7 +89,7 @@ HEADINGS = {
     Family.CLAIMS: "Claims", Family.SIGNOFFS: "Sign-offs", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
-    Family.INTAKE: "Intake", Family.LINKS: "Typed links",
+    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.LINKS: "Typed links",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -112,7 +113,7 @@ LEVEL_OF = {
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
-    Family.LINKS: Level.EXTENDED,
+    Family.NOTIFY: Level.EXTENDED, Family.LINKS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -165,7 +166,7 @@ CLASS.update(dict.fromkeys((
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
-    "issue_artifact_get", "activity_since", "intake_list"), "read"))
+    "issue_artifact_get", "activity_since", "intake_list", "notify_get"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -1857,6 +1858,156 @@ def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
               "no label, bad state and a record marker refused with a reason")
 
 
+NOTIFY_IDS = ("N1", "N2", "N3", "N4", "N5")
+NOTIFY_HAND = {
+    "N6": "pr_open a non-draft PR: review_requested is the owner's login and GitHub shows the "
+          "request from the App; a draft requests no review",
+    "N7": "the mapped person's GitHub inbox shows one mention for the ask from the [bot] author; "
+          "map the owner to the login the server writes as: ping.reason no-identity and a warning",
+    "N8": "with push web-push: tag and Topic carry the ping key, no token in payload or URLs, "
+          "at most Open, Snooze and Answer, no copy for an unchanged ping",
+}
+NOTIFY_MAP_FIELDS = ("mentions", "push", "new_issues", "ping_as", "warnings")
+
+
+def _numbers(out: Any) -> list:
+    out = out or {}
+    return [i.get("number") for i in (out.get("issues") or out.get("items") or [])]
+
+
+def github_comment_author(url: str, gh_token: str) -> str | None:
+    """The author login of the issue comment at ``url`` (``...#issuecomment-<id>``), read
+    from GitHub itself, so N2 does not rest on what the server says about its own write."""
+    m = re.match(r"https://github\.com/([^/]+)/([^/]+)/(?:issues|pull)/\d+#issuecomment-(\d+)$", url or "")
+    if not m:
+        return None
+    owner, name, cid = m.groups()
+    status, _, text = http("GET", f"https://api.github.com/repos/{owner}/{name}/issues/comments/{cid}",
+                           headers={"Authorization": f"Bearer {gh_token}",
+                                    "Accept": "application/vnd.github+json"})
+    if status != 200:
+        return None
+    return ((json.loads(text) or {}).get("user") or {}).get("login")
+
+
+def check_notify(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
+                 gh_token: str | None = None) -> None:
+    """N1 to N5: the Notifications group, when ``notify_get`` is offered. The sandbox's
+    ``notify.mentions`` must map the profile's ``owner_needs`` to a login the server can
+    ping as someone else; without it the ping checks skip. With ``gh_token`` (a read-only
+    GitHub token for the sandbox), N2 reads the ping's author from GitHub too."""
+    if "notify_get" not in tools:
+        for cid in (*NOTIFY_IDS, *NOTIFY_HAND):
+            rep.na(cid, "notify_get is not offered")
+        return
+    for cid, how in NOTIFY_HAND.items():
+        rep.manual(cid, how)
+    cls = tool_class(tools["notify_get"])[0]
+    if sb is None:
+        rep.check("N1", cls == "read", f"class {cls}", "notify_get is read")
+        for cid in NOTIFY_IDS[1:]:
+            rep.skip(cid, "needs --repo")
+        return
+    ok, m, text = c.call("notify_get", {"repo": sb.repo})
+    ok_x, _, _ = c.call("notify_get", {"repo": "conformance-invalid/never-allowed"})
+    missing = [f for f in NOTIFY_MAP_FIELDS if not isinstance(m, dict) or f not in m]
+    rep.check("N1", cls == "read" and ok and not missing and not ok_x,
+              f"class {cls}; {text[:80] if not ok else 'missing ' + (', '.join(missing) or '-')}; "
+              f"outside the allowlist refused {not ok_x}",
+              "read, the map's fields, outside repo refused")
+    owner = profile.get("owner_needs") or "triage"
+    to = ((m or {}).get("mentions") or {}).get(owner)
+    ping_as = (m or {}).get("ping_as")
+    if not ok or not to or not ping_as:
+        for cid in NOTIFY_IDS[1:]:
+            rep.skip(cid, f"the sandbox maps needs {owner!r} to {to!r} and ping_as is {ping_as!r}; "
+                          "map it under notify.mentions in .github/gtd-context.json to a login "
+                          "the server can ping as someone else")
+        return
+
+    def pings(num: int) -> list[dict]:
+        okp, out, tp = c.call("notify_get", {"repo": sb.repo, "number": num})
+        if not okp:
+            raise CheckError(f"notify_get with number: {tp[:160]}")
+        return list((out or {}).get("pings") or [])
+
+    n = sb.issue("notify: ping once per ask")
+    okc, rc, tc = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
+    if not okc:
+        raise CheckError(f"item_claim for the notify issue: {tc[:160]}")
+    claim_ping = bool((rc or {}).get("ping"))
+    ask = f"Conformance {sb.run}: which way? Safe to ignore."
+    ok1, r1, t1 = c.call("item_report", sb.args(n, attention=ask, needs=owner, state="waiting"))
+    p1 = (r1 or {}).get("ping") or {}
+    after1 = pings(n)
+    listed_author = after1[0].get("author") if after1 else None
+    real = github_comment_author(str(p1.get("url") or ""), gh_token) if gh_token else None
+    real_ok = gh_token is None or (real is not None and real == ping_as and real != to)
+    rep.check("N2", bool(ok1 and p1.get("posted") is True and p1.get("to") == to
+                         and p1.get("as") == ping_as and p1.get("as") != to
+                         and len(after1) == 1 and after1[0].get("key") == p1.get("key")
+                         and listed_author == ping_as and real_ok),
+              f"{t1[:80] if not ok1 else p1}; pings {len(after1)}; listed author {listed_author}; "
+              f"GitHub author {real if gh_token else '(not read: no --github-token-env)'}",
+              f"one ping to {to} as {ping_as}" + ("" if gh_token else "; author not read from GitHub"))
+
+    ok2, r2, t2 = c.call("item_report", sb.args(n, attention=ask, needs=owner, state="waiting"))
+    p2 = (r2 or {}).get("ping") or {}
+    after2 = pings(n)
+    ok3, r3, t3 = c.call("item_report", sb.args(n, attention=ask + " Changed.", needs=owner,
+                                                 state="waiting"))
+    p3 = (r3 or {}).get("ping") or {}
+    after3 = pings(n)
+    mapped = set((m or {}).get("mentions") or {})
+    second = next((x for x in sorted(mapped) if x != owner and x in (profile.get("needs") or [])), None)
+    needs_ok, needs_note = True, "no second mapped needs"
+    if second is not None:
+        ok5, r5, t5 = c.call("item_report", sb.args(n, attention=ask, needs=second, state="waiting"))
+        p5 = (r5 or {}).get("ping") or {}
+        after5 = pings(n)
+        needs_ok = bool(ok5 and p5.get("posted") is True and p5.get("key") not in (p1.get("key"), p3.get("key"))
+                        and len(after5) == len(after3) + 1)
+        needs_note = f"needs {second}: {t5[:40] if not ok5 else p5.get('reason')} ({len(after5)} pings)"
+    rep.check("N3", bool(ok2 and p2.get("reason") == "unchanged" and p2.get("posted") is False
+                         and len(after2) == 1 and ok3 and p3.get("posted") is True
+                         and p3.get("key") != p1.get("key") and len(after3) == 2 and needs_ok),
+              f"repeat {t2[:40] if not ok2 else p2.get('reason')} ({len(after2)} pings); "
+              f"changed {t3[:40] if not ok3 else p3.get('reason')} ({len(after3)} pings); {needs_note}",
+              "repeat unchanged, changed text or needs pings again")
+
+    other = next((x for x in (profile.get("needs") or []) if x not in mapped), None)
+    if other is None:
+        rep.skip("N4", "every needs value of the profile is mapped")
+    else:
+        pings_before_n4 = pings(n)
+        ok4, r4, t4 = c.call("item_report", sb.args(n, attention=f"Conformance {sb.run}: unmapped.",
+                                                    needs=other, state="waiting"))
+        p4 = (r4 or {}).get("ping") or {}
+        lbl = settle(lambda: c.call("issue_list", {"repo": sb.repo, "labels": [f"needs:{other}"],
+                                                   "limit": 100}),
+                     lambda res: not ok4 or not res[0] or n in _numbers(res[1]))
+        label_ok = not lbl[0] or n in _numbers(lbl[1])
+        after4 = pings(n)
+        rep.check("N4", bool(ok4 and p4.get("reason") == "no-map" and not p4.get("posted")
+                             and len(after4) == len(pings_before_n4) and label_ok),
+                  f"{t4[:80] if not ok4 else p4.get('reason')}; pings {len(after4)}; label {label_ok}",
+                  f"needs {other!r} unmapped: no-map, record and label stand")
+
+    before = len(pings(n))
+    quiet = []
+    for name, args in (("item_renew", sb.args(n, lease="30m")),
+                       ("item_report", sb.args(n, state="progress", note="no ping")),
+                       ("item_release", sb.args(n, done="checked", remaining="none", next="close"))):
+        okq, rq, tq = c.call(name, args)
+        if not okq:
+            quiet.append(f"{name} refused: {tq[:40]}")
+        elif (rq or {}).get("ping"):
+            quiet.append(f"{name} returned a ping")
+    rep.check("N5", not quiet and len(pings(n)) == before and not claim_ping,
+              f"{'; '.join(quiet) or '-'}; pings {before} -> {len(pings(n))}",
+              "claim, renew, progress and release ping nobody")
+
+
 def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """A1 to A4: the issue artifact tools, when any is offered. Creates, never deletes."""
     offered = [t for t in tools if t.startswith("issue_artifact_")]
@@ -2532,6 +2683,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
+    ap.add_argument("--github-token-env",
+                    help="a read-only GitHub token for the sandbox repo, so N2 reads the ping's author from GitHub")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
 
@@ -2592,6 +2745,7 @@ def main(argv: list[str]) -> int:
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
+                check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",

@@ -69,8 +69,10 @@ record in the system of record and make any push a copy that points at it.
 9. **At most one reminder.** An ask still open at the owner's next sitting may be pushed
    once more; after that it waits in the needs-me view. Only an adapter the owner chose
    for escalation (Pushover) repeats until acknowledged.
-10. **Repo specifics stay in the repo.** Who each `needs` value means, the louder channel
-   and the new-issue mode go in `.gtd/BOARD.local.md` under "Notifications".
+10. **Repo specifics stay in the repo.** Who each `needs` value pings, the louder channel
+   and the new-issue mode go in the repo's `.github/gtd-context.json` under `notify`,
+   where the server reads them, and are noted in `.gtd/BOARD.local.md` under
+   "Notifications".
 
 # Consequences
 
@@ -81,11 +83,13 @@ record in the system of record and make any push a copy that points at it.
   where the server writes records under an identity other than the person mentioned.
 - A deployment whose records are written under the owner's own account must post the
   mention (and request reviews) through an App installation, or its asks notify nobody.
-- A server can do better later, as server-spec work with its own conformance checks:
-  `item_report` adds the mention itself from the repo's map (so agents cannot forget or
-  repeat it), `pr_open` requests the owner's review, and an optional notifier sends the
-  Web Push copy with `Urgency: high` and the item's key as both `tag` and `Topic`, so a
-  re-ask replaces the old notification instead of stacking.
+- A server can do better, and the optional Notifications group of the server spec
+  (`server-spec/notifications.md`, checks N1 to N8) says how: `item_report` posts one ping
+  comment from the repo's map under the server's App, keyed so a repeat posts nothing (so
+  agents cannot forget or repeat it), `pr_open` requests the owner's review, and an
+  optional notifier sends the Web Push copy with `Urgency: high` and the ping's key as
+  both `tag` and `Topic`, so a re-ask replaces the old notification instead of stacking.
+  Agents on such a server write no mention themselves.
 - Two tiers only: GitHub's ordinary push, and the repo's louder channel for asks.
   Escalation exists only through an adapter the owner chose; quiet hours belong to the
   phone (Focus, Do Not Disturb, GitHub Mobile working hours), not the kit.

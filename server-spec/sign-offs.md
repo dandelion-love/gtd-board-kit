@@ -13,6 +13,7 @@ writes it; the caller never does.
 | A comment on an issue or PR | `issue_comment` | `comment`, or `review` when the call carries a review verdict |
 | A claim record | `item_claim`, `item_renew`, `item_release`, `item_report` | `claim`, `renew`, `release`, `report` |
 | A pull request body | `pr_open` (when offered) | `pr` |
+| A ping comment | `item_report` (Notifications group, [notifications](notifications.md)) | `ping` |
 | A comment from an optional tool (a channel post, a run-state event, ...) | that tool | a name the server chooses, lower case with hyphens (`channel`, `run-state`) |
 
 The `issue_comment`, claim and `pr_open` rows are required (Core, and PR4 when `pr_open`

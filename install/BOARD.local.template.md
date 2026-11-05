@@ -17,16 +17,16 @@ for anything specific to this repo. Delete any section you don't need.
 ## Notifications
 
 <!-- Kit rule 7 and knowledge/decisions/notify-only-when-a-person-must-act.md: a person is
-     pinged only for an ask, a PR ready for review or work that cannot finish. The ask's
-     attention text @mentions the handle below, once. GitHub does not notify you of your
-     own actions, so a mention only works when it is written under another identity,
-     normally the server's App installation ([bot]). If the server writes records as the
-     person below, say so here: agents then leave the mention out. -->
+     pinged only for an ask, a PR ready for review or work that cannot finish. Who each
+     `needs` value pings lives in .github/gtd-context.json under "notify" (the server reads
+     it there; see .gtd/kit/server-spec/notifications.md):
+       "notify": {"mentions": {"<owner needs value>": "<login>"}, "push": "none", "new_issues": "view"}
+     A server with notify_get posts the one ping itself, under its App ([bot]), never as the
+     person. Without it, the ask's attention text carries the mention, and only works when
+     records are not written as that person: say here if they are. -->
 
-| `needs` value | Handle the ask @mentions | Louder channel for asks |
-| --- | --- | --- |
-| <!-- the owner's needs value --> | <!-- @handle --> | <!-- none, or web-push; see knowledge/notifications/ --> |
-
+- Pinged for asks: <!-- @login, as in gtd-context.json notify.mentions -->
+- Louder channel: none <!-- none | web-push; see knowledge/notifications/ -->
 - New issues: view <!-- view (default: they wait in the Inbox view) | digest (one comment a day on the standing chore item) | watch (the owner sets Watch > Custom > Issues) -->
 
 ## Labels this repo adds or uses differently
