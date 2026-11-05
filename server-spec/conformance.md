@@ -290,8 +290,8 @@ nothing.
 ## Intake (when offered)
 
 A server that lists `intake_list` or `intake_ack` in `tools/list` must also pass these
-([intake](tools.md#intake)). I2 to I4 need a sandbox repo; they create one request issue
-and post acks on it.
+([intake](tools.md#intake)). I2 to I4 need a sandbox repo and a second principal: the
+second files one request issue, the first acks it (a project never acks its own request).
 
 | Id | Check |
 | --- | --- |

@@ -24,8 +24,8 @@ What it needs, and which checks each unlocks:
                             Issue Types Epic, Story, Chore, Spike and Finding)
     issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
                             artifacts are available; it creates two artifacts, deletes none)
-    intake_* offered        I1 (with a token), I2 to I4 (with --repo; it creates one labelled
-                            request and acks it); I5 is manual
+    intake_* offered        I1 (with a token), I2 to I4 (with --repo and a second token: the
+                            second files one labelled request, the first acks it); I5 is manual
     work_items_plan/_sync   L1 (with --link-cmd, which runs it whatever the token sees);
     offered                 L2 is manual
     no --server             C13, R1, K1 and L1, against the reference fold, ready check, Kind
@@ -1781,8 +1781,9 @@ def _request(out: Any, n: int) -> dict | None:
 
 
 def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
-                 who: dict | None = None) -> None:
-    """I1 to I4: the intake tools, when either is offered. Creates one request, acks it."""
+                 who: dict | None = None, c2: Client | None = None) -> None:
+    """I1 to I4: the intake tools, when either is offered. The second principal files one
+    request and the first acks it, because a project never acks its own request."""
     have = [t for t in ("intake_list", "intake_ack") if t in tools]
     if not have:
         for cid in INTAKE_IDS:
@@ -1794,14 +1795,22 @@ def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
               f"offered {classes}", "intake_list read, intake_ack work")
     rep.manual("I5", "paste an ack marker in a comment from a login that is not a record "
                      "author; intake_list must still show the trusted ack, or null")
-    if sb is None or len(have) < 2:
+    if sb is None or len(have) < 2 or c2 is None:
         for cid in INTAKE_IDS[1:]:
-            rep.skip(cid, "needs --repo and both tools")
+            rep.skip(cid, "needs --repo, --token-b-env (a second principal files the request) "
+                          "and both tools")
         return
     _, before, _ = c.call("intake_list", {"repo": sb.repo})
     r0 = (before or {}).get("read_at")
     plain = sb.issue("intake: not a request")
-    n = sb.issue("intake request", labels=[INTAKE_LABEL])
+    ok_f, filed, t_f = c2.call("capture", {
+        "title": f"[conformance {sb.run}] intake request", "repo": sb.repo,
+        "labels": [INTAKE_LABEL],
+        "note": "Filed by the gtd-board-kit conformance runner. Safe to close."})
+    if not ok_f:
+        raise CheckError(f"capture (second principal): {t_f[:160]}")
+    n = int(filed["number"])
+    sb.made.append(n)
     time.sleep(2)
 
     def listed(**more: Any) -> tuple[bool, Any, str]:
@@ -2582,7 +2591,7 @@ def main(argv: list[str]) -> int:
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb)
-                check_intake(rep, c, _tools, sb, who)
+                check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_links(rep, _tools, a.link_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
