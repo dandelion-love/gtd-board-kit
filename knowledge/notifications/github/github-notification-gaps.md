@@ -16,7 +16,7 @@ sources:
 | Gap | Effect on a board kit |
 | --- | --- |
 | **Projects send no notifications.** No one can watch a board; a Status, field or order change alerts nobody. Built-in project workflows only set fields, add or archive items.[^gh-proj-auto] | A card in "Needs owner" is invisible until someone opens the view |
-| **Your own actions do not notify you.** Email of your own updates is an opt-in setting; the inbox and Mobile push skip them.[^gh-config] | An ask posted under the owner's own account reaches nobody. Agents must write under their own identity |
+| **Your own actions do not notify you.** Email of your own updates is an opt-in setting; the inbox and Mobile push skip them.[^gh-config] | An ask posted under the owner's own account reaches nobody. A mention or review request meant to notify someone must be written under a different identity, by default a GitHub App installation (`[bot]`) |
 | **A mention added by editing** a body does not arrive as a new mention.[^dsh-deploy] | Always post a new comment to ask |
 | **No urgency.** Every GitHub push is the same ordinary banner | A blocking ask and a routine review look alike on the phone |
 | **No acknowledgement.** GitHub cannot tell the sender whether the person saw it | Nothing to escalate on; the record must stay on the item |
@@ -24,6 +24,9 @@ sources:
 
 # What the kit can take from it
 
+- Never write a notification as the person it is for. When a server writes everything
+  under the owner's account, it needs an App installation identity for mentions and
+  review requests.
 - Pair every board state that needs a person with a GitHub act that notifies: the
   `needs:*` label with one mention comment; ready for review with a review request.
 - The comment on the item is the record. Any louder channel is a copy that points at it,

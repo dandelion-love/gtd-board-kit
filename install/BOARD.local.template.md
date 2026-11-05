@@ -18,8 +18,10 @@ for anything specific to this repo. Delete any section you don't need.
 
 <!-- Kit rule 7 and knowledge/decisions/notify-only-when-a-person-must-act.md: a person is
      pinged only for an ask, a PR ready for review or work that cannot finish. The ask's
-     attention text @mentions the handle below, once. Use handles of real people, never
-     the account agents write under: GitHub does not notify you of your own actions. -->
+     attention text @mentions the handle below, once. GitHub does not notify you of your
+     own actions, so a mention only works when it is written under another identity,
+     normally the server's App installation ([bot]). If the server writes records as the
+     person below, say so here: agents then leave the mention out. -->
 
 | `needs` value | Handle the ask @mentions | Louder channel for asks |
 | --- | --- | --- |
