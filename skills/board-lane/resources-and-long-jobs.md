@@ -60,6 +60,7 @@ hourly renew alone is 24 comments a day, and the item becomes slow to read and f
   lease up to a day later. A lane whose death must show sooner keeps a shorter lease.
 - **Report only on change** (`SKILL.md`, step 6). A quiet tick writes nothing.
 - **Roll over at 300 comments.** Open a successor lane item with the same body and
-  `standing`, claim it, `item_release` the old one with `handoff_to` the new item, close
-  the old one, and point the lane's `item` at the new one in a PR. Until a person merges
-  it, the tick reads the old item's last comment for the successor.
+  `standing`, and open a PR that points the lane's `item` at it. Keep ticking on the old
+  item until that PR is on the default branch: closing it earlier would stop the lane
+  (step 1). Once merged, the next tick claims the successor, `item_release`s the old item
+  with `next` naming the successor, and closes it.
