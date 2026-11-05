@@ -4,7 +4,7 @@ title: Notify a person only when they must act
 description: A push goes to a person only for an ask, a pull request ready for review or work that cannot finish, through GitHub's own mention or review request; everything else, new issues included, waits in views; a repo may add a louder Web Push channel for asks.
 tags: [notifications, attention, needs, decision]
 status: draft
-generated: { by: claude-code/cloud, at: 2026-11-05T05:10:00Z }
+generated: { by: claude-code/cloud, at: 2026-11-05T05:40:00Z }
 ---
 
 # Context
@@ -31,10 +31,17 @@ record in the system of record and make any push a copy that points at it.
 2. **GitHub carries the push.** An ask's record @mentions the person the repo maps to
    that `needs` value; a ready PR requests that person's review. One push per ask; push
    again only when the ask itself changes.
-3. **New issues are not pushed.** They wait in the board's Inbox or triage view, which the
+3. **Never notify a person as that person.** GitHub never notifies anyone of their own
+   actions, so a mention or review request written under the mentioned person's own
+   account reaches nobody. Anything meant to notify a person goes out under a different
+   identity: a GitHub App installation (a `[bot]` account) by default, or another
+   person's or agent's own account. When the only identity that can write is the person
+   to be notified, post the ask without the mention, say so in the result, and leave the
+   ping to a channel outside GitHub.
+4. **New issues are not pushed.** They wait in the board's Inbox or triage view, which the
    owner reads in a sitting. A repo may opt in to a daily digest (one comment on a pinned
    item) or tell its owner to watch Custom → Issues.
-4. **A louder channel is optional and per repo.** For owners who miss ordinary pushes, a
+5. **A louder channel is optional and per repo.** For owners who miss ordinary pushes, a
    repo may name a channel that copies asks only. The kit's reference channel is
    **Web Push** (RFC 8030 with RFC 8291 encryption and VAPID, RFC 8292) in the
    Declarative Web Push shape: one sender reaches browsers, home-screen web apps on iOS
@@ -43,26 +50,26 @@ record in the system of record and make any push a copy that points at it.
    or Pushover are accepted adapters: ntfy when the owner wants its app, Pushover when an
    ask must repeat until acknowledged
    ([push services](/notifications/push-services/push-services-compared.md)).
-5. **The record never moves.** The ask lives on the item. A push carries a one-line
+6. **The record never moves.** The ask lives on the item. A push carries a one-line
    summary and the item's link, nothing private beyond what the item shows, and losing a
    push loses nothing.
-6. **What a louder push carries.** A title, one sentence (at most 100 words), the item's
+7. **What a louder push carries.** A title, one sentence (at most 100 words), the item's
    link as the tap target, the reason (`ask`, `review`, `stopped`), `Urgency: high` for
    an ask or a stop and `normal` for a review, and one stable key (the item plus the
    reason) used twice: as the notification's `tag`, so a newer push replaces the one
    already on screen where the platform supports tags, and as the Web Push `Topic`,
    which only replaces a message still waiting at the push service. No token, secret or private text beyond what the
    item shows.
-7. **Actions only open or defer.** The tap opens the item. Where buttons exist, the kit's
+8. **Actions only open or defer.** The tap opens the item. Where buttons exist, the kit's
    set is **Open**, **Snooze** (remind at the next sitting) and **Answer**, which opens a
    signed-in page. Picking an option, approving, merging, granting or "not me" never
    happen from a lock screen or a blind tap: they go through a signed-in page with a
    fresh check, and the answer lands on the item as a comment
    ([notification actions](/notifications/push-tech/notification-actions.md)).
-8. **At most one reminder.** An ask still open at the owner's next sitting may be pushed
+9. **At most one reminder.** An ask still open at the owner's next sitting may be pushed
    once more; after that it waits in the needs-me view. Only an adapter the owner chose
    for escalation (Pushover) repeats until acknowledged.
-9. **Repo specifics stay in the repo.** Who each `needs` value means, the louder channel
+10. **Repo specifics stay in the repo.** Who each `needs` value means, the louder channel
    and the new-issue mode go in `.gtd/BOARD.local.md` under "Notifications".
 
 # Consequences
@@ -70,7 +77,10 @@ record in the system of record and make any push a copy that points at it.
 - Requests from other projects are intake, not pushes
   ([intake and acks](/decisions/intake-and-acks.md)); an overdue one becomes a
   `needs:*` ask on the filer's item, and only then pings.
-- Agents gain no new tool: an ask's `attention` text carries the mention today.
+- Agents gain no new tool: an ask's `attention` text carries the mention today, but only
+  where the server writes records under an identity other than the person mentioned.
+- A deployment whose records are written under the owner's own account must post the
+  mention (and request reviews) through an App installation, or its asks notify nobody.
 - A server can do better later, as server-spec work with its own conformance checks:
   `item_report` adds the mention itself from the repo's map (so agents cannot forget or
   repeat it), `pr_open` requests the owner's review, and an optional notifier sends the
