@@ -90,7 +90,7 @@ for anything specific to this repo. Delete any section you don't need.
 - busy_check: <!-- optional, with resource: a repo command that exits 0 when it is free -->
 - on_board_down: hold
 - every: 1h
-- lease: 3h
+- lease: 26h
 - may:
   - <!-- what a tick may do, one class of work per line -->
 - never:
