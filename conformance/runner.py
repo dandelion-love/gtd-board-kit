@@ -2231,7 +2231,7 @@ def check_signoffs(rep: Report, c: Client, sb: Sandbox, who: dict | None) -> Non
     c.call("item_release", sb.args(g, done="signed", remaining="none", next="close"))
 
 
-PR_IDS = ("PR1", "PR2", "PR3", "PR4", "PR5", "PR6", "PR7", "PR8", "PR9")
+PR_IDS = ("PR1", "PR2", "PR3", "PR4", "PR5", "PR6", "PR7", "PR8", "PR9", "PR10")
 
 
 def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None,
@@ -2242,7 +2242,7 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
         for cid in PR_IDS:
             rep.na(cid, "pr_open is not offered")
         return
-    for cid, tool in (("PR8", "pr_review"), ("PR9", "pr_review_reply")):
+    for cid, tool in (("PR8", "pr_review"), ("PR9", "pr_review_reply"), ("PR10", "pr_open")):
         if tool in tools:
             rep.manual(cid, MANUAL_PR[cid])
         else:
@@ -2352,6 +2352,8 @@ MANUAL_PR = {
     "PR9": "on a PR with a review comment: pr_review_reply signed act pr-reply; resolve=true "
            "resolves; resolve=true with no body posts nothing; another PR's comment_id refused; "
            "a gtd-pr marker in a person's PR body gives the default role, not reviewer",
+    "PR10": "issue_comment on a pr_open PR by a principal with no claim on its issues, and on "
+            "a PR whose marker names an unreadable issue: both sign the ordinary default role",
 }
 
 

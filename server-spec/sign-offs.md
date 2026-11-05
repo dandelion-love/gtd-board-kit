@@ -20,7 +20,7 @@ writes it; the caller never does.
 
 The `issue_comment`, claim and `pr_open` rows are required (Core, and PR4 when `pr_open`
 is offered), and so are the `pr_review` and `pr_review_reply` rows wherever those tools
-are offered (PR5 to PR9); any other optional tool SHOULD sign the same way. A
+are offered (PR5 to PR10); any other optional tool SHOULD sign the same way. A
 review's inline comments show on GitHub apart from its body, so each one carries its own
 sign-off, with the review's `act`, role and session. An issue artifact is **not** signed:
 its body is the content itself (a `link` body must stay one URL). The `report` that names the artifact is signed. Text a server writes for
