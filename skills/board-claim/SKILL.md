@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.7.0
+  version: 0.8.0
 ---
 
 # Claim an item and work it
@@ -26,8 +26,8 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, sessio
 - Refused because someone holds it: leave it. Never take over a live lease.
 - Lease: enough for the work, at most 72h; renew it (`board-report`).
 - `branch`: where your commits for it land (`gtd/issue-<number>`, or the combined branch).
-- `session`: one name for this session (its runtime id, or a token made once). A review
-  claim from it refuses later, so no session reviews its own work.
+- `session`: one name for this session (its runtime id, or a token made once); no
+  session reviews its own work.
 
 ## Several stories on one branch
 
@@ -37,11 +37,10 @@ them on one integration (release-candidate) branch.
 - **Claim every story you work on**, one `item_claim` each, before its first commit.
   An unclaimed story never gets a commit, even on a combined branch. Refused on one?
   Leave it out of the batch.
-- Each claim has its own lease, reports and release: renew each, report each, release
-  each with its own notes (`board-report`). Dropping a story from the batch: take its
-  commits off the branch and release it.
-- The owning session merges other agents' story branches into the combined branch
-  without claiming them; a fix commit there for a story needs that story's claim.
+- Each claim has its own lease, reports and release, with its own notes
+  (`board-report`). Dropping a story: take its commits off the branch and release it.
+- The owning session merges others' story branches in unclaimed; a fix commit for a
+  story needs its claim.
 - The PR lists every story it carries in `pr_open`'s `issues`. Before opening it, check
   each: you hold it (`item_get`), or it reached the combined branch through its own
   merged PR (the evidence for a released item).
@@ -58,8 +57,8 @@ them on one integration (release-candidate) branch.
 
 ## 3. Do the work
 
-- Branch `gtd/issue-<number>` from the default branch. Never commit to the default
-  branch, never print secrets.
+- Branch `gtd/issue-<number>` from the default branch; never commit to it or print
+  secrets.
 - `.github/workflows/**` stays untouched unless a workflow grant covers it (below).
 - The repo's own skill for the work and the PR body, if any, wins.
 - Scope is the issue as claimed (in a lane too). A new ask outside it: `capture` it with
@@ -95,7 +94,9 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
 5. Only under a merge grant covering every changed file, with checks green, no changes
    requested and no conflict: merge it, and report with the merged link (`grants.md`).
 6. `item_release(repo, number, done, remaining, next, project)`, or keep holding (renew)
-   to answer review comments yourself (`activity_since`).
+   to answer review comments yourself (`activity_since`): each finding with
+   `pr_review_reply(…, resolve=true)` (what changed, the commit), a PR note with
+   `issue_comment`. Your own GitHub tool only if neither is offered: it is unsigned.
 
 Never approve or close the issue yourself, and never merge unless a merge grant covers
 every file (above): a person's merge completes it.
