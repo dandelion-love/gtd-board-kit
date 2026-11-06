@@ -126,6 +126,11 @@ Each repo layers its own rules on top of the kit without touching it:
 Move the pin by PR in the work repo: `git -C .gtd/kit fetch; git -C .gtd/kit checkout
 <sha>; git add .gtd/kit`. Never edit files inside `.gtd/kit`.
 
+To have the PRs opened for you, copy
+[`templates/dependabot/dependabot.yml`](templates/dependabot/README.md) to the work repo's
+`.github/dependabot.yml`: Dependabot then opens one PR per kit release, and a person
+merges it.
+
 ## Change the kit
 
 Read [AGENTS.md](AGENTS.md) first: this repo is public, so nothing private may enter it.

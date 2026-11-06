@@ -1,0 +1,15 @@
+# Kit repins by Dependabot. Copy to .github/dependabot.yml in a work repo.
+# Dependabot opens a PR that moves the .gtd/kit submodule to the kit's latest
+# main commit. Every merge to the kit's main is a release (it bumps VERSION),
+# so each PR is one release. A person reviews and merges it; nothing else runs.
+version: 2
+updates:
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "kit"
+    labels:
+      - kit-repin
+    open-pull-requests-limit: 1
