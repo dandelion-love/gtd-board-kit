@@ -282,16 +282,19 @@ and its sub-issues):
 ## Issue artifacts (when offered)
 
 A server that lists any `issue_artifact_*` tool in `tools/list` must also pass these
-([issue artifacts](tools.md#issue-artifacts)). A1 to A4 need a sandbox repo where GitHub's
+([issue artifacts](tools.md#issue-artifacts)). A1 to A6 need a sandbox repo where GitHub's
 issue artifacts are available; they create artifacts on a sandbox issue and delete
-nothing.
+nothing. A5 and A6 also need an HTML page the server may fetch (`--artifact-source-url`
+and `--artifact-source-sha256`); without one they are skipped.
 
 | Id | Check |
 | --- | --- |
 | A1 | `tools/list` has all four of `issue_artifact_list`, `issue_artifact_get`, `issue_artifact_create` and `issue_artifact_update`, and no tool whose name starts `issue_artifact_` and contains `delete` |
-| A2 | `issue_artifact_create` of a `generic` and a `link` artifact returns `number`, `type`, `name` and `url`; `issue_artifact_list` shows both, and with `type=link` only the link; `issue_artifact_get` returns the body as written |
+| A2 | `issue_artifact_create` of a `generic` and a `link` artifact returns `number`, `type`, `name` and `url`; `issue_artifact_list` shows both, and with `type=link` only the link; `issue_artifact_get` returns the body as written, with `sha256` and `bytes` of it |
 | A3 | `issue_artifact_update` of the generic artifact's body returns the new body, and `versions` is one more than before |
 | A4 | Each refuses and says why: `type` `report` (the refusal lists the four types); an empty `name`; a `link` body that is not one `https` URL; a body with a record marker; a body over 60000 characters |
+| A5 | `issue_artifact_create` of an `embedded_html` artifact from `source_url` and `sha256` returns that `sha256` and `bytes` over 0; `issue_artifact_get` with `include_body=false` returns the same `sha256` and no body, and with the body returns one whose UTF-8 SHA-256 is that hash |
+| A6 | Starting from A5's good create (its page and correct `sha256`), each case breaks one rule and refuses, and the issue gains no artifact (A6 fails when that good create is refused): `type` `generic`; `body` added; `sha256` left out; the URL as `http://`; a `sha256` that does not match the page |
 
 ## Intake (when offered)
 

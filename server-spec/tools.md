@@ -353,15 +353,38 @@ that should stay on the issue after its PR merges
 | Tool | Class | Arguments | Returns |
 | --- | --- | --- | --- |
 | `issue_artifact_list` | read | `repo`, `number`, `type?` | Each artifact's `number`, `type`, `name`, `url`, `updated_at` |
-| `issue_artifact_get` | read | `repo`, `number`, `artifact` | The artifact with `body` and `versions` (how many) |
-| `issue_artifact_create` | work | `repo`, `number`, `type`, `name`, `body` | The artifact as `issue_artifact_get` returns it |
-| `issue_artifact_update` | work | `repo`, `number`, `artifact`, `name?`, `body?` | The same; GitHub keeps the old version |
+| `issue_artifact_get` | read | `repo`, `number`, `artifact`, `include_body?` | The artifact with `body`, `sha256`, `bytes` and `versions` (how many) |
+| `issue_artifact_create` | work | `repo`, `number`, `type`, `name`, `body` or `source_url` + `sha256` | The artifact as `issue_artifact_get` returns it |
+| `issue_artifact_update` | work | `repo`, `number`, `artifact`, `name?`, `body?` or `source_url` + `sha256` | The same; GitHub keeps the old version |
 
 - `type` is one of GitHub's four: `generic` (a Markdown document), `plan` (a Markdown
   plan), `link` (the body is one `https` URL) or `embedded_html` (a self-contained HTML
   file). Any other value refuses and lists the four.
 - `name` is 1 to 256 characters; `body` is at most 60000 characters (X3). A `link` body
   that is not a single `https` URL refuses.
+- `issue_artifact_get` returns `sha256` (of the latest body as UTF-8) and `bytes`.
+  `include_body=false` leaves the body out and keeps both, so a reviewer can compare a
+  large page with the file they hold.
+
+### Large HTML pages by URL
+
+An agent cannot put a page of several megabytes into a tool call, and GitHub has no API
+for issue attachments. So an `embedded_html` artifact's body may come by URL: the
+caller passes `source_url` and `sha256` instead of `body`, and the server fetches the
+page itself.
+
+- Only `embedded_html` takes `source_url`; any other type refuses. `body` and
+  `source_url` together refuse, and `sha256` (64 hex characters) is required with it.
+- `source_url` is `https` on the default port, carries no user or password, and its host is on a list the
+  server's operator sets (a signed storage URL is the usual source). With no list, the
+  URL path refuses. The server sends no credential to it and follows no redirect.
+- The limit is at least 10 MiB (10 x 1024 x 1024 bytes), and the tool description states it.
+- Each refuses, says why and writes nothing: a hash that does not match the fetched
+  bytes; a file over the limit; a file that is not UTF-8 or does not start as an HTML
+  document (`<!doctype html` or `<html`, after an optional byte order mark, whitespace and HTML comments); a URL the server may not fetch; a page holding
+  a marker, as for `body`.
+- The result leaves the body out and carries `sha256` and `bytes`, so megabytes do not
+  come back through the tool call.
 - A body holding a record marker, a `gtd-pr` marker or a sign-off marker refuses, as
   `issue_comment` does. An artifact is not signed ([sign-offs](sign-offs.md#what-carries-one)).
 - There is no delete tool: deleting an artifact also deletes its history, so only a
