@@ -16,7 +16,7 @@ author line cannot tell two agents, or two sessions of one agent, apart. The ser
 therefore ends everything it writes for a caller with a **sign-off**: a visible line and a
 `gtd-sign` marker naming who (`by`, the verified principal), in which role (`worker`,
 `reviewer`, `coordinator`, `owner`), what it is (`comment`, `review`, `claim`, `report`,
-`pr`, ...), and the caller's `session`. The format is fixed in the
+`pr`, `pr-review`, `pr-reply`, ...), and the caller's `session`. The format is fixed in the
 [server spec](../../server-spec/sign-offs.md).
 
 An agent never writes a sign-off itself and never pastes one; the server refuses a body
@@ -24,6 +24,10 @@ that holds a marker. What an agent does:
 
 - Pass `session` on `item_claim` (BOARD.md rule 5) and on `issue_comment`, so a reader can
   tell this session's words from another's.
+- Write on a PR through the server too: `issue_comment` with the PR's number, a code
+  review with `pr_review`, an answer to a review finding with `pr_review_reply`. Each is
+  signed under the server's App; the agent's own GitHub tool writes an unsigned comment
+  under the person's account, which a reader cannot attribute.
 - Pass `role="coordinator"` on `issue_comment` when it is pointing or handing work to
   others, not doing it. The server fills `worker` or `reviewer` by itself.
 - A review verdict goes through `issue_comment` with `review_stage` (`plan` or `work`) and

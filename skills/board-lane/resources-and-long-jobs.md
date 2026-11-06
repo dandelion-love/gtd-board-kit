@@ -1,7 +1,7 @@
 # Long jobs, resources and board outages
 
 Part of the `board-lane` skill. Read `.gtd/kit/BOARD.md` and the skill's `SKILL.md`
-first. Optional lane keys used here: `resource`, `capacity`, `on_board_down`.
+first. Optional lane keys used here: `resource`, `capacity`, `epics`, `on_board_down`.
 
 ## Long jobs
 
@@ -32,6 +32,14 @@ resource's queue.
 - A person's direct ask that needs the resource jumps the queue: it starts at the next
   job boundary (when a running job ends), not by killing one, unless the person says to
   stop that job.
+- **An idle resource is a question, not an answer.** The lane's `queue` shows only what
+  someone already put there, so an empty queue does not prove there is nothing to run.
+  A tick that finds the resource idle reads the open items under the epics the lane
+  serves (`epics: [owner/repo#n, ...]`; with none, the parents of the items the lane has
+  worked) and names, for each one, its next step and what triggers it. An open item
+  with neither is a defect: write it up in that tick (`capture` it, or report it on the
+  item) instead of reporting the idle as correct. A second idle tick in a row lists the
+  items it checked, so a person can see the idle was looked at, not assumed.
 - When the job at the head slips, recompute Start and Target dates for the items behind
   it from the head's new ETA. A date a person set stands: report the conflict on that
   item instead of overwriting it.

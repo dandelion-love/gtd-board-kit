@@ -32,7 +32,8 @@ fragile: a schedule made inside a session dies with it, and recurring ones expir
 - Items a lane creates inside `may` carry the lane's mandate and may be claimed in the
   same tick, so a lane that owns a resource never idles on its own output.
 - A lane may own a `resource` with a `capacity`; a person's direct ask jumps its queue at
-  the next job boundary. `on_board_down` (`hold` by default, or `continue`) says what
+  the next job boundary. When the resource is idle, a tick reads the open items under
+  the lane's `epics` for next steps before it calls the idle correct. `on_board_down` (`hold` by default, or `continue`) says what
   a tick does when the board is unreachable. A person stops a lane fast, with no PR, by closing its item
   (`off`) or adding any `needs:*` label to it (`hold`).
 - Every tick revalidates the lane from the default branch before acting, so an edit takes
