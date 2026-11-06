@@ -32,7 +32,7 @@ reports pass, fail, skip or manual for every id below.
 | P1 | `profile_get` of every listed profile returns every field in [repo-context-and-profiles](repo-context-and-profiles.md#profiles), and every profile declares every base label |
 | P2 | Every `needs` value has a matching `needs:*` label; `owner_needs` is one of them |
 | P3 | Every profile's `status_for_label` maps `agent-running`, `waiting-for-review`, `agent-failed` and every `needs:*` label, and names only columns in `board.status` |
-| P4 | `issue_labels` adds and removes a profile label and an `area:x` label; refuses a label outside the profile and lists the real ones; refuses adding `run-agent`; never changes Status |
+| P4 | `issue_labels` adds and removes a profile label and an `area:x` label; refuses a label outside the profile and lists the real ones; refuses adding `run-agent`; adds and removes `agent-review`; never changes Status |
 | P5 | A repo or board outside the allowlist is refused before any GitHub call (the fake sees no request) |
 | P6 | `list_next_actions` with a label returns only open issues with that label, never a PR. GitHub's label-filtered lists can lag a label write by seconds, so the runner re-reads for up to 30 seconds before failing |
 | P7 | `project_items` returns items in the board's manual order and pages with a cursor |
@@ -52,12 +52,16 @@ reports pass, fail, skip or manual for every id below.
 | C6b | After a person closes a held issue, the holder's `item_release` succeeds and `item_claim` by anyone refuses |
 | C7 | `item_release` needs `done`, `remaining`, `next`; afterwards `item_get` shows no holder and the `handoff_to` |
 | C8 | `item_report` with `attention` and `needs=<owner_needs>` adds that `needs:*` label; without `needs` it refuses and lists the values; `state=dropped` releases. The label read retries for up to 30 seconds, as in P6 |
-| C9 | A non-record comment after the holder's last record appears in `follow_ups`; a comment with two markers is not a record |
+| C9 | A non-record comment after the holder's last record appears in `follow_ups`, and still does after the holder's `item_renew`; a comment with two markers is not a record |
 | C10 | With record authors set, a record pasted by another login is ignored by the fold |
 | C11 | `issue_comment` with a record marker in the body refuses |
 | C12 | With a board, the claim tools write `Agent` and `Last report` and nothing else; a failing board write returns a warning and the record still posts |
 | C13 | Fold golden tests: the fixtures in this folder's table below give the stated `holder`, `lease_until`, `stale`, `last_report`, `handoff_to` |
 | C14 | One caller claims two issues with the same `branch`: both succeed and each `item_get` shows the caller as holder with `mandate.branch` equal to it; releasing the first leaves the second held with its own lease; a `branch` of `bad..name` refuses |
+| C15 | Review claims: a caller claims an issue with `session=A` and releases it. `purpose=review` then refuses with no `session`, with `basis=inferred`, and with `session=A`; with `session=B` it succeeds and `item_get` shows `mandate.purpose` `review` and `mandate.session` `B` |
+| C16 | `activity_since` after a claim and a plain comment on the held issue: the comment is an entry with `source` `held`, `kind` `comment` and the issue's `number`, and no entry is a record; with `since` after the comment it is absent; with a second token, the second caller sees no entry for that issue |
+| C17 | `activity_since` with `limit=1` over two new comments: the first page has one entry and `has_next_page`; `next_cursor` gives the other, with no repeat, and the same `read_at` as the first page |
+| C18 | (by hand) A review on a PR opened through `pr_open` appears for the PR's `by` principal as `source` `pr`, `kind` `review`, with its `review_state`; a comment on a channel issue appears as `source` `channel` |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
 
@@ -75,6 +79,19 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 | j | four non-record comments (plain text, two markers, `v2`, bad JSON); claim A to 300 | holder A only |
 
 The same cases are machine-readable in [fold_cases.json](../conformance/fold_cases.json).
+
+## Sign-offs (Core)
+
+[Sign-offs](sign-offs.md). G1 to G5 need the sandbox repo; they post comments and claims
+on sandbox issues.
+
+| Id | Check |
+| --- | --- |
+| G1 | `issue_comment` returns `body` and `signoff`; the body holds the caller's text, then exactly one `gtd-sign v1` marker whose JSON has `v` 1, `by` equal to the caller's `whoami` principal, `act` `comment`, `role` `worker`, and `t`; `signoff` equals that JSON; the visible line holds `gtd-sign` and the principal |
+| G2 | `issue_comment` with `session` records it in the sign-off; with `role="coordinator"` signs as `coordinator`; refuses `role="owner"` from an agent principal, and an unknown role with a refusal that lists `worker`, `reviewer`, `coordinator` and `owner` |
+| G3 | `issue_comment` refuses a body that holds `<!-- gtd-sign v1 {...} -->`, and the refusal names `gtd-sign` |
+| G4 | `issue_comment` with `review_stage` and `review_verdict` refuses without the caller's review claim, refuses with only one of the two, and refuses `review_verdict="approved"` listing the three verdicts. With the review claim, a `session` other than S refuses. Holding a review claim (session S), `review_stage="work"`, `review_verdict="needs-changes"` succeeds: `act` `review`, `role` `reviewer`, `review` `{"stage": "work", "verdict": "needs-changes"}`, `session` S, and the body's first line is `Work review: Needs changes` |
+| G5 | `item_claim` with `session` S, then `item_report` by the holder: both results carry `signoff` with `by` the caller's principal, `session` S, and `act` `claim` and `report` |
 
 ## Join (Join level)
 
@@ -135,13 +152,20 @@ A server that lists `profile_updates` in `tools/list` must also pass these.
 A server that lists `pr_open` in `tools/list` must also pass these
 ([opening pull requests](tools.md#opening-pull-requests)). PR1 and PR2 open nothing. PR3 needs
 a branch already pushed to the sandbox repo (the runner's `--pr-head`) and leaves one PR
-open for a person to close.
+open for a person to close. PR5 to PR7 use that PR and post on it.
 
 | Id | Check |
 | --- | --- |
 | PR1 | Holding a claim on a sandbox issue, `pr_open` refuses a cross-repository `head` (`owner:branch`), a `head` equal to `base`, and a `head` that is not a branch of the repo |
-| PR2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`. Each refusal gives that reason, not only a missing branch |
+| PR2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`; refuses a `body` of `Rollback: hold or close #<n>` and says `closing keyword`. Each refusal gives that reason, not only a missing branch |
 | PR3 | With a claim on a sandbox issue and a pushed `head`, `pr_open` opens the PR: `author` is not the caller's GitHub login and ends in `[bot]`, `by` equals the caller's `whoami` principal, and the returned `body` ends with exactly one `gtd-pr v1` marker whose `by` and `issues` match. Without `closes` it reports `closes` false and the body has no `Closes #` line. A second `pr_open` for the same `head` and `base` refuses and gives the open PR's URL |
+| PR4 | The PR PR3 opened: its `body` holds exactly one `gtd-sign v1` marker with `act` `pr` and `by` the caller's principal, before the `gtd-pr` marker, and the result's `signoff` equals it |
+| PR5 | The PR PR3 opened: `issue_comment` on its number succeeds; the body holds exactly one `gtd-sign v1` marker with `act` `comment`, `by` the caller's principal and `role` `worker` (the caller's work claim on the issue the PR's marker names), and the result's `signoff` equals it and it returns the comment's `url`; with `--github-token-env` the runner reads the comment from GitHub and its author is PR3's `author`, not the caller's login. The same call with `review_stage` and `review_verdict` refuses |
+| PR6 | When `pr_review` is offered, on the PR PR3 opened: refuses `event="approve"` naming `approve`; refuses `event="request-changes"` (the server's identity authored that PR) and says to use `comment`; refuses a `body` holding a `gtd-sign` marker naming `gtd-sign`; refuses an inline comment whose `body` holds a `gtd-desk` marker naming `gtd-desk`; refuses a `repo` not on the allowlist. None of these posts a review |
+| PR7 | When `pr_review` is offered, on the PR PR3 opened: `event="comment"` with no inline comments posts one review; `author` ends in `[bot]` and is not the caller's login; the body holds exactly one `gtd-sign v1` marker with `act` `pr-review` and `by` the caller's principal, and `signoff` equals it |
+| PR8 | When `pr_review` is offered: a review with one inline comment on a line of the diff signs the review body and the inline body, each with one marker; a review whose second inline comment is off the diff refuses and posts no review and no inline comment (*manual*: needs a PR with a known diff) |
+| PR9 | When `pr_review_reply` is offered, on a PR with a review comment: a reply is signed (`act` `pr-reply`, `by` the principal) under the App; with `resolve=true` the thread is resolved and `resolved` is true; a second call with `resolve=true` and no `body` posts nothing; a `comment_id` from another PR refuses naming `comment_id`. A PR whose `gtd-pr` marker is in a body written by a person gives the caller the ordinary default role, not `reviewer` (*manual*: needs a review thread and a hand-made PR) |
+| PR10 | On the PR PR3 opened, a caller holding no claim on the issue its `gtd-pr` marker names gets the ordinary default role on `issue_comment` (`worker` for an agent, `owner` for a person); and on a PR whose trusted marker names an issue the server cannot read, the caller also gets the ordinary default and the comment still posts (*manual*: needs a second principal and a hand-made PR) |
 
 ## Ready check (when offered)
 
@@ -156,7 +180,7 @@ A server that lists `item_ready` in `tools/list` must also pass these
 | R4 | An issue without an acceptance-criteria section fails `acceptance-criteria`; one with the section and a `needs:*` label fails `open-question` and not `acceptance-criteria` |
 | R5 | "Blocked by `#N`" in the body without a native link, and the `blocked` label with no open native blocker, each fail `unlinked-blocker`; once linked, the blocker is in `blockers` and the rule passes; linking back either refuses with a reason that names the cycle (GitHub refuses a dependency cycle itself, so `issue_blocked_by_add` passes its reason through) or, when the link lands, fails `blocker-cycle`. The cycle rule itself is covered offline by R1 |
 | R6 | With a board, no Size, and a Size outside `pickup_sizes`, each fail `size` |
-| R7 | A pull request, a closed issue, and an issue of Kind `epic` are refused |
+| R7 | A pull request, a closed issue, an issue of Kind `epic`, and an issue labelled `standing` are refused |
 | R8 | `item_claim` returns `ready` whose `verdict`, failed rules and open blockers equal what `item_ready` returns for the issue; an explicit claim on an issue without criteria succeeds (the verdict never refuses) and a `warnings` line names `needs-refinement`; a claim on a `ready` issue has no "not ready" warning ([the ready verdict on a claim](tools.md#claims-and-reports)) |
 
 R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,
@@ -254,6 +278,94 @@ and its sub-issues):
 | `type-finding-with-steps` | set Finding; no parent; sub-issues no Kind | refused: `finding-holds-nothing` |
 | `type-story-over-chore` | set Story; parent Epic; sub-issues no Kind, Chore | refused: `holds-steps` |
 | `type-spike-over-finding` | set Spike; parent Epic; sub-issues no Kind, Finding | allowed |
+
+## Issue artifacts (when offered)
+
+A server that lists any `issue_artifact_*` tool in `tools/list` must also pass these
+([issue artifacts](tools.md#issue-artifacts)). A1 to A6 need a sandbox repo where GitHub's
+issue artifacts are available; they create artifacts on a sandbox issue and delete
+nothing. A5 and A6 also need an HTML page the server may fetch (`--artifact-source-url`
+and `--artifact-source-sha256`); without one they are skipped.
+
+| Id | Check |
+| --- | --- |
+| A1 | `tools/list` has all four of `issue_artifact_list`, `issue_artifact_get`, `issue_artifact_create` and `issue_artifact_update`, and no tool whose name starts `issue_artifact_` and contains `delete` |
+| A2 | `issue_artifact_create` of a `generic` and a `link` artifact returns `number`, `type`, `name` and `url`; `issue_artifact_list` shows both, and with `type=link` only the link; `issue_artifact_get` returns the body as written, with `sha256` and `bytes` of it |
+| A3 | `issue_artifact_update` of the generic artifact's body returns the new body, and `versions` is one more than before |
+| A4 | Each refuses and says why: `type` `report` (the refusal lists the four types); an empty `name`; a `link` body that is not one `https` URL; a body with a record marker; a body over 60000 characters |
+| A5 | `issue_artifact_create` of an `embedded_html` artifact from `source_url` and `sha256` returns that `sha256` and `bytes` over 0; `issue_artifact_get` with `include_body=false` returns the same `sha256` and no body, and with the body returns one whose UTF-8 SHA-256 is that hash |
+| A6 | Starting from A5's good create (its page and correct `sha256`), each case breaks one rule and refuses, and the issue gains no artifact (A6 fails when that good create is refused): `type` `generic`; `body` added; `sha256` left out; the URL as `http://`; a `sha256` that does not match the page |
+
+## Intake (when offered)
+
+A server that lists `intake_list` or `intake_ack` in `tools/list` must also pass these
+([intake](tools.md#intake)). I2 to I4 need a sandbox repo and a second principal: the
+second files one request issue, the first acks it (a project never acks its own request).
+
+| Id | Check |
+| --- | --- |
+| I1 | `tools/list` has both `intake_list` (class `read`) and `intake_ack` (class `work`) |
+| I2 | A new open issue with the label is in `intake_list` with `ack` null and `new` true for a `since` before it; it is `overdue` with `ack_within=0m` and not with `24h`; an issue without the label is not listed |
+| I3 | `intake_ack` with `state=received` returns a `url`, and `intake_list` then shows `ack.state` `received` with `by` the caller and `overdue` false at `0m`; the same ack again returns `unchanged` true and adds no comment; `state=parked` then shows `parked` |
+| I4 | `intake_ack` refuses and says why: an issue without the label; `state` `done` (the refusal lists the four); a `note` holding a record marker |
+| I5 | (by hand) An ack marker pasted in a comment by a login that is not a record author is ignored: `intake_list` still shows the trusted ack, or null |
+
+## Notifications (when offered)
+
+A server that lists `notify_get` in `tools/list` must also pass these
+([notifications](notifications.md)). N2 to N5 need a sandbox repo whose
+`.github/gtd-context.json` maps the profile's `owner_needs` under `notify.mentions` to a
+login that is not one the server writes records as (the runner skips them otherwise).
+
+| Id | Check |
+| --- | --- |
+| N1 | `tools/list` has `notify_get` with class `read`; `notify_get` on the sandbox returns `mentions`, `push`, `new_issues`, `ping_as` and `warnings`, and on a repo outside the allowlist refuses |
+| N2 | `item_report` with `attention` and the mapped `needs` returns `ping.posted` true with `to` the mapped login and `as` equal to `ping_as` and not `to`; `notify_get` with the number then lists exactly one ping with that `key`, whose `author` is `ping_as`. With `--github-token-env`, the runner also reads the comment at `ping.url` from GitHub itself and checks that its author is `ping_as` and not `to` |
+| N3 | The same `attention` again returns `ping.reason` `unchanged` and the item still has one ping; a changed `attention` posts a second ping with a new `key`; when the map names a second `needs`, the same `attention` with that `needs` posts a third ping with a new `key` |
+| N4 | An `attention` with a `needs` the map does not name returns `ping.reason` `no-map`, posts no ping, and the record and the `needs:*` label stand |
+| N5 | `item_claim`, `item_renew`, `item_report` with only a `note`, and `item_release` return `ping` null or absent, and the item's ping count does not change |
+| N6 | (by hand) A non-draft `pr_open` returns `review_requested` the owner's login, and GitHub shows the request from the App; a draft `pr_open` requests no review |
+| N7 | (by hand) The mapped person's GitHub inbox shows one mention for the ask, from the `[bot]` author; with the map pointing at the login the server writes as, `ping.reason` is `no-identity` and `notify_get` warns |
+| N8 | (by hand, when `push` is offered) A push copy of an ask and of a `pr_open` review request carries `reason` (`ask` or `pr-ready`) and `tag` and `Topic` from the key, no token in payload or URLs, at most Open, Snooze and Answer, and no second copy for an `unchanged` ping |
+
+## Typed links (when offered)
+
+A server that offers the Repo setup group (`work_items_plan`, a read tool, or
+`work_items_sync`, which a caller below `full` does not see) must also pass these
+([typed links](typed-links.md)). The runner runs L1 whenever it is given `--link-cmd`.
+
+| Id | Check |
+| --- | --- |
+| L1 | The golden cases below, fed to the server's own link fold (`--link-cmd`), give the stated Related lines on each end, native blockers and refusals |
+| L2 | A sync of a scratch repo whose register holds a `refines` and a `depends-on` link shows a Related section on both ends of each, with the far end's inverse name and its issue reference, and makes the dependent issue blocked by the other; a second sync plans no body edit |
+
+L1 cases ([link_cases.json](../conformance/link_cases.json); the items are `EXP-1` to
+`EXP-3`, `BM-1` and `FINDING-F1`, and one source adds the prefix `FINDING-`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `out-and-inverse` | one edge shows on both ends, the far end by its inverse name | 1 edge |
+| `symmetric` | a symmetric kind reads the same from both ends | 1 edge |
+| `symmetric-both-ways` | a symmetric link written from each end is one edge | 1 edge |
+| `directed-both-ways` | a directed kind written from each end is two edges | 2 edges |
+| `repeat` | the same link twice is one edge | 1 edge |
+| `two-kinds` | two kinds between the same ends are two edges | 2 edges |
+| `id-form` | a register keyed on id names the source as id | 1 edge |
+| `artifact-link` | a link with a url and no to is an artifact pointer, not an edge | no edge |
+| `other-events` | registrations and results are not links | no edge |
+| `unknown-kind` | a kind outside the table is refused | refused: `unknown-kind` |
+| `unknown-end` | an end that is no item is refused | refused: `unknown-end` |
+| `self-link` | an item linked to itself is refused | refused: `self-link` |
+| `prefix` | a record id resolves through a source's id prefix | 1 edge |
+| `depends-on` | depends-on is also a native blocked-by | 1 edge; blocked-by |
+| `unlink` | unlink removes the edge | no edge |
+| `unlink-missing` | unlink of an edge that is not there is refused | refused: `no-such-link` |
+| `unlink-other-kind` | unlink removes only its own kind | refused: `no-such-link`; the rest stands |
+| `relink` | a link after its unlink stands again | 1 edge |
+| `unlink-symmetric` | a symmetric edge is unlinked from either end | no edge |
+| `unlink-depends-on` | unlinking depends-on drops the blocked-by too | no edge |
+| `chain` | a follow-up chain lists each step on both sides | 2 edges |
+| `every-kind` | each kind's inverse name | 11 edges; blocked-by |
 
 ## Security (all levels)
 

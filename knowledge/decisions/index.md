@@ -8,3 +8,6 @@
 * [OKF is pinned by the kit](okf-pinned-by-the-kit.md) - Knowledge docs follow one OKF version, moved with the kit
 * [Work items live on the board; a local file is only a cache](work-items-live-on-the-board.md) - The issue is the record, a markdown copy is never committed
 * [How work decomposes into epics, stories and steps](decomposition-standard.md) - Levels, Kinds, ready and done, the unit of agent work, PR authorship and gates
+* [Agents pull new activity with one read](agents-pull-new-activity.md) - activity_since over held items, PRs opened for the agent and channels, with a read_at cursor
+* [Requests between projects go through an intake and get an ack](intake-and-acks.md) - intake_list and intake_ack, observe-first intake lanes, and a needs flag when no ack comes
+* [Notify a person only when they must act](notify-only-when-a-person-must-act.md) - Three reasons to push, through GitHub's mention or review request; new issues wait in views; an optional Web Push channel copies asks, with actions that only open or defer

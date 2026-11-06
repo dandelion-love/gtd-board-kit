@@ -18,10 +18,16 @@ Only where a repo has no bridge does an agent set Status itself, using the colum
 
 | Family | Says | Examples |
 | --- | --- | --- |
-| Dispatch | where the agent loop is | `run-agent`, `agent-running`, `waiting-for-review`, `agent-failed`, `blocked` |
+| Dispatch | where the agent loop is | `run-agent`, `agent-review`, `agent-running`, `waiting-for-review`, `agent-failed`, `blocked` |
 | Whom it waits for | a person's turn | `needs:<who>` |
 | Who may take it | routing | `agent:any`, `agent:<runtime>`, `agent:human` |
 | May it be pulled | accept mode | `agent-ready` (pull), `agent-proposed` (observe only) |
+| Standing | stays open by design | `standing` (a lane's item, a standing chore: no ready check, never closed by a PR) |
+
+`run-agent` asks for the work now; `agent-review` asks for a review of the issue only
+(the `board-review` skill): it never starts a build and never adds `agent-ready`. Only a
+person adds `run-agent`. A person or an agent adds `agent-review`, and the review is
+always done by another session: a review claim refuses the session that worked the item.
 
 See [claims](/model/claims-and-leases.md) for who holds an item and
 [reports](/model/report-vocabulary.md) for what a holder says.

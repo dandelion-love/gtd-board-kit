@@ -3,7 +3,7 @@ name: board-report
 description: Report progress on a claimed board item, renew or release its claim, or record a failure, through the gtd MCP server. Use at each milestone of work on a claimed issue, before a lease runs out, when work stops for any reason, and when handing an item to someone else.
 metadata:
   author: gtd-board-kit
-  version: 0.3.1
+  version: 0.9.0
 ---
 
 # Report on a claimed item
@@ -27,12 +27,38 @@ item_report(repo, number, state, note, links, project)
 | `failed` | you tried and could not finish | `agent-failed` in, `agent-running` out |
 | `dropped` | no longer worth doing (this releases the claim) | `agent-running` out |
 
-- `note`: one or two plain lines on what happened and what comes next. No secrets,
-  no pasted logs; link them.
+- `note`: one or two plain lines: what happened, what is next. No secrets or pasted
+  logs; link them.
 - `links`: the PR, the run, the doc.
+- At `ready`, also keep the evidence on the issue as
+  `.gtd/kit/knowledge/model/evidence-places.md` says: a `link` artifact for the PR or a
+  published doc, a `generic` one for a report (`issue_artifact_create`, when offered;
+  a name has no `#` or `:`). Tick each criterion whose evidence passes, with a link to
+  the proof on its line (a permalink at the head commit, plus `PR #n AC2 row`); leave a
+  failing one empty with the reason. The `ready` note is for a person: what is
+  delivered, the one action asked, what is not done, choices you made
+  and their undo. The issue must speak for itself
+  (`.gtd/kit/knowledge/model/self-reviewable-items.md`).
+- **Name the successor.** A `ready` or closing report links the next item, `capture`s
+  it, or says the leg ends.
 - Remove `blocked` when you resume. Without `.github/workflows/project-sync.yml`, also
   set Status to the column `.gtd/BOARD.local.md` gives.
 - A question for a person is not a state: use `board-needs-person`.
+- **Waiting on a lane or its resource** (a run only a lane starts, a card a lane owns):
+  `waiting` alone reaches nobody. Also `issue_comment` on that lane's item (its `item` in
+  `.gtd/BOARD.local.md`): your item's link and what you wait for. The lane's next tick
+  reads it in `activity_since` (`board-lane`) and answers there.
+
+## New activity
+
+At each tick, before each report and before you release: `activity_since(repo,
+since=<the read_at you kept>)`. It lists what others wrote since then on items you hold,
+PRs opened for you by `pr_open` (comments and reviews) and the repo's channels. Answer
+each entry where it was written, or say in your next report why not. While
+`has_next_page`, call again with `next_cursor` and the same `since`. Then keep
+`read_at` (the same on every page); with none kept, omit `since` (last 24 hours) and skip what you already
+answered. Skip only entries whose url your own writes returned. No such tool on the server: read each held
+item's `follow_ups` (`item_get`) and each channel (`channel_comments_read`).
 
 ## Cadence
 
@@ -63,14 +89,18 @@ defaults are below.
 - **Other fields:** `.gtd/kit/knowledge/model/board-fields.md` says who writes each
   field and when. Waiting on a person's gate: `Gates` names it and the report note is
   the one-line ask; once it passes, update `Gates` and clear the `needs:*` label.
+- **Sync-owned fields:** a field a profile sync `owns` (`profile_get`; in ml-lab an
+  experiment's Agent, Start date and Last report) is written by the sync from its
+  register. Never set it by hand, not even for an ETA or a note: record the event
+  (`experiment_record`) and let the sync write the card. A Status stuck after a run
+  ended means its register event or PR never landed: land it, never move the card.
 
 ## Long runs on compute hosts
 
 If `.gtd/BOARD.local.md` names a run-state channel, a run also posts there:
 `run_state_post(event=start | phase | end | hold | release | spend, host, by, …)`.
-Report the item and the run; one does not replace the other.
+Report both the item and the run.
 
 ## Board-level reports
 
-Owners and coordinators can post the board's status update with `project_report`
-(computed health). An agent working one item does not.
+Only owners and coordinators post the board's status (`project_report`).

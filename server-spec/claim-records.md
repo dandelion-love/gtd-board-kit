@@ -59,6 +59,8 @@ A record comment is human-readable Markdown with one marker at the end:
   "policy_version": "the lane's policy version, or null",
   "pointed_in": "a link to where the agent was pointed, or null",
   "branch": "the branch the holder's commits for this item land on, or null",
+  "purpose": "work | review",
+  "session": "the caller's own name for its session, or null",
   "scope": {"repo": "owner/repo", "item": 0, "title": "...", "body_sha256": "first 16 hex"}
 }
 ```
@@ -68,6 +70,11 @@ item ([claims and leases](../knowledge/model/claims-and-leases.md)).
 
 `branch` is optional and only recorded: a fold does not use it. A record written before
 the field existed has no `branch`; readers treat a missing key as null.
+
+`purpose` and `session` are recorded the same way: a fold does not use them, a missing
+`purpose` reads as `work` and a missing `session` as null. `item_claim` reads them from
+earlier records to refuse a review by the session that worked the item
+([review claims](tools.md#claims-and-reports)).
 
 ## Several items, one branch
 
@@ -111,7 +118,9 @@ Walk record comments in ascending comment id (GitHub assigns ids in creation ord
 After the walk:
 
 - `stale` is true when there is a holder and `lease_until` is in the past.
-- `follow_ups` are non-record comments newer than the holder's latest record.
+- `follow_ups` are non-record comments newer than the holder's latest record other than
+  a `renew`. A renew is a heartbeat, not a reply, so it never hides a comment the holder
+  has not answered.
 
 `item_get` returns at least: `holder`, `lease_until`, `stale`, `mandate`, `handoff_to`,
 `last_report`, `last_note`, `attention` (`{question, by, url}` or null), `lost_claims`,

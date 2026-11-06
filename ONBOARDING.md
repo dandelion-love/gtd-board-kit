@@ -17,7 +17,8 @@ at `.gtd/kit/ONBOARDING.md`.
 - Never print, paste or log a credential, and never ask your person to paste one.
 - Every detail about this repo (board, labels, people, channels, hosts) goes into this repo's
   `.gtd/BOARD.local.md`. **Nothing goes upstream into the kit**: it is a public repo.
-- Work on a branch. Commit nothing to the default branch, and never merge your own PR.
+- Work on a branch. Commit nothing to the default branch, and never merge your own PR
+  unless a merge grant in `.gtd/BOARD.local.md` covers every file in it.
 
 ## 1. Look at the repo
 
@@ -72,11 +73,17 @@ Fill it from what the repo and the board say, not from memory:
 - `profile_get` for the profile: its columns, labels, `needs:*` values and fields.
 - `project_get` and `project_views_list` for the board in `.github/gtd-context.json`.
 - Does `.github/workflows/project-sync.yml` exist? If not, fill the Status-per-label table.
+- Who moves a closed item to `Done`: the repo's sync if it owns close, else the server's
+  bot, which needs the App's issues and pull request events. Note which in BOARD.local.md
+  ([closed is Done](knowledge/model/board-fields.md#closed-is-done)).
   Take it from the profile when `profile_get` shows the map; otherwise ask your person.
 - The repo's own README, `CLAUDE.md` and `AGENTS.md`: domain rules, channels, hosts, and
   steps agents must follow.
 - Ask your person for what only they know: which `needs` value means the owner, what agents
   may pick up without being pointed at it, and anything that must never be touched.
+- Ask who each `needs` value should ping, and whether new issues should reach the
+  owner beyond the Inbox view (default: they wait in the view). Put the answer in
+  `.github/gtd-context.json` under `notify` and note it in "Notifications".
 
 - Ask whether agents here should run recurring work unpointed (standing lanes) or may
   edit named workflows (workflow grants). Draft those blocks with the person's own words

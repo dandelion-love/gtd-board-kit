@@ -63,6 +63,26 @@ Call `whoami` either way. It shows your principal, your preset and, for a joined
 
 ## Device-code entrance
 
+### Codex automatic credential loading
+
+`tools/agent_mcp_bridge.py` connects a stdio MCP client to the server's HTTPS MCP
+endpoint. It uses the official Python MCP SDK (`mcp`) and `httpx`; install them in
+the Python environment that runs the bridge. The existing join client remains the
+only component that reads and refreshes the credential. The bridge invokes that
+client for each HTTP request and does not print the token.
+
+Configure a stdio MCP server with Python as the command and these arguments:
+`tools/agent_mcp_bridge.py --url https://example.org/mcp --join-client /path/to/gtd_join.py --name agent-name`.
+Use absolute paths in a client configuration. The URL must be HTTPS and must refer
+to the server configured for the joined agent. Restart or reload the MCP client,
+then call `whoami`. A server connection is held open for a session; reconnect if
+the network interrupts it. The bridge requires Python 3.10 or newer and an installed
+MCP Python SDK; it does not install dependencies itself.
+
+The access token is exposed to the bridge process and the SDK's HTTP client in
+memory. They must be trusted with the agent's permissions. Never configure a URL
+you do not trust; the bridge sends the agent token to that endpoint.
+
 - **Join with a device code.** Read `<mcp_url>/join` (plain-text steps, always current
   for that server; its `Entrances:` line says which entrances that server offers) and run the join client it serves at
   `<mcp_url>/join/client.py` (Python 3.9+, standard library only):

@@ -13,7 +13,7 @@ What it needs, and which checks each unlocks:
     --server                T1, T8, J2, J3 (J2 and J3 only with --join-start: it opens one join
                             request, which expires on its own in ten minutes)
     + a token               T2, T3, T5, T6 (partly), T7, T8 (in full), T9, P1 to P3, P8, P9, J10, X2 (partly)
-    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14, X1, X3. It CREATES issues there
+    + --repo (a sandbox)    P4 to P6, C1, C5 to C9, C11, C14 to C17, G1 to G5, X1, X3. It CREATES issues there
     + a second token        C2, C3, C6 (as a second principal)
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
@@ -22,7 +22,14 @@ What it needs, and which checks each unlocks:
                             with --project)
     sub_issue_add offered   K1 (with --kind-cmd), K2 to K4 (with --repo whose owner has the
                             Issue Types Epic, Story, Chore, Spike and Finding)
-    no --server             C13, R1 and K1, against the reference fold, ready check and Kind rules
+    issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
+                            artifacts are available; it creates two artifacts, deletes none)
+    intake_* offered        I1 (with a token), I2 to I4 (with --repo and a second token: the
+                            second files one labelled request, the first acks it); I5 is manual
+    work_items_plan/_sync   L1 (with --link-cmd, which runs it whatever the token sees);
+    offered                 L2 is manual
+    no --server             C13, R1, K1 and L1, against the reference fold, ready check, Kind
+                            rules and link fold
 
 Tokens are read from environment variables, never from the command line, and are never
 printed. Checks that need a person (J4 to J9, C4, C10, T4) are listed as manual with what
@@ -60,11 +67,16 @@ class Family(Enum):
     TRANSPORT = "T"         # Transport and identity (Core)
     PROFILES = "P"          # Repo context and labels (Core)
     CLAIMS = "C"            # Claims (Core)
+    SIGNOFFS = "G"          # Sign-offs (Core)
     BOARD = "B"             # Board (Board level)
     CUSTOMIZATION = "O"     # Customization (when profile_updates is offered)
     READINESS = "R"         # Ready check (when item_ready is offered)
     PULL_REQUESTS = "PR"    # Pull requests (when pr_open is offered)
     KINDS = "K"             # Kind and parent rules (when the Issue structure tools are offered)
+    ARTIFACTS = "A"         # Issue artifacts (when the issue_artifact_* tools are offered)
+    INTAKE = "I"            # Intake (when intake_list or intake_ack is offered)
+    NOTIFY = "N"            # Notifications (when notify_get is offered)
+    LINKS = "L"             # Typed links (when work_items_sync is offered)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -74,9 +86,10 @@ class Family(Enum):
 #: Each family's heading in server-spec/conformance.md (tests/check_kit.py checks them).
 HEADINGS = {
     Family.TRANSPORT: "Transport and identity", Family.PROFILES: "Repo context and labels",
-    Family.CLAIMS: "Claims", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
+    Family.CLAIMS: "Claims", Family.SIGNOFFS: "Sign-offs", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
-    Family.KINDS: "Kind and parent rules",
+    Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
+    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.LINKS: "Typed links",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -96,10 +109,11 @@ class Level(Enum):
 #: The level each family's checks belong to (Security holds at every level, so Core).
 LEVEL_OF = {
     Family.TRANSPORT: Level.CORE, Family.PROFILES: Level.CORE, Family.CLAIMS: Level.CORE,
-    Family.SECURITY: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
+    Family.SECURITY: Level.CORE, Family.SIGNOFFS: Level.CORE, Family.JOIN: Level.JOIN, Family.CONNECTOR: Level.JOIN,
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
-    Family.KINDS: Level.EXTENDED,
+    Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
+    Family.NOTIFY: Level.EXTENDED, Family.LINKS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -121,6 +135,27 @@ def report_order(cid: str) -> tuple:
 PROTOCOL = "2025-06-18"
 MARKER = "gtd-desk"
 RECORD_RE = re.compile(r"<!--\s*" + MARKER + r"\s+v(\d+)\s+(\{.*?\})\s*-->", re.DOTALL)
+SIGN_MARKER = "gtd-sign"
+SIGN_RE = re.compile(r"<!--\s*" + SIGN_MARKER + r"\s+v(\d+)\s+(\{.*?\})\s*-->", re.DOTALL)
+
+
+class Role(Enum):
+    """The sign-off roles of server-spec/sign-offs.md."""
+    WORKER = "worker"
+    REVIEWER = "reviewer"
+    COORDINATOR = "coordinator"
+    OWNER = "owner"
+
+
+class ReviewStage(Enum):
+    PLAN = "plan"
+    WORK = "work"
+
+
+class ReviewVerdict(Enum):
+    LOOKS_READY = "looks-ready"
+    NEEDS_CHANGES = "needs-changes"
+    NEEDS_PERSON = "needs-person"
 PRESETS = ("desk", "read", "work", "full")
 
 # The preset class of every tool the spec classes (transport-and-identity.md, tools.md).
@@ -130,7 +165,8 @@ CLASS.update(dict.fromkeys((
     "project_views_list", "list_next_actions", "issue_list", "issue_blocked_by_list",
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
-    "channel_comments_read", "profile_updates", "item_ready"), "read"))
+    "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
+    "issue_artifact_get", "activity_since", "intake_list", "notify_get"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -138,7 +174,8 @@ CLASS.update(dict.fromkeys((
     "project_draft_add", "project_draft_update", "project_draft_convert", "issue_update",
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
-    "run_state_post", "channel_comment_post", "pr_open"), "work"))
+    "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
+    "issue_artifact_update", "intake_ack"), "work"))
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -190,13 +227,13 @@ def settle(read, ok_when, timeout: float = LIST_LAG_SECONDS, step: float = LIST_
 CORE_TOOLS = ("whoami", "profile_list", "profile_get", "project_get", "project_items",
               "project_item_find", "project_views_list", "list_next_actions", "issue_list",
               "issue_blocked_by_list", "item_get", "item_claim", "item_renew", "item_release",
-              "item_report", "capture", "issue_comment", "issue_labels")
+              "item_report", "capture", "issue_comment", "issue_labels", "activity_since")
 WHOAMI_FIELDS = ("principal", "signed_in_by", "preset", "fenced", "provider", "entrance", "expires_at",
                  "join_url", "conformance", "spec_version")
 PROFILE_FIELDS = ("name", "labels", "needs", "owner_needs", "pickup_sizes", "status_for_label")
 BASE_LABELS = ("run-agent", "agent-running", "waiting-for-review", "agent-failed", "blocked",
-               "accepted", "needs:triage", "agent:any", "agent:human", "agent-ready",
-               "agent-proposed")
+               "accepted", "agent-review", "needs:triage", "agent:any", "agent:human", "agent-ready",
+               "agent-proposed", "standing")
 
 
 class RetiredKind(Enum):
@@ -318,6 +355,92 @@ def reference_kind(case: dict) -> dict:
     else:
         rule = kind_link_rule(case.get("parent"), case.get("child"))
     return {"allowed": rule is None, "rule": rule}
+
+
+class LinkKind(Enum):
+    """The typed-link kinds of server-spec/typed-links.md, in the order an item's Related
+    section lists them (check L1). Only DEPENDS_ON has a native GitHub form."""
+    DEPENDS_ON = "depends-on"
+    FOLLOWS_UP = "follows-up"
+    REFERENCES = "references"
+    EVALUATES = "evaluates"
+    RESTS_ON = "rests-on"
+    REFINES = "refines"
+    CONTRADICTS = "contradicts"
+    CORROBORATES = "corroborates"
+    SUPERSEDES = "supersedes"
+    REUSES_MATERIAL = "reuses-material"
+    SHARES_LISTENER = "shares-listener"
+
+
+#: Each kind's name as its far end reads it. A symmetric kind reads the same both ways.
+LINK_INVERSE = {
+    LinkKind.DEPENDS_ON: "blocks", LinkKind.FOLLOWS_UP: "followed-up-by",
+    LinkKind.REFERENCES: "referenced-by", LinkKind.EVALUATES: "evaluated-by",
+    LinkKind.RESTS_ON: "supports", LinkKind.REFINES: "refined-by",
+    LinkKind.CONTRADICTS: "contradicts", LinkKind.CORROBORATES: "corroborates",
+    LinkKind.SUPERSEDES: "superseded-by", LinkKind.REUSES_MATERIAL: "material-reused-by",
+    LinkKind.SHARES_LISTENER: "shares-listener",
+}
+SYMMETRIC_LINKS = {k for k, inv in LINK_INVERSE.items() if inv == k.value}
+
+
+class LinkRefusal(Enum):
+    """Why a link record folds to no edge (check L1)."""
+    UNKNOWN_KIND = "unknown-kind"
+    UNKNOWN_END = "unknown-end"
+    SELF_LINK = "self-link"
+    NO_SUCH_LINK = "no-such-link"
+
+
+def reference_links(case: dict) -> dict:
+    """L1: fold one case of conformance/link_cases.json (``items``, ``prefixes``,
+    ``records``) to ``related``, ``blocked_by`` and ``refused``, by the reference rules."""
+    items = set(case.get("items") or [])
+    prefixes = case.get("prefixes") or []
+
+    def resolve(name):
+        if not isinstance(name, str) or not name:
+            return None
+        if name in items:
+            return name
+        hits = [p + name for p in prefixes if p + name in items]
+        return hits[0] if len(hits) == 1 else None
+
+    edges: dict[tuple, LinkKind] = {}
+    refused = []
+    for n, rec in enumerate(case.get("records") or []):
+        event = rec.get("event")
+        if event not in ("link", "unlink") or "to" not in rec:
+            continue                      # not an item link (an artifact pointer, a result)
+        try:
+            kind = LinkKind(rec.get("kind"))
+        except ValueError:
+            refused.append([n, LinkRefusal.UNKNOWN_KIND.value])
+            continue
+        a, b = resolve(rec.get("from", rec.get("id"))), resolve(rec.get("to"))
+        if a is None or b is None:
+            refused.append([n, LinkRefusal.UNKNOWN_END.value])
+            continue
+        if a == b:
+            refused.append([n, LinkRefusal.SELF_LINK.value])
+            continue
+        key = (kind.value, *sorted((a, b))) if kind in SYMMETRIC_LINKS else (kind.value, a, b)
+        if event == "link":
+            edges[key] = kind
+        elif key in edges:
+            del edges[key]
+        else:
+            refused.append([n, LinkRefusal.NO_SUCH_LINK.value])
+    related: dict[str, list[str]] = {}
+    blocked: dict[str, list[str]] = {}
+    for (_, a, b), kind in edges.items():
+        related.setdefault(a, []).append(f"{kind.value} {b}")
+        related.setdefault(b, []).append(f"{LINK_INVERSE[kind]} {a}")
+        if kind is LinkKind.DEPENDS_ON:
+            blocked.setdefault(a, []).append(b)
+    return {"related": {k: sorted(v) for k, v in related.items()},
+            "blocked_by": {k: sorted(v) for k, v in blocked.items()}, "refused": refused}
 
 
 IDENTITY_ARGS = {"principal", "author", "identity", "caller", "as_user", "by", "actor"}
@@ -521,6 +644,19 @@ def parse_record(body: str) -> dict | None:
     if not isinstance(rec, dict) or rec.get("event") not in ("claim", "renew", "release", "report"):
         return None
     return rec
+
+
+def parse_signoff(body: str) -> dict | None:
+    """The one ``gtd-sign v1`` sign-off in a body, or None when it is unsigned
+    (zero markers, more than one, another version or invalid JSON)."""
+    found = SIGN_RE.findall(body or "")
+    if len(found) != 1 or int(found[0][0]) != 1:
+        return None
+    try:
+        rec = json.loads(found[0][1])
+    except json.JSONDecodeError:
+        return None
+    return rec if isinstance(rec, dict) else None
 
 
 def _ts(value: str | None) -> datetime | None:
@@ -1095,6 +1231,52 @@ class Sandbox:
         return a
 
 
+def _entries(out: Any, repo: str, number: int) -> list[dict]:
+    return [e for e in (out or {}).get("entries") or []
+            if e.get("number") == number and str(e.get("repo") or "").lower() == repo.lower()]
+
+
+def check_activity(rep: Report, c: Client, c2: Client | None, sb: Sandbox, n: int,
+                   r0: str | None) -> None:
+    """C16, C17: ``activity_since`` on the held issue ``n``, which has one plain comment
+    and a renew record posted after ``r0`` (the ``read_at`` of a read made before them)."""
+    repo = sb.repo
+    if not r0:
+        rep.check("C16", False, "activity_since gave no read_at")
+        rep.check("C17", False, "activity_since gave no read_at")
+        return
+    # A server may set read_at a second early (whole-second times), so a comment from the
+    # read's last second belongs to the next read. Wait past that before reading.
+    time.sleep(2)
+    ok, out, text = c.call("activity_since", {"repo": repo, "since": r0, "limit": 100})
+    got = _entries(out, repo, n)
+    records = [e for e in got if MARKER in (e.get("excerpt") or "")]
+    r1 = (out or {}).get("read_at")
+    _, later, _ = c.call("activity_since", {"repo": repo, "since": r1, "limit": 100})
+    other = None
+    if c2:
+        _, o2, _ = c2.call("activity_since", {"repo": repo, "since": r0, "limit": 100})
+        other = _entries(o2, repo, n)
+    rep.check("C16", ok and len(got) == 1 and got[0].get("source") == "held"
+              and got[0].get("kind") == "comment" and not records
+              and not _entries(later, repo, n) and not other,
+              f"since the claim: {text[:80] if not ok else [(e.get('source'), e.get('kind')) for e in got]}; "
+              f"after read_at {len(_entries(later, repo, n))}; second caller "
+              f"{'not run' if other is None else len(other)}")
+    for i in (1, 2):
+        c.call("issue_comment", sb.args(n, body=f"Paging comment {i} from the conformance runner."))
+    time.sleep(2)
+    ok1, p1, t1 = c.call("activity_since", {"repo": repo, "since": r1, "limit": 1})
+    first = _entries(p1, repo, n)
+    cur = (p1 or {}).get("next_cursor")
+    ok2, p2, _ = c.call("activity_since", {"repo": repo, "since": r1, "limit": 1, "cursor": cur})
+    second = _entries(p2, repo, n)
+    rep.check("C17", ok1 and ok2 and len(first) == 1 and (p1 or {}).get("has_next_page") and cur
+              and len(second) == 1 and first[0].get("url") != second[0].get("url")
+              and (p1 or {}).get("read_at") and (p2 or {}).get("read_at") == (p1 or {}).get("read_at"),
+              f"page 1 {t1[:60] if not ok1 else len(first)} next {bool(cur)}; page 2 {len(second)}")
+
+
 def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: dict,
                who: dict | None = None) -> None:
     repo = sb.repo
@@ -1105,9 +1287,12 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     ok, out, text = c.call("issue_labels", sb.args(n, add=["blocked", "area:conformance"]))
     ok2, _, t2 = c.call("issue_labels", sb.args(n, add=["conformance-not-a-label"]))
     ok3, _, _t3 = c.call("issue_labels", sb.args(n, add=["run-agent"]))
-    ok4, _, _ = c.call("issue_labels", sb.args(n, remove=["blocked"]))
-    rep.check("P4", ok and not ok2 and not ok3 and ok4 and "blocked" in (t2 + json.dumps(out or {})),
-              f"add {ok} ({text[:60]}), unknown refused {not ok2}, run-agent refused {not ok3}, remove {ok4}")
+    ok3r, _, _ = c.call("issue_labels", sb.args(n, add=["agent-review"]))
+    ok4, _, _ = c.call("issue_labels", sb.args(n, remove=["blocked", "agent-review"]))
+    rep.check("P4", ok and not ok2 and not ok3 and ok3r and ok4
+              and "blocked" in (t2 + json.dumps(out or {})),
+              f"add {ok} ({text[:60]}), unknown refused {not ok2}, run-agent refused {not ok3}, "
+              f"agent-review added {ok3r}, remove {ok4}")
 
     # P5 allowlist
     ok, _, text = c.call("item_get", {"repo": "conformance-invalid/never-allowed", "number": 1})
@@ -1151,11 +1336,15 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
         rep.skip("C2", "needs a second token (--token-b-env)")
         rep.skip("C6", "needs a second token (--token-b-env)")
 
-    # C9 follow-ups, C11 marker refusal
+    # C9 follow-ups (a renew hides none), C11 marker refusal
+    ok_r0, out, _ = c.call("activity_since", {"repo": repo, "limit": 1})
+    r0 = (out or {}).get("read_at")
     c.call("issue_comment", sb.args(n, body="A follow-up from the conformance runner."))
+    ok_rn, _, _ = c.call("item_renew", sb.args(n, lease="30m"))
     ok, out, _ = c.call("item_get", sb.args(n))
-    rep.check("C9", ok and ((out or {}).get("item") or {}).get("follow_ups"),
-              "a plain comment after the claim is not in follow_ups")
+    rep.check("C9", ok and ok_rn and ((out or {}).get("item") or {}).get("follow_ups"),
+              f"a plain comment after the claim is not in follow_ups after a renew (renew {ok_rn})")
+    check_activity(rep, c, c2, sb, n, r0 if ok_r0 else None)
     ok, _, _ = c.call("issue_comment", sb.args(n, body=f"<!-- {MARKER} v1 {{\"event\": \"claim\"}} -->"))
     rep.check("C11", not ok, "a comment carrying a record marker was accepted")
 
@@ -1208,6 +1397,31 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
               f"bad branch refused {not ok_bad}; claims {ok_a} {ok_b} ({(t_a or t_b)[:60]}); "
               f"branch recorded {on_branch}; release {ok_r}; second still held {bool(left.get('holder'))}")
     c.call("item_release", sb.args(b, done="checked", remaining="none", next="close"))
+
+    # C15 review claims: no session reviews work it did
+    # Labelled for an unpointed pickup, so only the review rule can refuse the inferred try.
+    n = sb.issue("review claim", labels=["agent-ready", "agent:any"])
+    s_work, s_review = f"conformance-{sb.run}-work", f"conformance-{sb.run}-review"
+    ok_w, _, t_w = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
+                                               lease="30m", session=s_work))
+    ok_wr, _, _ = c.call("item_release", sb.args(n, done="worked", remaining="review", next="review"))
+    ok_ns, _, _ = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
+                                                purpose="review"))
+    inferred = sb.args(n, basis="inferred", purpose="review", session=s_review)
+    inferred.pop("project", None)  # no board: the Size gate does not apply
+    ok_inf, _, _ = c.call("item_claim", inferred)
+    ok_same, _, _ = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
+                                                  purpose="review", session=s_work))
+    ok_rv, _, t_rv = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance",
+                                                   lease="30m", purpose="review", session=s_review))
+    _, out, _ = c.call("item_get", sb.args(n))
+    mandate = ((out or {}).get("item") or {}).get("mandate") or {}
+    rep.check("C15", ok_w and ok_wr and not ok_ns and not ok_inf and not ok_same and ok_rv and
+              mandate.get("purpose") == "review" and mandate.get("session") == s_review,
+              f"work claim {ok_w} ({t_w[:60]}), release {ok_wr}; review refused without session "
+              f"{not ok_ns}, inferred {not ok_inf}, same session {not ok_same}; other session "
+              f"{ok_rv} ({t_rv[:60]}); mandate {mandate.get('purpose')}/{mandate.get('session')}")
+    c.call("item_release", sb.args(n, done="checked", remaining="none", next="close"))
 
     # C3 race
     if c2:
@@ -1375,6 +1589,10 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         c.call("issue_close", {"repo": sb.repo, "number": n, "reason": "not_planned"})
         ok, _, _ = ready(n)
         rep.check("R7", not ok, "a closed issue was not refused", "closed issue refused; PR and epic by hand")
+    n = sb.issue("standing", labels=["standing"], body=READY_AC)
+    ok, _, text = ready(n)
+    rep.check("R7", not ok and "standing" in text, "an issue labelled standing was not refused for it",
+              "standing issue refused")
     rep.manual("R7", "item_ready on a pull request number and on an issue of Kind epic: both refuse")
 
     # R8: the claim returns the same verdict, warns when not ready, and never refuses on it.
@@ -1405,6 +1623,54 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
     sized(n2, sizes[0] if sizes else None)
     probs = claim_ready(n1) + claim_ready(n2)
     rep.check("R8", not probs, "; ".join(probs[:3]), "verdict matches item_ready; not ready warns, never refuses")
+
+
+LINK_CASE_KEYS = ("items", "prefixes", "records")
+
+
+def check_link_cases(rep: Report, link_cmd: str | None) -> None:
+    """L1: the golden typed-link cases, against the reference or a server's own fold
+    (--link-cmd)."""
+    fixtures = json.loads((HERE / "link_cases.json").read_text())
+    bad = []
+    for case in fixtures["cases"]:
+        inp = {k: case[k] for k in LINK_CASE_KEYS if k in case}
+        if link_cmd:
+            proc = subprocess.run(link_cmd, shell=True, input=json.dumps(inp),
+                                  capture_output=True, text=True, timeout=60, check=False)
+            try:
+                got = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                bad.append(f"{case['name']}: no JSON from --link-cmd")
+                continue
+        else:
+            got = reference_links(inp)
+        exp = case["expect"]
+        norm = {k: sorted(v) for k, v in (got.get("related") or {}).items()}
+        blocked = {k: sorted(v) for k, v in (got.get("blocked_by") or {}).items()}
+        if norm != exp["related"] or blocked != exp["blocked_by"] \
+                or [list(x) for x in got.get("refused") or []] != exp["refused"]:
+            bad.append(f"{case['name']} ({case['what']}): {json.dumps(got)[:160]}")
+    who = "--link-cmd" if link_cmd else "the reference link fold"
+    rep.check("L1", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
+
+
+def check_links(rep: Report, tools: dict, link_cmd: str | None) -> None:
+    """L1 and L2: typed links, when the server offers the Repo setup group. The plan is
+    a read tool, so a caller at work sees it even where the fenced sync is hidden; a
+    --link-cmd runs L1 whatever the token sees."""
+    offered = "work_items_plan" in tools or "work_items_sync" in tools
+    if link_cmd:
+        check_link_cases(rep, link_cmd)
+    elif offered:
+        rep.manual("L1", "run the golden link cases against the server's own fold: --link-cmd CMD")
+    else:
+        rep.na("L1", "the Repo setup group (work_items_plan, work_items_sync) is not offered")
+    if offered:
+        rep.manual("L2", "sync a scratch repo whose register holds a refines and a depends-on link: "
+                         "both issues show the Related lines, and the dependent issue is blocked by the other")
+    else:
+        rep.na("L2", "the Repo setup group (work_items_plan, work_items_sync) is not offered")
 
 
 KIND_TYPES = ("Epic", "Story", "Chore", "Spike", "Finding")
@@ -1499,6 +1765,378 @@ def check_kinds(rep: Report, c: Client, tools: dict, sb: Sandbox | None, kind_cm
               "four type changes refused (parent side and sub-issue side), each naming its rule")
 
 
+ARTIFACT_TOOLS = ("issue_artifact_list", "issue_artifact_get", "issue_artifact_create",
+                  "issue_artifact_update")
+ARTIFACT_IDS = ("A1", "A2", "A3", "A4", "A5", "A6")
+
+
+INTAKE_IDS = ("I1", "I2", "I3", "I4")
+INTAKE_LABEL = "agent-proposed"
+
+
+def _request(out: Any, n: int) -> dict | None:
+    for r in (out or {}).get("requests") or []:
+        if r.get("number") == n:
+            return r
+    return None
+
+
+def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
+                 who: dict | None = None, c2: Client | None = None) -> None:
+    """I1 to I4: the intake tools, when either is offered. The second principal files one
+    request and the first acks it, because a project never acks its own request."""
+    have = [t for t in ("intake_list", "intake_ack") if t in tools]
+    if not have:
+        for cid in INTAKE_IDS:
+            rep.na(cid, "the intake tools are not offered")
+        rep.na("I5", "the intake tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("I1", classes == {"intake_list": "read", "intake_ack": "work"},
+              f"offered {classes}", "intake_list read, intake_ack work")
+    rep.manual("I5", "paste an ack marker in a comment from a login that is not a record "
+                     "author; intake_list must still show the trusted ack, or null")
+    if sb is None or len(have) < 2 or c2 is None:
+        for cid in INTAKE_IDS[1:]:
+            rep.skip(cid, "needs --repo, --token-b-env (a second principal files the request) "
+                          "and both tools")
+        return
+    _, before, _ = c.call("intake_list", {"repo": sb.repo})
+    r0 = (before or {}).get("read_at")
+    plain = sb.issue("intake: not a request")
+    ok_f, filed, t_f = c2.call("capture", {
+        "title": f"[conformance {sb.run}] intake request", "repo": sb.repo,
+        "labels": [INTAKE_LABEL],
+        "note": "Filed by the gtd-board-kit conformance runner. Safe to close."})
+    if not ok_f:
+        raise CheckError(f"capture (second principal): {t_f[:160]}")
+    n = int(filed["number"])
+    sb.made.append(n)
+    time.sleep(2)
+
+    def listed(**more: Any) -> tuple[bool, Any, str]:
+        return c.call("intake_list", {"repo": sb.repo, **more})
+
+    ok, out, text = listed(since=r0, ack_within="0m")
+    got = _request(out, n)
+    _, slow, _ = listed(since=r0, ack_within="24h")
+    late = _request(slow, n)
+    rep.check("I2", ok and got is not None and got.get("ack") is None and got.get("new") is True
+              and got.get("overdue") is True and late is not None and late.get("overdue") is False
+              and _request(out, plain) is None,
+              f"{text[:80] if not ok else got}; 24h overdue {None if late is None else late.get('overdue')}; "
+              f"unlabelled listed {_request(out, plain) is not None}",
+              "listed, unacked, new, overdue only at 0m")
+
+    ok1, a1, t1 = c.call("intake_ack", {"repo": sb.repo, "number": n, "state": "received",
+                                        "note": "Conformance run: received."})
+    _, after, _ = listed(ack_within="0m")
+    ack = (_request(after, n) or {}).get("ack") or {}
+    ok2, a2, t2 = c.call("intake_ack", {"repo": sb.repo, "number": n, "state": "received"})
+    ok3, _, t3 = c.call("intake_ack", {"repo": sb.repo, "number": n, "state": "parked"})
+    _, last, _ = listed(ack_within="0m")
+    final = (_request(last, n) or {}).get("ack") or {}
+    principal = (who or {}).get("principal")
+    by_ok = principal is None or ack.get("by") == principal
+    rep.check("I3", bool(ok1 and (a1 or {}).get("url") and ack.get("state") == "received" and by_ok
+                         and not (_request(after, n) or {}).get("overdue")
+                         and ok2 and (a2 or {}).get("unchanged") is True
+                         and ok3 and final.get("state") == "parked"),
+              f"ack {t1[:60] if not ok1 else ack.get('state')}; again unchanged "
+              f"{(a2 or {}).get('unchanged') if ok2 else t2[:40]}; parked {final.get('state') if ok3 else t3[:40]}",
+              "acked, shown with by and not overdue, repeat unchanged, then parked")
+
+    refused = []
+    for what, args in (("no label", {"number": plain, "state": "received"}),
+                       ("state done", {"number": n, "state": "done"}),
+                       ("record marker", {"number": n, "state": "taken",
+                                          "note": f"<!-- {MARKER} v1 {{\"event\": \"claim\"}} -->"})):
+        okx, _, tx = c.call("intake_ack", {"repo": sb.repo, **args})
+        if okx or not tx.strip():
+            refused.append(what)
+    rep.check("I4", not refused, f"accepted or gave no reason: {', '.join(refused)}",
+              "no label, bad state and a record marker refused with a reason")
+
+
+NOTIFY_IDS = ("N1", "N2", "N3", "N4", "N5")
+NOTIFY_HAND = {
+    "N6": "pr_open a non-draft PR: review_requested is the owner's login and GitHub shows the "
+          "request from the App; a draft requests no review",
+    "N7": "the mapped person's GitHub inbox shows one mention for the ask from the [bot] author; "
+          "map the owner to the login the server writes as: ping.reason no-identity and a warning",
+    "N8": "with push web-push: tag and Topic carry the ping key, no token in payload or URLs, "
+          "at most Open, Snooze and Answer, no copy for an unchanged ping",
+}
+NOTIFY_MAP_FIELDS = ("mentions", "push", "new_issues", "ping_as", "warnings")
+
+
+def _numbers(out: Any) -> list:
+    out = out or {}
+    return [i.get("number") for i in (out.get("issues") or out.get("items") or [])]
+
+
+def github_comment_author(url: str, gh_token: str) -> str | None:
+    """The author login of the issue comment at ``url`` (``...#issuecomment-<id>``), read
+    from GitHub itself, so N2 does not rest on what the server says about its own write."""
+    m = re.match(r"https://github\.com/([^/]+)/([^/]+)/(?:issues|pull)/\d+#issuecomment-(\d+)$", url or "")
+    if not m:
+        return None
+    owner, name, cid = m.groups()
+    status, _, text = http("GET", f"https://api.github.com/repos/{owner}/{name}/issues/comments/{cid}",
+                           headers={"Authorization": f"Bearer {gh_token}",
+                                    "Accept": "application/vnd.github+json"})
+    if status != 200:
+        return None
+    return ((json.loads(text) or {}).get("user") or {}).get("login")
+
+
+def check_notify(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
+                 gh_token: str | None = None) -> None:
+    """N1 to N5: the Notifications group, when ``notify_get`` is offered. The sandbox's
+    ``notify.mentions`` must map the profile's ``owner_needs`` to a login the server can
+    ping as someone else; without it the ping checks skip. With ``gh_token`` (a read-only
+    GitHub token for the sandbox), N2 reads the ping's author from GitHub too."""
+    if "notify_get" not in tools:
+        for cid in (*NOTIFY_IDS, *NOTIFY_HAND):
+            rep.na(cid, "notify_get is not offered")
+        return
+    for cid, how in NOTIFY_HAND.items():
+        rep.manual(cid, how)
+    cls = tool_class(tools["notify_get"])[0]
+    if sb is None:
+        rep.check("N1", cls == "read", f"class {cls}", "notify_get is read")
+        for cid in NOTIFY_IDS[1:]:
+            rep.skip(cid, "needs --repo")
+        return
+    ok, m, text = c.call("notify_get", {"repo": sb.repo})
+    ok_x, _, _ = c.call("notify_get", {"repo": "conformance-invalid/never-allowed"})
+    missing = [f for f in NOTIFY_MAP_FIELDS if not isinstance(m, dict) or f not in m]
+    rep.check("N1", cls == "read" and ok and not missing and not ok_x,
+              f"class {cls}; {text[:80] if not ok else 'missing ' + (', '.join(missing) or '-')}; "
+              f"outside the allowlist refused {not ok_x}",
+              "read, the map's fields, outside repo refused")
+    owner = profile.get("owner_needs") or "triage"
+    to = ((m or {}).get("mentions") or {}).get(owner)
+    ping_as = (m or {}).get("ping_as")
+    if not ok or not to or not ping_as:
+        for cid in NOTIFY_IDS[1:]:
+            rep.skip(cid, f"the sandbox maps needs {owner!r} to {to!r} and ping_as is {ping_as!r}; "
+                          "map it under notify.mentions in .github/gtd-context.json to a login "
+                          "the server can ping as someone else")
+        return
+
+    def pings(num: int) -> list[dict]:
+        okp, out, tp = c.call("notify_get", {"repo": sb.repo, "number": num})
+        if not okp:
+            raise CheckError(f"notify_get with number: {tp[:160]}")
+        return list((out or {}).get("pings") or [])
+
+    n = sb.issue("notify: ping once per ask")
+    okc, rc, tc = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
+    if not okc:
+        raise CheckError(f"item_claim for the notify issue: {tc[:160]}")
+    claim_ping = bool((rc or {}).get("ping"))
+    ask = f"Conformance {sb.run}: which way? Safe to ignore."
+    ok1, r1, t1 = c.call("item_report", sb.args(n, attention=ask, needs=owner, state="waiting"))
+    p1 = (r1 or {}).get("ping") or {}
+    after1 = pings(n)
+    listed_author = after1[0].get("author") if after1 else None
+    real = github_comment_author(str(p1.get("url") or ""), gh_token) if gh_token else None
+    real_ok = gh_token is None or (real is not None and real == ping_as and real != to)
+    rep.check("N2", bool(ok1 and p1.get("posted") is True and p1.get("to") == to
+                         and p1.get("as") == ping_as and p1.get("as") != to
+                         and len(after1) == 1 and after1[0].get("key") == p1.get("key")
+                         and listed_author == ping_as and real_ok),
+              f"{t1[:80] if not ok1 else p1}; pings {len(after1)}; listed author {listed_author}; "
+              f"GitHub author {real if gh_token else '(not read: no --github-token-env)'}",
+              f"one ping to {to} as {ping_as}" + ("" if gh_token else "; author not read from GitHub"))
+
+    ok2, r2, t2 = c.call("item_report", sb.args(n, attention=ask, needs=owner, state="waiting"))
+    p2 = (r2 or {}).get("ping") or {}
+    after2 = pings(n)
+    ok3, r3, t3 = c.call("item_report", sb.args(n, attention=ask + " Changed.", needs=owner,
+                                                 state="waiting"))
+    p3 = (r3 or {}).get("ping") or {}
+    after3 = pings(n)
+    mapped = set((m or {}).get("mentions") or {})
+    second = next((x for x in sorted(mapped) if x != owner and x in (profile.get("needs") or [])), None)
+    needs_ok, needs_note = True, "no second mapped needs"
+    if second is not None:
+        ok5, r5, t5 = c.call("item_report", sb.args(n, attention=ask, needs=second, state="waiting"))
+        p5 = (r5 or {}).get("ping") or {}
+        after5 = pings(n)
+        needs_ok = bool(ok5 and p5.get("posted") is True and p5.get("key") not in (p1.get("key"), p3.get("key"))
+                        and len(after5) == len(after3) + 1)
+        needs_note = f"needs {second}: {t5[:40] if not ok5 else p5.get('reason')} ({len(after5)} pings)"
+    rep.check("N3", bool(ok2 and p2.get("reason") == "unchanged" and p2.get("posted") is False
+                         and len(after2) == 1 and ok3 and p3.get("posted") is True
+                         and p3.get("key") != p1.get("key") and len(after3) == 2 and needs_ok),
+              f"repeat {t2[:40] if not ok2 else p2.get('reason')} ({len(after2)} pings); "
+              f"changed {t3[:40] if not ok3 else p3.get('reason')} ({len(after3)} pings); {needs_note}",
+              "repeat unchanged, changed text or needs pings again")
+
+    other = next((x for x in (profile.get("needs") or []) if x not in mapped), None)
+    if other is None:
+        rep.skip("N4", "every needs value of the profile is mapped")
+    else:
+        pings_before_n4 = pings(n)
+        ok4, r4, t4 = c.call("item_report", sb.args(n, attention=f"Conformance {sb.run}: unmapped.",
+                                                    needs=other, state="waiting"))
+        p4 = (r4 or {}).get("ping") or {}
+        lbl = settle(lambda: c.call("issue_list", {"repo": sb.repo, "labels": [f"needs:{other}"],
+                                                   "limit": 100}),
+                     lambda res: not ok4 or not res[0] or n in _numbers(res[1]))
+        label_ok = not lbl[0] or n in _numbers(lbl[1])
+        after4 = pings(n)
+        rep.check("N4", bool(ok4 and p4.get("reason") == "no-map" and not p4.get("posted")
+                             and len(after4) == len(pings_before_n4) and label_ok),
+                  f"{t4[:80] if not ok4 else p4.get('reason')}; pings {len(after4)}; label {label_ok}",
+                  f"needs {other!r} unmapped: no-map, record and label stand")
+
+    before = len(pings(n))
+    quiet = []
+    for name, args in (("item_renew", sb.args(n, lease="30m")),
+                       ("item_report", sb.args(n, state="progress", note="no ping")),
+                       ("item_release", sb.args(n, done="checked", remaining="none", next="close"))):
+        okq, rq, tq = c.call(name, args)
+        if not okq:
+            quiet.append(f"{name} refused: {tq[:40]}")
+        elif (rq or {}).get("ping"):
+            quiet.append(f"{name} returned a ping")
+    rep.check("N5", not quiet and len(pings(n)) == before and not claim_ping,
+              f"{'; '.join(quiet) or '-'}; pings {before} -> {len(pings(n))}",
+              "claim, renew, progress and release ping nobody")
+
+
+def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
+                    source: tuple[str, str] | None = None) -> None:
+    """A1 to A6: the issue artifact tools, when any is offered. Creates, never deletes.
+    ``source`` is A5's page: (``source_url``, its ``sha256``)."""
+    offered = [t for t in tools if t.startswith("issue_artifact_")]
+    if not offered:
+        for cid in ARTIFACT_IDS:
+            rep.na(cid, "the issue_artifact_* tools are not offered")
+        return
+    missing = [t for t in ARTIFACT_TOOLS if t not in tools]
+    deletes = [t for t in offered if "delete" in t]
+    rep.check("A1", not missing and not deletes,
+              f"missing {', '.join(missing) or '-'}; delete tools {', '.join(deletes) or '-'}",
+              "all four offered, no delete tool")
+    if sb is None or missing:
+        for cid in ARTIFACT_IDS[1:]:
+            rep.skip(cid, "needs --repo and all four tools")
+        return
+    n = sb.issue("issue artifacts")
+
+    def at(**more: Any) -> dict:
+        return {"repo": sb.repo, "number": n, **more}
+
+    body = f"Conformance run {sb.run}: a generic artifact."
+    ok1, gen, t1 = c.call("issue_artifact_create", at(type="generic", name="conformance generic", body=body))
+    ok2, link, t2 = c.call("issue_artifact_create",
+                           at(type="link", name="conformance link", body="https://example.com/conformance"))
+    if not (ok1 and ok2):
+        rep.fail("A2", f"create refused: {(t1 if not ok1 else t2)[:120]}")
+        for cid in ("A3", "A4", "A5", "A6"):
+            rep.skip(cid, "the A2 creates failed")
+        return
+    fields = all(isinstance(a, dict) and {"number", "type", "name", "url"} <= set(a) for a in (gen, link))
+    _, rows, _ = c.call("issue_artifact_list", at())
+    _, links, _ = c.call("issue_artifact_list", at(type="link"))
+
+    def nums(res: Any) -> set:
+        items = res if isinstance(res, list) else (res or {}).get("result") or (res or {}).get("items") or []
+        return {a.get("number") for a in items if isinstance(a, dict)}
+
+    _, got, _ = c.call("issue_artifact_get", at(artifact=gen["number"]))
+    got = got or {}
+    raw = body.encode("utf-8")
+    hashed = got.get("sha256") == hashlib.sha256(raw).hexdigest() and got.get("bytes") == len(raw)
+    rep.check("A2", fields and {gen["number"], link["number"]} <= nums(rows)
+              and nums(links) == {link["number"]} and got.get("body") == body and hashed,
+              f"fields {fields}; list {sorted(nums(rows))}; link list {sorted(nums(links))}; "
+              f"body as written {got.get('body') == body}; sha256 and bytes match {hashed}",
+              "two created, listed, filtered by type, body read back with its hash")
+
+    before = got.get("versions")
+    body2 = body + " Updated."
+    ok, upd, text = c.call("issue_artifact_update", at(artifact=gen["number"], body=body2))
+    _, after, _ = c.call("issue_artifact_get", at(artifact=gen["number"]))
+    after = after or {}
+    rep.check("A3", ok and (upd or {}).get("body") == body2 and isinstance(before, int)
+              and after.get("versions") == before + 1,
+              f"update {ok} ({text[:60]}); versions {before} -> {after.get('versions')}",
+              "body updated and one more version")
+
+    refused = []
+    for what, args in (("type report", at(type="report", name="x", body="x")),
+                       ("empty name", at(type="generic", name="", body="x")),
+                       ("link body not a URL", at(type="link", name="x", body="see the PR")),
+                       ("record marker", at(type="generic", name="x",
+                                            body=f"<!-- {MARKER} v1 {{\"event\": \"claim\"}} -->")),
+                       ("body too long", at(type="generic", name="x", body="x" * 60001))):
+        ok, _, text = c.call("issue_artifact_create", args)
+        if ok:
+            refused.append(f"{what} accepted")
+        elif what == "type report" and not all(t in text for t in ("generic", "link", "plan", "embedded_html")):
+            refused.append("type refusal does not list the four types")
+    rep.check("A4", not refused, "; ".join(refused), "five bad creates refused, with reasons")
+    check_artifact_source(rep, c, at, nums, source)
+
+
+def check_artifact_source(rep: Report, c: Client, at: Any, nums: Any,
+                          source: tuple[str, str] | None) -> None:
+    """A5 and A6: an embedded_html page by ``source_url`` + ``sha256``."""
+    good_ok = False
+    if source is None:
+        rep.skip("A5", "needs --artifact-source-url and --artifact-source-sha256")
+    else:
+        url, sha = source
+        ok, made, text = c.call("issue_artifact_create",
+                                at(type="embedded_html", name="conformance page",
+                                   source_url=url, sha256=sha))
+        made = made or {}
+        good_ok = bool(ok)
+        if not ok:
+            rep.fail("A5", f"create from source_url refused: {text[:120]}")
+        else:
+            _, slim, _ = c.call("issue_artifact_get",
+                                at(artifact=made.get("number"), include_body=False))
+            _, full, _ = c.call("issue_artifact_get", at(artifact=made.get("number")))
+            slim, full = slim or {}, full or {}
+            body = full.get("body")
+            got = hashlib.sha256(body.encode("utf-8")).hexdigest() if isinstance(body, str) else None
+            rep.check("A5", made.get("sha256") == sha and (made.get("bytes") or 0) > 0
+                      and slim.get("sha256") == sha and slim.get("body") is None and got == sha,
+                      f"create sha256 {made.get('sha256') == sha}, bytes {made.get('bytes')}; "
+                      f"get without body {slim.get('sha256') == sha and slim.get('body') is None}; "
+                      f"body hash {got == sha}",
+                      "page fetched, hash and bytes returned, read back byte for byte")
+    if source is None:
+        rep.skip("A6", "needs --artifact-source-url and --artifact-source-sha256: each case "
+                       "breaks one rule of an otherwise good create")
+        return
+    if not good_ok:
+        rep.fail("A6", "the good create by URL (A5) was refused, so its refusals prove nothing")
+        return
+    url, sha = source
+    _, rows, _ = c.call("issue_artifact_list", at())
+    before = nums(rows)
+    good = {"type": "embedded_html", "name": "x", "source_url": url, "sha256": sha}
+    plain = "http://" + url.split("://", 1)[1]
+    bad = [("source_url on generic", at(**{**good, "type": "generic"})),
+           ("body and source_url", at(**good, body="<html></html>")),
+           ("no sha256", at(**{k: v for k, v in good.items() if k != "sha256"})),
+           ("http source_url", at(**{**good, "source_url": plain})),
+           ("hash mismatch", at(**{**good, "sha256": "0" * 64}))]
+    accepted = [what for what, args in bad if c.call("issue_artifact_create", args)[0]]
+    _, rows, _ = c.call("issue_artifact_list", at())
+    grew = nums(rows) - before
+    rep.check("A6", not accepted and not grew,
+              f"accepted {', '.join(accepted) or '-'}; new artifacts {sorted(grew) or '-'}",
+              f"{len(bad)} bad source_url creates refused, nothing written")
+
+
 def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
     """C5, Size part: with `project`, an inferred claim needs a Size in the profile's pickup_sizes."""
     ok, board, _text = c.call("project_get", {"project": sb.project})
@@ -1567,18 +2205,111 @@ def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
 PR_MARKER_RE = re.compile(r"<!--\s*gtd-pr\s+v1\s+(\{.*?\})\s*-->", re.DOTALL)
 
 
+def check_signoffs(rep: Report, c: Client, sb: Sandbox, who: dict | None) -> None:
+    """G1 to G5: the sign-off the server ends every write with (sign-offs.md)."""
+    principal = (who or {}).get("principal")
+    n = sb.issue("sign-offs")
+    text_in = f"A signed comment from the conformance runner {sb.run}."
+
+    # G1 a plain comment
+    ok, out, text = c.call("issue_comment", sb.args(n, body=text_in))
+    out = out if isinstance(out, dict) else {}
+    body = str(out.get("body") or "")
+    sign = parse_signoff(body)
+    # The visible line only: HTML comments (the marker among them) are stripped first, so a
+    # server that writes the marker without the human-readable line fails.
+    shown = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
+    visible = next((ln for ln in shown.splitlines() if "gtd-sign" in ln), "")
+    rep.check("G1", ok and bool(sign) and text_in in body.split(f"<!-- {SIGN_MARKER}")[0]
+              and sign.get("v") == 1 and sign.get("by") == principal and sign.get("act") == "comment"
+              and sign.get("role") == (Role.WORKER if str(principal or "").startswith(("agent:", "local:"))
+                                       else Role.OWNER).value and sign.get("t")
+              and out.get("signoff") == sign and principal and principal in visible,
+              f"ok {ok} ({text[:80]}); sign-off {sign!r}; signoff returned {out.get('signoff') == sign}")
+
+    # G2 session and role
+    session = f"conformance-{sb.run}-sign"
+    ok_s, out_s, _ = c.call("issue_comment", sb.args(n, body="With a session.", session=session))
+    s_sign = (out_s or {}).get("signoff") or {}
+    ok_c, out_c, _ = c.call("issue_comment", sb.args(n, body="Handing off.", role=Role.COORDINATOR.value))
+    c_sign = (out_c or {}).get("signoff") or {}
+    ok_o, _, _ = c.call("issue_comment", sb.args(n, body="I approve.", role=Role.OWNER.value))
+    ok_u, _, t_u = c.call("issue_comment", sb.args(n, body="Who am I?", role="boss"))
+    is_agent = str(principal or "").startswith("agent:")
+    rep.check("G2", ok_s and s_sign.get("session") == session and ok_c
+              and c_sign.get("role") == Role.COORDINATOR.value and (ok_o != is_agent)
+              and not ok_u and all(r.value in t_u for r in Role),
+              f"session {s_sign.get('session')!r}; coordinator {c_sign.get('role')!r}; owner "
+              f"from {principal} accepted {ok_o}; unknown role refused {not ok_u} ({t_u[:80]})")
+
+    # G3 forgery
+    ok, _, text = c.call("issue_comment", sb.args(
+        n, body=f'x <!-- {SIGN_MARKER} v1 {{"by": "agent:someone-else", "v": 1}} -->'))
+    rep.check("G3", not ok and SIGN_MARKER in text, f"a forged sign-off: ok={ok} {text[:80]}")
+
+    # G4 review verdicts
+    r = sb.issue("sign-off review")
+    review = {"review_stage": ReviewStage.WORK.value, "review_verdict": ReviewVerdict.NEEDS_CHANGES.value}
+    ok_nc, _, _ = c.call("issue_comment", sb.args(r, body="Findings.", **review))
+    s_review = f"conformance-{sb.run}-sign-review"
+    ok_cl, _, t_cl = c.call("item_claim", sb.args(r, basis="explicit", asked_by="conformance",
+                                                   lease="30m", purpose="review", session=s_review))
+    ok_one, _, _ = c.call("issue_comment", sb.args(r, body="Findings.",
+                                                   review_stage=ReviewStage.WORK.value))
+    ok_bad, _, t_bad = c.call("issue_comment", sb.args(r, body="Findings.",
+                                                       review_stage=ReviewStage.WORK.value,
+                                                       review_verdict="approved"))
+    ok_other, _, _ = c.call("issue_comment", sb.args(r, body="Findings.", session=f"{s_review}-x", **review))
+    ok_rv, out_rv, t_rv = c.call("issue_comment", sb.args(r, body="1. AC2 has no evidence row.", **review))
+    rv = (out_rv or {}).get("signoff") or {}
+    first = str((out_rv or {}).get("body") or "").lstrip().splitlines()[:1]
+    rep.check("G4", not ok_nc and ok_cl and not ok_one and not ok_bad and not ok_other
+              and all(v.value in t_bad for v in ReviewVerdict) and ok_rv
+              and rv.get("act") == "review" and rv.get("role") == Role.REVIEWER.value
+              and rv.get("review") == {"stage": "work", "verdict": "needs-changes"}
+              and rv.get("session") == s_review
+              and bool(first) and "Work review: Needs changes" in first[0],
+              f"no claim refused {not ok_nc}; review claim {ok_cl} ({t_cl[:60]}); one of two refused "
+              f"{not ok_one}; bad verdict refused {not ok_bad}; other session refused {not ok_other}; verdict {ok_rv} ({t_rv[:60]}) {rv!r}; "
+              f"first line {first!r}")
+    c.call("item_release", sb.args(r, done="reviewed", remaining="none", next="close"))
+
+    # G5 records
+    g = sb.issue("sign-off records")
+    s_work = f"conformance-{sb.run}-sign-work"
+    ok_k, out_k, t_k = c.call("item_claim", sb.args(g, basis="explicit", asked_by="conformance",
+                                                     lease="30m", session=s_work))
+    ok_p, out_p, t_p = c.call("item_report", sb.args(g, state="progress", note="signed"))
+    k_sign = (out_k or {}).get("signoff") or {}
+    p_sign = (out_p or {}).get("signoff") or {}
+    rep.check("G5", ok_k and ok_p and k_sign.get("act") == "claim" and p_sign.get("act") == "report"
+              and k_sign.get("by") == principal and p_sign.get("by") == principal
+              and k_sign.get("session") == s_work and p_sign.get("session") == s_work,
+              f"claim {ok_k} ({t_k[:60]}) {k_sign!r}; report {ok_p} ({t_p[:60]}) {p_sign!r}")
+    c.call("item_release", sb.args(g, done="signed", remaining="none", next="close"))
+
+
+PR_IDS = ("PR1", "PR2", "PR3", "PR4", "PR5", "PR6", "PR7", "PR8", "PR9", "PR10")
+
+
 def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None,
-              head: str | None) -> None:
-    """PR1 to PR3: ``pr_open`` refusals, then (with a pushed ``head``) one real PR."""
+              head: str | None, gh_token: str | None = None) -> None:
+    """PR1 to PR9: ``pr_open`` refusals, then (with a pushed ``head``) one real PR, and the
+    signed writes on it (PR5 to PR7; PR8 and PR9 by hand)."""
     if "pr_open" not in tools:
-        for cid in ("PR1", "PR2", "PR3"):
+        for cid in PR_IDS:
             rep.na(cid, "pr_open is not offered")
         return
+    for cid, tool in (("PR8", "pr_review"), ("PR9", "pr_review_reply"), ("PR10", "pr_open")):
+        if tool in tools:
+            rep.manual(cid, MANUAL_PR[cid])
+        else:
+            rep.na(cid, f"{tool} is not offered")
     owner = sb.repo.split("/")[0]
     n = sb.issue("pr_open")
     ok, _, text = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
     if not ok:
-        for cid in ("PR1", "PR2", "PR3"):
+        for cid in PR_IDS[:7]:
             rep.skip(cid, f"could not claim the sandbox issue: {text[:100]}")
         return
 
@@ -1611,10 +2342,20 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
     ok, _, text = pr(head=missing, body='x <!-- gtd-pr v1 {"by": "agent:x", "issues": [1], "v": 1} -->')
     if ok or "gtd-pr" not in text:
         bad.append("a body with a gtd-pr marker was not refused for the marker")
-    rep.check("PR2", not bad, "; ".join(bad), "empty issues, an unclaimed issue and a marker refused")
+    ok, _, text = pr(head=missing, body=f"Rollback: hold or close #{n}.")
+    if ok or "closing keyword" not in text.lower():
+        bad.append("a body with a closing keyword was not refused for the keyword")
+    rep.check("PR2", not bad, "; ".join(bad),
+              "empty issues, an unclaimed issue, a marker and a closing keyword refused")
 
     if not head:
         rep.manual("PR3", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+        rep.manual("PR4", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+        for cid in ("PR5", "PR6", "PR7"):
+            if cid == "PR5" or "pr_review" in tools:
+                rep.manual(cid, "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+            else:
+                rep.na(cid, "pr_review is not offered")
     else:
         ok, out, text = pr(head=head)
         out = out if isinstance(out, dict) else {}
@@ -1648,7 +2389,103 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
                 probs.append("a PR opened without closes would close its issues")
             print(f"note: close PR {out.get('url')} by hand", file=sys.stderr)
         rep.check("PR3", not probs, "; ".join(probs), f"opened {out.get('url')} as {out.get('author')}")
+        if ok:
+            body = str(out.get("body") or "")
+            sign = parse_signoff(body)
+            pr_at = body.find("gtd-pr")
+            sign_at = body.find(f"<!-- {SIGN_MARKER}")
+            rep.check("PR4", bool(sign) and sign.get("act") == "pr" and sign.get("by") == principal
+                      and 0 <= sign_at < pr_at and out.get("signoff") == sign,
+                      f"sign-off {sign!r}, before gtd-pr {0 <= sign_at < pr_at}, "
+                      f"signoff returned {out.get('signoff') == sign}")
+        else:
+            rep.skip("PR4", "PR3 opened no PR")
+        check_pr_writes(rep, c, sb, tools, principal, out if ok else {}, gh_token)
     c.call("item_release", sb.args(n, done="pr_open checks", remaining="none", next="close"))
+
+
+MANUAL_PR = {
+    "PR8": "submit a pr_review with one inline comment on a diff line (both bodies signed), "
+           "then one whose second inline comment is off the diff (refused, nothing posted)",
+    "PR9": "on a PR with a review comment: pr_review_reply signed act pr-reply; resolve=true "
+           "resolves; resolve=true with no body posts nothing; another PR's comment_id refused; "
+           "a gtd-pr marker in a person's PR body gives the default role, not reviewer",
+    "PR10": "issue_comment on a pr_open PR by a principal with no claim on its issues, and on "
+            "a PR whose marker names an unreadable issue: both sign the ordinary default role",
+}
+
+
+def check_pr_writes(rep: Report, c: Client, sb: Sandbox, tools: dict, principal: str | None,
+                    opened: dict, gh_token: str | None) -> None:
+    """PR5 to PR7 on the PR PR3 opened: a signed comment, ``pr_review`` refusals, one review."""
+    number, app = opened.get("number"), str(opened.get("author") or "")
+    if not number:
+        for cid in ("PR5", "PR6", "PR7"):
+            rep.skip(cid, "PR3 opened no PR")
+        return
+    ok, out, text = c.call("issue_comment", {"repo": sb.repo, "number": number,
+                                             "body": f"[conformance {sb.run}] PR5 comment"})
+    out = out if isinstance(out, dict) else {}
+    sign = parse_signoff(str(out.get("body") or "")) if ok else None
+    probs = [] if ok else [f"issue_comment on the PR: {text[:120]}"]
+    if ok and not (sign and sign.get("act") == "comment" and sign.get("by") == principal
+                   and sign.get("role") == "worker" and out.get("signoff") == sign):
+        probs.append(f"sign-off {sign!r}")
+    url = str(out.get("url") or "")
+    if ok and not url:
+        probs.append("issue_comment returned no url")
+    real = github_comment_author(url, gh_token) if ok and gh_token and url else None
+    if ok and gh_token and url and real != app:
+        probs.append(f"GitHub author {real!r} is not PR3's {app!r}")
+    okv, _, _ = c.call("issue_comment", {"repo": sb.repo, "number": number, "body": "verdict",
+                                         "review_stage": "work", "review_verdict": "needs-changes"})
+    if okv:
+        probs.append("a review verdict on a PR number was not refused")
+    rep.check("PR5", not probs, "; ".join(probs),
+              f"signed comment {out.get('url')}; author "
+              f"{real if gh_token else '(not read: no --github-token-env)'}")
+
+    if "pr_review" not in tools:
+        rep.na("PR6", "pr_review is not offered")
+        rep.na("PR7", "pr_review is not offered")
+        return
+
+    def review(**more: Any) -> tuple[bool, Any, str]:
+        return c.call("pr_review", {"repo": sb.repo, "number": number, "event": "comment",
+                                    "body": f"[conformance {sb.run}] pr_review", **more})
+
+    bad = []
+    ok, _, text = review(event="approve")
+    if ok or "approve" not in text.lower():
+        bad.append("event approve was not refused by name")
+    ok, _, text = review(event="request-changes")
+    if ok or "comment" not in text.lower():
+        bad.append("request-changes on the server's own PR was not refused toward comment")
+    ok, _, text = review(body='x <!-- gtd-sign v1 {"by": "agent:x", "v": 1} -->')
+    if ok or "gtd-sign" not in text:
+        bad.append("a body with a gtd-sign marker was not refused for the marker")
+    ok, _, text = review(comments=[{"path": "README.md", "line": 1,
+                                    "body": 'y <!-- gtd-desk v1 {"by": "agent:x", "v": 1} -->'}])
+    if ok or "gtd-desk" not in text:
+        bad.append("an inline body with a gtd-desk marker was not refused for the marker")
+    ok, _, _ = c.call("pr_review", {"repo": "conformance-invalid/never-allowed", "number": 1,
+                                    "event": "comment", "body": "x"})
+    if ok:
+        bad.append("a repo outside the allowlist was not refused")
+    rep.check("PR6", not bad, "; ".join(bad),
+              "approve, request-changes on its own PR, two markers and a foreign repo refused")
+
+    ok, out, text = review()
+    out = out if isinstance(out, dict) else {}
+    body = str(out.get("body") or "")
+    sign = parse_signoff(body) if ok else None
+    author = str(out.get("author") or "")
+    rep.check("PR7", ok and author.endswith("[bot]") and author == app
+              and len(SIGN_RE.findall(body)) == 1 and bool(sign)
+              and sign.get("act") == "pr-review" and sign.get("by") == principal
+              and out.get("signoff") == sign,
+              f"pr_review {ok} ({text[:80]}), author {author!r} vs {app!r}, sign-off {sign!r}",
+              f"signed review {out.get('url')} as {author}")
 
 
 def check_join(rep: Report, base: str, start: bool, claims_join: bool | None) -> None:
@@ -1970,6 +2807,8 @@ MANUAL = {
     "T4": "sign in through the connector as an identity not on the allowlist; every call must be refused",
     "C4": "claim with lease 1m, wait two minutes, claim as a second principal: the record names takeover_of",
     "C10": "with record authors configured, paste a claim record from another account: item_get ignores it",
+    "C18": "review a PR opened through pr_open, and comment on a channel issue: activity_since for the "
+           "PR's by principal lists a pr review with its review_state, and a channel comment",
     "J1": "remove every approver: /join/start and joined tokens are refused",
     "J4": "approve a join at a lower preset: the first poll returns that preset, the second nothing",
     "J5": "inspect the auth store after collection: hashes only",
@@ -1978,6 +2817,17 @@ MANUAL = {
     "J8": "revoke one agent at /join/agents: its next call is 401, its renew invalid_grant, others work",
     "J9": "POST /join/decide and /join/revoke without a session or CSRF token: refused",
 }
+
+
+def _artifact_source(a: argparse.Namespace) -> tuple[str, str] | None:
+    """A5's page from the command line, or None to skip A5."""
+    url, sha = a.artifact_source_url, a.artifact_source_sha256
+    if not url and not sha:
+        return None
+    if not (url and sha and re.fullmatch(r"[0-9a-fA-F]{64}", sha)):
+        raise SystemExit("--artifact-source-url and --artifact-source-sha256 go together, "
+                         "the hash as 64 hex characters")
+    return url, sha.lower()
 
 
 def main(argv: list[str]) -> int:
@@ -1990,7 +2840,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--repo", help="owner/repo sandbox; the run creates issues there")
     ap.add_argument("--project", help="owner/number board linked to the sandbox repo")
     ap.add_argument("--profile", help="the sandbox repo's profile (default: the first profile_list returns)")
-    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 (opens one PR)")
+    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 to PR7 (opens one PR, comments and reviews on it)")
     ap.add_argument("--join-start", action="store_true", help="open one join request for J2 and J3")
     ap.add_argument("--connector", metavar="NAME",
                     help="join agent NAME through the connector entrance for JC1 to JC9; "
@@ -2000,14 +2850,22 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--fold-cmd", help="a command that folds {now, comments} from stdin to JSON on stdout")
     ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
+    ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
+    ap.add_argument("--github-token-env",
+                    help="a read-only GitHub token for the sandbox repo, so N2 reads the ping's author from GitHub")
+    ap.add_argument("--artifact-source-url",
+                    help="an https HTML page the server may fetch, for A5 and A6's hash check")
+    ap.add_argument("--artifact-source-sha256", help="that page's SHA-256 (64 hex characters)")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
+    artifact_source = _artifact_source(a)  # bad flags stop before any write
 
     rep = Report()
     check_fold(rep, a.fold_cmd)
     if not a.server:
         check_ready_cases(rep, a.ready_cmd)
         check_kind_cases(rep, a.kind_cmd)
+        check_link_cases(rep, a.link_cmd)
     seen: list[str] = []
     secrets: list[str] = []
 
@@ -2051,11 +2909,16 @@ def main(argv: list[str]) -> int:
                         c2.initialize()
                     sb = Sandbox(c, a.repo, a.project, datetime.now(timezone.utc).strftime("%m%d-%H%M"))
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
+                    check_signoffs(rep, c, sb, who)
                     if a.project:
                         check_board(rep, c, sb, profiles.get(name) or {})
-                    check_prs(rep, c, sb, _tools, who, a.pr_head)
+                    check_prs(rep, c, sb, _tools, who, a.pr_head, token(a.github_token_env))
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
+                check_artifacts(rep, c, _tools, sb, artifact_source)
+                check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
+                check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
+                check_links(rep, _tools, a.link_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)

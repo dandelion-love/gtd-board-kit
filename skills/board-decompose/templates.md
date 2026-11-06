@@ -46,6 +46,8 @@ plan a person approves at G1 fits on one screen
 
 - The **Stories** table is the plan as approved; the native sub-issues stay the record.
   Update the table when a story is added, split or dropped, in the same session.
+- When you ask for G1, also save the plan as a `plan` issue artifact on the epic
+  (`issue_artifact_create`, when offered), so what the person approved stays on record.
 - Keep the person's text. A missing section is appended as a draft under its heading,
   marked `_Draft by an agent; edit freely._`, and named in your report.
 - Every section is present. One with nothing in it says `None.` so a reader knows it
@@ -70,5 +72,7 @@ Blocked by #<n>
   an event as a When / If-then line; at least one error or rejection case. A spike states
   its timebox and the question it answers.
 - Number them `AC1`, `AC2`, ... and name each one's evidence, so the PR shows one
-  Evidence row per id (the PR check).
+  Evidence row per id (the PR check). Evidence that should stay on the issue (a link, a
+  report, a diagram) goes in an issue artifact
+  ([where evidence goes](../../knowledge/model/evidence-places.md)); never a sub-issue.
 - A `Blocked by` line only alongside a native link; prose alone fails the ready check.

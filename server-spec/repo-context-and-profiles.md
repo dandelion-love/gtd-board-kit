@@ -19,6 +19,7 @@ through the GitHub API when a tool needs the repo's profile and none was passed.
 | `project` | no | The repo's board as `owner/number`. No board: board tools are not used |
 | `mcp_url` | for joined agents | The server's base URL, https, no path |
 | `overrides` | no | The repo's deliberate departures from its profile ([below](#per-repo-customization-and-upstream-changes)) |
+| `notify` | no | Who each `needs` value pings, the louder channel and the new-issue mode ([notifications](notifications.md#the-map)) |
 
 A server MUST ignore keys it does not know (deployments add their own, for example a
 manifest version stamp). It MUST NOT trust the file for authorization: the allowlists
@@ -59,10 +60,11 @@ own. Colours and descriptions are free.
 
 | Family | Labels |
 | --- | --- |
-| Dispatch | `run-agent`, `agent-running`, `waiting-for-review`, `agent-failed`, `blocked`, `accepted` |
+| Dispatch | `run-agent`, `agent-review`, `agent-running`, `waiting-for-review`, `agent-failed`, `blocked`, `accepted` |
 | Whom it waits for | `needs:triage`, plus one `needs:<owner_needs>`, plus any others the profile wants |
 | Who may take it | `agent:any`, `agent:human`, plus one `agent:<runtime>` per runtime that may be routed to (`agent:claude`, `agent:codex`, ...) |
 | May it be pulled | `agent-ready`, `agent-proposed` |
+| Standing | `standing`: an item that stays open by design (a lane's item, a standing chore); it has no ready check |
 | Area | `area:*` is free-form; a server allows any label with that prefix |
 
 Meanings are in [labels are signals](../knowledge/model/labels-are-signals.md).

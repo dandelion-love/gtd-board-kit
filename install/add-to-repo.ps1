@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $KitUrl = "https://github.com/dandelion-love/gtd-board-kit"
 $KitDir = ".gtd/kit"
-$Skills = @("board-onboard", "board-pickup", "board-claim", "board-decompose", "board-report", "board-needs-person", "board-lane", "okf-knowledge")
+$Skills = @("board-onboard", "board-pickup", "board-claim", "board-decompose", "board-report", "board-needs-person", "board-lane", "board-review", "okf-knowledge")
 
 # Not named "Git": PowerShell names are case-insensitive and functions beat executables,
 # so a function called Git would call itself instead of git.exe.

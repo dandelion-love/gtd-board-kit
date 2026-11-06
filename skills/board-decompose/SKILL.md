@@ -3,17 +3,17 @@ name: board-decompose
 description: Break an epic into story-level issues, or a story into steps, the kit's standard way, through the gtd MCP server. Use when asked to plan, split, slice or decompose an epic, an outcome or a large issue into stories, or a story into steps, in a repo that has gtd-board-kit. It proposes work for a person to promote; it never makes work agent-ready.
 metadata:
   author: gtd-board-kit
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Decompose work into stories and steps
 
-Read `.gtd/kit/BOARD.md`, then `.gtd/BOARD.local.md` if it exists, first if you have not
-this session; the local file's Kinds, labels and rules win over anything below. The
+Read `.gtd/kit/BOARD.md`, then `.gtd/BOARD.local.md` if present; the local file's Kinds,
+labels and rules win. The
 standard is `.gtd/kit/knowledge/decisions/decomposition-standard.md`: an epic holds
 stories, a story holds steps, and a step never has a PR of its own.
 
-Only decompose when you were pointed at it (BOARD.md rule 4). Writes need the Issue
+Decompose only when pointed at it (BOARD.md rule 4). Writes need the Issue
 structure group (`issue_type_set`, `sub_issue_add`, `issue_blocked_by_add`,
 `issue_update`); without it, post the plan as one `issue_comment` and stop.
 
@@ -40,8 +40,7 @@ issue: steps have no PR and no claim. A step that needs its own PR is a `chore`:
 
 The epic body has the sections in `templates.md` (next to this file): Problem, Outcome
 check, Scope, Out of scope, Stories, Decisions, Risks and open questions, Gates. The
-outcome check is one or two checkable criteria: what is true when the outcome is
-reached, beyond "every child is closed". Append each missing section as a draft with
+outcome check is one or two checkable criteria, beyond "every child is closed". Append each missing section as a draft with
 `issue_update`, keep the person's text, and say so in your report. Fill the Stories
 table in step 5.
 
@@ -57,8 +56,7 @@ table in step 5.
   story produces it.
 - **Questions** are not stories. One that blocks planning: `board-needs-person` on the
   epic. Its own `chore` or `spike` only when answering it is work.
-- A choice the work will make is recorded as a Decision concept by that story's PR;
-  name it in the story, never file it as an issue.
+- A choice the work will make is a Decision concept in that story's PR, never an issue.
 
 ## 4. Write each story
 
@@ -82,7 +80,9 @@ For each story, in dependency order:
    value wins. Then do the same for the epic itself.
 
 When every story is linked, fill the epic's Stories table with `issue_update` (no
-board level needed).
+board level needed). An item a sync creates (an experiment registered with
+`experiment_record`) exists only once the sync runs on the default branch: parent it
+under the epic then with `sub_issue_add`, or `capture` a chore to do it.
 
 Steps stay a checklist in the story body. Use sub-issues as steps only where
 `.gtd/BOARD.local.md` says so; they are never claimed or given a PR. A step that turns
@@ -99,8 +99,8 @@ say in the report that readiness is unchecked.
 
 - Never add `agent-ready` or `run-agent`, never remove `agent-proposed`, never start a
   story you proposed: a person promotes it.
-- Ask once, with everything on one screen: the outcome check, then each story's title,
-  Kind, Size and blockers, with links.
+- Ask once, on one screen: the outcome check, then each story's title, Kind, Size and
+  blockers, with links.
   - Four stories or more: epic-intent approval comes first.
     `item_report(state="waiting", attention=..., needs=<profile's owner_needs>,
     note="Approve the plan or comment changes")`, and the epic's `Gates` says

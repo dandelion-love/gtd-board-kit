@@ -50,7 +50,7 @@ can still let go of an item a person closed to stop it (a standing lane's fast s
 | Tool | Class | Further arguments | Refuses when |
 | --- | --- | --- | --- |
 | `item_get` | read | none | never, for an allowlisted issue |
-| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `project?` | someone else holds an unexpired lease; `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
+| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `project?` | someone else holds an unexpired lease; `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
 | `item_renew` | work | `lease?`, `project?` | the caller is not the holder |
 | `item_release` | work | `done`, `remaining`, `next` (all required), `handoff_to?`, `project?` | the caller is not the holder |
 | `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
@@ -62,6 +62,17 @@ branch itself. A valid name is 1 to 200 characters of letters, digits, `.`, `_`,
 `/`; it does not start with `-` or `/`, end with `/`, `.` or `.lock`, or contain `..` or
 `//`. Each call claims **one** item; claiming several stories for one branch is one call
 per story (see [claim records](claim-records.md#several-items-one-branch)).
+
+**Review claims.** `purpose="review"` claims an item to review it (the kit's
+`board-review` skill), not to build it. It is a normal claim: one holder, a lease, the
+same records and fold. `session` is an opaque name the caller gives for its own session
+(a runtime session id, or a token it makes once and reuses); the server stores it as
+`mandate.session` and never checks it against anything else. A review claim refuses
+when its `session` matches the `mandate.session` of any earlier `claim` record on the
+issue whose purpose is `work` (a missing `purpose` reads as `work`), so **no session
+reviews work it did**. A fresh session of the same principal may review: the principal is
+not compared. The check is honest-mistake protection, not a defence against a caller that
+lies about its session. `item_ready` is not run for a review claim, and `ready` is null.
 
 **The ready verdict on a claim.** A server that offers `item_ready`
 ([ready check](ready-check.md)) runs it on the issue before it writes the claim and returns
@@ -75,19 +86,73 @@ when `item_ready` would refuse the issue (an epic), or when the check fails; a f
 adds a warning and the claim goes ahead. Only `item_claim` returns it; `item_renew` does
 not re-run the check.
 
+Every record these tools post ends with a [sign-off](sign-offs.md) carrying the claim's
+`session`, and each result returns it as `signoff`.
+
 `item_report` with `attention` also adds the label `needs:<needs>` to the issue (adding is
 idempotent; it never removes one). A failed label write is a warning, the record stands.
 `state=dropped` releases the claim. A server MUST NOT default `needs` to a particular
 person's value; when the agent omits it with an `attention`, refuse and list the profile's
-values (the skill then picks the profile's `owner_needs`).
+values (the skill then picks the profile's `owner_needs`). A server in the
+[Notifications](notifications.md) group also posts one ping comment for the ask and
+returns `ping`; any other server returns no `ping` and notifies nobody.
+
+### New activity
+
+An agent that holds an item, opened a PR through `pr_open`, or takes part in a channel
+must see what other people and agents wrote there since it last looked, without reading
+each issue in turn. `activity_since` is that one read. It is a **pull**: it sends no
+notification to anyone, so it never adds to a person's inbox (a person is notified only
+when they must act).
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `activity_since` | read | `repo`, `since?` (RFC 3339; default 24 hours before the read), `limit?` (1 to 100, default 50), `cursor?` | `since` (the one used), `read_at`, `entries`, `scanned` (`{held, prs, channels}`), `warnings`, `has_next_page`, `next_cursor` |
+
+What it covers, in `repo`, for the **caller's principal** only:
+
+| `source` | Which issues | Which conversation |
+| --- | --- | --- |
+| `held` | every issue, open or closed, whose fold names the caller as holder | issue comments |
+| `pr` | every pull request whose `gtd-pr` marker names the caller in `by` ([opening pull requests](#opening-pull-requests)) | issue comments, reviews (any state, with or without a body) and inline review comments |
+| `channel` | every channel issue of the repo (the Channels group's rule) | issue comments |
+
+An entry is conversation created **after** `since`: never a claim record, a run-state
+record, an item body or anything else a reader parses as a record (a pasted marker from
+an untrusted author is conversation, as in the fold). Entries are oldest first, ordered
+by `created_at` then the entry's own id. Each has `source`, `repo`, `number`, `title`
+(of the issue or PR), `kind` (`comment`, `review` or `review_comment`), `author` (the
+GitHub login), `via_server`, `created_at`, `url` (of the entry) and `excerpt` (the first
+500 characters of its body, empty for a bare review), plus `review_state` on a review
+and `path` on a review comment.
+
+`via_server` is true when the author is an identity the server writes as (a record
+author). The server writes for every agent under that identity, and some deployments
+write as a person's own account, so such an entry may be the caller's own comment,
+another agent's or that person's. The caller skips only the entries whose `url` its own
+writes returned.
+
+A server may find the issues by listing those **updated** after `since` (a new comment
+or review updates its issue). It caps that scan; past the cap it reads the most recently
+updated first and adds a warning naming the cap.
+
+**The cursor.** `read_at` is the read's watermark: the server's clock when the first
+page was read (GitHub times are whole seconds, so a server may set it a second early). A
+read lists only entries created at or before `read_at`, and every page of it returns the
+same `read_at`: `next_cursor` carries it, so an entry written while the caller pages
+waits for the next read instead of slipping past the cursor. Pass `next_cursor` with the
+same `since` until `has_next_page` is false, then keep `read_at` and pass it as `since`
+next time: each entry comes once. A caller with nothing kept omits `since` and gets the
+last 24 hours; a caller that keeps `read_at` before the last page skips the entries
+still unread.
 
 ### Issues
 
 | Tool | Class | Arguments | Notes |
 | --- | --- | --- | --- |
-| `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (and `run-agent` refuses), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
-| `issue_comment` | work | `repo`, `number`, `body` | Plain comment on an issue or PR. A body containing a record marker ([claim-records](claim-records.md#record-format)) refuses: records come only from the `item_*` tools |
-| `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` refuses (a person, or a server's own dispatch tool, starts a run). `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
+| `capture` | work | `title`, `note?`, `repo`, `labels?` | Creates an issue. `labels` follows the same rules as `issue_labels` (so `run-agent` refuses and `agent-review` is allowed), so an agent can file `agent-proposed` work in one call (BOARD.md rule 8) |
+| `issue_comment` | work | `repo`, `number`, `body`, `session?`, `role?`, `review_stage?`, `review_verdict?` | Comment on an issue or PR, ended with the server's [sign-off](sign-offs.md); returns `url` (the posted comment's GitHub URL), `comment_id`, `body` and `signoff`. A body containing a record marker ([claim-records](claim-records.md#record-format)) or a sign-off marker refuses: records come only from the `item_*` tools and sign-offs only from the server. `role` is `worker`, `reviewer`, `coordinator` or `owner` (a person only). `review_stage` and `review_verdict` go together and need the caller's live review claim ([review verdicts](sign-offs.md#review-verdicts)), and refuse on a PR number. On a PR number the comment follows [pull request writes](sign-offs.md#pull-request-writes): it is written under the server's App identity, so a server that offers `pr_open` must be able to read and comment on its PRs (PR5) |
+| `issue_labels` | work | `repo`, `number`, `add?`, `remove?`, `profile?` | Adds and removes labels the repo's profile declares, plus any `area:*`. A label outside the profile refuses and lists the profile's labels. Adding `run-agent` refuses (a person, or a server's own dispatch tool, starts a run); adding `agent-review` is allowed (an agent may ask another session to review its work); removing either is allowed. `profile` defaults to the repo's `gtd-context.json`. Does **not** set Status |
 
 ### Optional on Core, needed by some skills
 
@@ -120,14 +185,17 @@ that offers the capability uses the name.
 | Issue structure | `issue_update`, `issue_close`, `issue_reopen`, `issue_assign`, `issue_milestone`, `issue_type_set`, `issue_parent`, `sub_issue_add`, `sub_issue_remove`, `sub_issues_list`, `issue_blocked_by_add`, `issue_blocked_by_remove` (work, lists read). `issue_close` takes `repo`, `number`, `reason?` (`completed` or `not_planned`); the blocked-by pair takes `repo`, `number`, `blocker`, `blocker_repo?`, and `issue_blocked_by_add` passes GitHub's reason through when GitHub refuses a link (it refuses a dependency cycle); `sub_issue_add` takes `repo`, `parent`, `child`, `child_repo?`, `replace_parent?`; `issue_type_set` takes `repo`, `number`, `issue_type` or `clear`; `issue_parent` (read) returns an issue's parent or null. `sub_issue_add` and `issue_type_set` refuse a write that breaks a [parent rule](repo-context-and-profiles.md#kinds), naming the rule | Editing issues beyond labels |
 | Readiness | `item_ready` (read): `repo`, `number`, `project?` | Whether a story is ready to build: `ready`, `needs-refinement` (with what is missing) or `ready-blocked`, by the rules in [ready check](ready-check.md). Writes nothing |
 | Board lifecycle | `project_create`, `project_update`, `project_template`, `project_copy`, `project_link_repo`, `project_views`, `project_reconcile`, `project_field_update`, `project_field_delete`, `project_item_remove`, `project_workflows`, `project_workflow_delete` (full) | Making and shaping boards from a profile |
-| Repo setup | `repo_reconcile_labels`, `work_items_plan`, `work_items_sync` (full; plan is read) | Making a repo's labels and issues match its profile and its files |
+| Repo setup | `repo_reconcile_labels`, `work_items_plan`, `work_items_sync` (full; plan is read) | Making a repo's labels and issues match its profile and its files. A sync shows the items' [typed links](typed-links.md) on both ends and makes `depends-on` a native blocked-by |
 | Customization | `profile_updates` (read): `repo`, `project?`; returns `profile`, `overrides` (the repo's explicit ones), `inferred` (from the ledger, each `{kind, name, mode}`) and `updates` (each an [upstream change notice](repo-context-and-profiles.md#upstream-change-notice)) | Surfacing profile changes to items the repo skipped or reshaped. A reconciler in the Board lifecycle or Repo setup groups follows [what a reconciler does](repo-context-and-profiles.md#what-a-reconciler-does) |
 | Actions | `actions_workflows`, `actions_runs`, `actions_run_get`, `actions_logs` (read); `actions_run`, `actions_rerun`, `actions_cancel` (full) | Reading and driving CI |
 | Org setup | `org_issue_types`, `org_issue_type_set`, `webhook_*`, `repo_variables`, `repo_variable_set`, `repo_variable_delete` (full) | Organisation issue types, webhooks, variables. Webhook targets must be on an operator host allowlist |
 | Run state | `run_state_post` (work), `run_state_read` (read) | Long runs on compute hosts post `start`, `phase`, `end`, `hold`, `release`, `spend` events to a run-state channel issue named in the repo's layer. `by` here is provenance text, not identity: the record is still stamped with the principal |
 | Channels | `channels_list`, `channel_comments_read` (read), `channel_comment_post` (work) | Long-lived discussion issues a repo names as channels |
-| Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps |
-| Pull requests | `pr_open` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it. See [opening pull requests](#opening-pull-requests) |
+| Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps. A server that starts runs from `run-agent` also starts a review run from `agent-review`: see [review requests](#review-requests) |
+| Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
+| Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
+| Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
+| Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
@@ -157,11 +225,25 @@ The agent still pushes its branch first, with whatever git access its host gives
 The server MUST, in this order, refuse before it creates anything when:
 
 1. `repo` is not allowed (P5);
-2. `title` or `body` is too long (X3), or `body` already holds a `gtd-pr` marker (below);
+2. `title` or `body` is too long (X3), or `body` already holds a `gtd-pr` marker (below),
+   or a sign-off marker ([sign-offs](sign-offs.md)), or `body` holds a **closing keyword**
+   before an issue reference (below);
 3. `issues` is empty, or the caller does not hold an unexpired lease on one of them. The
    refusal names each such issue and says to claim it first;
 4. `head` is cross-repository, equals `base`, is not a branch of `repo`, or already has an
-   open PR into `base` (the refusal gives that PR's URL).
+   open PR into `base` (the refusal gives that PR's URL);
+5. a commit message between `base` and `head` holds a closing keyword before an issue
+   reference. The refusal names the commit and says to reword it.
+
+**Closing keywords.** GitHub closes an issue when a PR merges into the default branch and
+its body or one of its commit messages says `close`, `closes`, `closed`, `fix`, `fixes`,
+`fixed`, `resolve`, `resolves` or `resolved` (any case, optionally followed by `:`) then
+an issue reference: `#<n>`, `owner/repo#<n>`, or an issue URL. It does this anywhere in the
+text, so a rollback note such as "hold or close #<n>" closes that item on merge. That breaks
+the items that must stay open (a lane's item, a standing chore) and closes stories before
+anyone tested them. Only the server writes a closing line (`closes`, below), so it refuses
+the caller's text that holds one, in either mode, and names the keyword and the reference.
+The refusal says `closing keyword`. A branch name never closes an issue.
 
 Then it opens the PR **with its own GitHub App credential, never the caller's**, even on a
 server that otherwise acts as the caller. A server without such a credential does not offer
@@ -170,6 +252,11 @@ server that otherwise acts as the caller. A server without such a credential doe
 ```text
 ---
 Opened through the gtd MCP server for **agent:example**. Works on #<first issue>, #<second issue>.
+
+---
+<sub>gtd-sign · agent:example · worker · pr · session build-3 · 2026-01-01T12:00:00Z</sub>
+
+<!-- gtd-sign v1 {"act": "pr", "by": "agent:example", "role": "worker", "session": "build-3", "t": "2026-01-01T12:00:00Z", "v": 1} -->
 
 <!-- gtd-pr v1 {"by": "agent:example", "issues": [12, 15], "t": "2026-01-01T12:00:00Z", "v": 1} -->
 ```
@@ -181,10 +268,12 @@ Opened through the gtd MCP server for **agent:example**. Works on #<first issue>
   after testing.
 - The JSON follows the record rules in [claim-records](claim-records.md#record-format):
   `<` and `>` escaped, keys sorted.
+- The [sign-off](sign-offs.md) sits between the visible line and the `gtd-pr` marker,
+  which stays last. Its `session` is that of the caller's claim on the first issue.
 
 It returns `number`, `url`, `author` (the login GitHub shows as author), `by`, `head`,
-`base`, `draft`, `issues`, `closes` (whether merging closes the issues) and `body` (the
-body as written, with the block).
+`base`, `draft`, `issues`, `closes` (whether merging closes the issues), `body` (the
+body as written, with the block) and `signoff`.
 
 `pr_open` is `work`, so a `work` agent can use it. It changes nothing else: no labels, no
 Status, no claim records; the agent reports with the `item_*` tools as usual.
@@ -196,3 +285,187 @@ Two GitHub settings decide whether the owner can then approve:
   that push. If the agent's host pushes with the owner's own credential, the owner cannot
   approve under that rule. Turn the rule off, or have the agent push with an identity that
   is not the owner's.
+
+## Reviewing pull requests
+
+`pr_review` and `pr_review_reply` let an agent review a PR, or answer a finding on one,
+through the server, so the review is signed like any comment
+([pull request writes](sign-offs.md#pull-request-writes)) instead of going out unsigned
+through the agent's own GitHub tool. Both are `work`, both write with the App credential
+`pr_open` uses (a server without one does not offer them), and both check the repo and
+the caller first, before any App call.
+
+### `pr_review`
+
+| Argument | Type | Notes |
+| --- | --- | --- |
+| `repo` | string | `owner/repo`, checked against the allowlist |
+| `number` | integer | A pull request in `repo`. An issue number refuses |
+| `body` | string | The review's summary, at most 60000 characters with its sign-off |
+| `event` | string | `comment` or `request-changes`. Nothing else: an agent never approves a PR, because approval is a person's gate. `approve` refuses by name. GitHub refuses `request-changes` from a PR's own author, so on a PR the server's identity opened (every `pr_open` PR) `request-changes` refuses before any write and says to use `comment` with the findings; it is never quietly turned into a comment |
+| `comments` | list, optional | Inline comments, each `path`, `line`, `body`, and optionally `side` (`LEFT` or `RIGHT`) and `start_line` for a range |
+| `session` | string, optional | As on `issue_comment` |
+| `role` | string, optional | As on `issue_comment`; the default is the [PR role default](sign-offs.md#pull-request-writes) |
+
+The server validates everything before it writes anything, and refuses with no review and
+no inline comment posted when: the repo is not allowed or the caller is denied; `number`
+is not an open PR the server can read; `event` is not one of the two, or is
+`request-changes` on a PR the server's identity authored; `body` or any inline
+`body` holds a sign-off (`gtd-sign`) or record (`gtd-desk`) marker, naming the marker and,
+for an inline comment, its position in `comments`; any body is too long once signed; or an
+inline comment's `path` and `line` are not in the PR's diff. A review is submitted in one
+GitHub call, so it lands whole or not at all.
+
+The review body and each inline body end with their own sign-off (`act` `pr-review`). It
+returns `review_id`, `url`, `author` (the login GitHub shows), `event`, `body`, `signoff`, and `comments`: each inline
+comment's `id`, `path`, `line` and signed `body`.
+
+### `pr_review_reply`
+
+| Argument | Type | Notes |
+| --- | --- | --- |
+| `repo` | string | `owner/repo`, checked against the allowlist |
+| `number` | integer | The pull request |
+| `comment_id` | integer | A review comment on that PR: the thread to answer |
+| `body` | string, optional | The reply, at most 65536 characters with its sign-off. Required unless `resolve` is true |
+| `resolve` | boolean, optional | Default false. Resolve the comment's review thread after the reply |
+| `session`, `role` | string, optional | As on `pr_review` |
+
+It refuses before any write when the repo is not allowed or the caller is denied, when
+`comment_id` is not a review comment on PR `number` in `repo` (naming `comment_id`), and on
+the marker and length rules of `issue_comment`. Then it posts the reply (`act`
+`pr-reply`) and, with `resolve`, resolves that thread.
+
+The reply and the resolve are two writes, reported apart: the result has `reply_id`,
+`url`, `author`, `body` and `signoff` (all null when no `body` was given), `resolved` (true, false,
+or null when not asked) and `resolve_error` (why a resolve failed). A reply that posted
+stands even when the resolve fails. To retry only the resolve, call again with `resolve`
+true and no `body`: it posts nothing, so a retry never duplicates the reply. Answering a
+review finding is one call: say what changed and the commit, with `resolve` true.
+
+## Issue artifacts
+
+GitHub issue artifacts are named, versioned pieces of content attached to an issue
+(GitHub calls the feature a public preview). The kit uses them for evidence and plans
+that should stay on the issue after its PR merges
+([where evidence goes](../knowledge/model/evidence-places.md)).
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `issue_artifact_list` | read | `repo`, `number`, `type?` | Each artifact's `number`, `type`, `name`, `url`, `updated_at` |
+| `issue_artifact_get` | read | `repo`, `number`, `artifact`, `include_body?` | The artifact with `body`, `sha256`, `bytes` and `versions` (how many) |
+| `issue_artifact_create` | work | `repo`, `number`, `type`, `name`, `body` or `source_url` + `sha256` | The artifact as `issue_artifact_get` returns it |
+| `issue_artifact_update` | work | `repo`, `number`, `artifact`, `name?`, `body?` or `source_url` + `sha256` | The same; GitHub keeps the old version |
+
+- `type` is one of GitHub's four: `generic` (a Markdown document), `plan` (a Markdown
+  plan), `link` (the body is one `https` URL) or `embedded_html` (a self-contained HTML
+  file). Any other value refuses and lists the four.
+- `name` is 1 to 256 characters; `body` is at most 60000 characters (X3). A `link` body
+  that is not a single `https` URL refuses.
+- `issue_artifact_get` returns `sha256` (of the latest body as UTF-8) and `bytes`.
+  `include_body=false` leaves the body out and keeps both, so a reviewer can compare a
+  large page with the file they hold.
+
+### Large HTML pages by URL
+
+An agent cannot put a page of several megabytes into a tool call, and GitHub has no API
+for issue attachments. So an `embedded_html` artifact's body may come by URL: the
+caller passes `source_url` and `sha256` instead of `body`, and the server fetches the
+page itself.
+
+- Only `embedded_html` takes `source_url`; any other type refuses. `body` and
+  `source_url` together refuse, and `sha256` (64 hex characters) is required with it.
+- `source_url` is `https` on the default port, carries no user or password, and its host is on a list the
+  server's operator sets (a signed storage URL is the usual source). With no list, the
+  URL path refuses. The server sends no credential to it and follows no redirect.
+- The limit is at least 10 MiB (10 x 1024 x 1024 bytes), and the tool description states it.
+- Each refuses, says why and writes nothing: a hash that does not match the fetched
+  bytes; a file over the limit; a file that is not UTF-8 or does not start as an HTML
+  document (`<!doctype html` or `<html`, after an optional byte order mark, whitespace and HTML comments); a URL the server may not fetch; a page holding
+  a marker, as for `body`.
+- The result leaves the body out and carries `sha256` and `bytes`, so megabytes do not
+  come back through the tool call.
+- A body holding a record marker, a `gtd-pr` marker or a sign-off marker refuses, as
+  `issue_comment` does. An artifact is not signed ([sign-offs](sign-offs.md#what-carries-one)).
+- There is no delete tool: deleting an artifact also deletes its history, so only a
+  person deletes one. A server offers all four tools or none.
+- The repo and issue are checked against the allowlist first (P5); a pull request number
+  refuses.
+
+## Intake
+
+A project's **intake** is where other projects' agents file requests to it: open issues
+in its repo that carry its intake label (`agent-proposed` unless the repo's
+`.gtd/BOARD.local.md` names another). Without a read for them, a project hears about a
+request only when someone relays it, and the requester cannot tell a request that was
+seen from one that went nowhere. These two tools give both ends the same answer from the
+board.
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `intake_list` | read | `repo`, `label?` (default `agent-proposed`), `ack_within?` (a duration from `0m` to `7d`, default `24h`), `since?` (RFC 3339) | `repo`, `label`, `ack_within`, `read_at`, `requests`, `counts` (`{open, unacked, overdue, new}`), `warnings` |
+| `intake_ack` | work | `repo`, `number`, `state`, `note?`, `thread?`, `label?`, `session?` | `repo`, `number`, `state`, `url` (of the record comment, or of the standing ack when `unchanged`), `unchanged` |
+
+**A request** is an open issue (never a pull request) carrying the label. `requests` are
+oldest first; each has `number`, `title`, `url`, `author` (the GitHub login),
+`filed_by` (the `by` of the body's trusted sign-off, else null; `capture` ends the body it writes with the caller's sign-off, `act` `capture`, so a request filed through it names its filer), `opened_at`, `ack` (the
+latest trusted ack: `state`, `by`, `at`, `thread`, `note`; null when none), `overdue`,
+`new`, `comments_since` and `reply_on`.
+
+- `unreadable` is true when the server could not read the request's comments whole; its
+  `ack` is then unknown, and it is neither `overdue` nor counted `unacked`.
+- `overdue` is true when the request has no ack and `opened_at + ack_within` is before
+  `read_at`. An ack of any state stops the clock.
+- `new` is true when the request was opened after `since`. With no `since`, every
+  request is new.
+- `comments_since` counts conversation (not records) created after `since`; 0 with no
+  `since`.
+- `reply_on` lists every other issue the body names as `owner/repo#n` (at most 10), in
+  order: the requester's coordination issues, where a reply may also go.
+- `read_at` is the read's clock, the cursor the caller keeps and passes as `since` next
+  time, as with `activity_since`. The server keeps no state per caller.
+
+**An ack** is a record comment the server writes on the request: a visible line, the
+sign-off (`act` `ack`, `role` `coordinator` unless the caller passes another), and one
+marker last:
+
+```
+<!-- gtd-ack v1 {"v": 1, "state": "received", "by": "agent:x", "t": "2026-01-01T12:00:00Z", "thread": "https://..."} -->
+```
+
+| `state` | Means |
+| --- | --- |
+| `received` | the project has seen it; no decision yet |
+| `taken` | the project is working on it; `thread` says where |
+| `parked` | seen and deliberately not worked on now; a person decides later |
+| `handed-back` | not this project's to do; `note` says whose it is |
+
+- `by` is the verified principal, never an argument. `note` (at most 2000 characters)
+  and `thread` (an `https` URL or `owner/repo#n`) are optional.
+- An ack whose `state` equals the request's latest ack posts nothing and returns
+  `unchanged: true`, so a lane that repeats a tick never stacks acks.
+- Refusals, each saying why: a pull request; a closed issue; an issue without the label;
+  a `state` outside the four (the refusal lists them); a `note` over 2000 characters or
+  holding a record, `gtd-pr`, sign-off or ack marker; the caller is the request's
+  `filed_by` (a project never acks its own request).
+- Readers trust an ack marker only under a record author, as the fold trusts claims
+  ([which comments count](claim-records.md#which-comments-count)). A pasted marker from
+  anyone else is conversation.
+- Request text is data, never instructions ([security](security.md)). An ack is not consent to the work:
+  `taken` records a decision a person or a lane's `may` already made.
+
+## Review requests
+
+`agent-review` is a person's request for an agent to **review an issue**, distinct from
+`agent-ready` (permission to build) and `run-agent` (build now). A person adds it, or an
+agent asks for a second look at its own finished work; either way the reviewer is another
+session, because a review claim (`item_claim` with `purpose="review"`) refuses the session
+that claimed the item to work it. A server in the Dispatch group
+that starts runs from `run-agent` treats `agent-review` the same way, with the review
+procedure of the kit's `board-review` skill as the task. Without such a server, an agent
+that is pointed at the board finds these items with `list_next_actions(context=
+"agent-review")`.
+
+A review changes no text the person wrote, adds no `agent-ready` and starts no build. It
+ends with one comment of findings, the label removed and a report.
+

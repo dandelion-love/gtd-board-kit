@@ -1,7 +1,7 @@
 # Long jobs, resources and board outages
 
 Part of the `board-lane` skill. Read `.gtd/kit/BOARD.md` and the skill's `SKILL.md`
-first. Optional lane keys used here: `resource`, `capacity`, `on_board_down`.
+first. Optional lane keys used here: `resource`, `capacity`, `epics`, `on_board_down`.
 
 ## Long jobs
 
@@ -32,6 +32,14 @@ resource's queue.
 - A person's direct ask that needs the resource jumps the queue: it starts at the next
   job boundary (when a running job ends), not by killing one, unless the person says to
   stop that job.
+- **An idle resource is a question, not an answer.** The lane's `queue` shows only what
+  someone already put there, so an empty queue does not prove there is nothing to run.
+  A tick that finds the resource idle reads the open items under the epics the lane
+  serves (`epics: [owner/repo#n, ...]`; with none, the parents of the items the lane has
+  worked) and names, for each one, its next step and what triggers it. An open item
+  with neither is a defect: write it up in that tick (`capture` it, or report it on the
+  item) instead of reporting the idle as correct. A second idle tick in a row lists the
+  items it checked, so a person can see the idle was looked at, not assumed.
 - When the job at the head slips, recompute Start and Target dates for the items behind
   it from the head's new ETA. A date a person set stands: report the conflict on that
   item instead of overwriting it.
@@ -49,3 +57,18 @@ Revalidation reads git, so it still runs. What happens next is the lane's
   with another holder. Queue each report
   you would have made, with its original time, and post them in order, times included,
   once the board is back; renew leases first.
+
+## Lane item size
+
+Every renew and report is a comment on the lane item, and a lane runs for weeks. An
+hourly renew alone is 24 comments a day, and the item becomes slow to read and fold.
+
+- **Renew only when less than two cadences of the lease remain.** With `every: 1h` and
+  `lease: 26h`, that is about one renew a day. The cost: a dead lane shows as a lapsed
+  lease up to a day later. A lane whose death must show sooner keeps a shorter lease.
+- **Report only on change** (`SKILL.md`, step 6). A quiet tick writes nothing.
+- **Roll over at 300 comments.** Open a successor lane item with the same body and
+  `standing`, and open a PR that points the lane's `item` at it. Keep ticking on the old
+  item until that PR is on the default branch: closing it earlier would stop the lane
+  (step 1). Once merged, the next tick claims the successor, `item_release`s the old item
+  with `next` naming the successor, and closes it.

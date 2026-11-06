@@ -37,7 +37,8 @@ only: it never refuses on it ([the ready verdict on a claim](tools.md#claims-and
 
 It **refuses** a pull request ("check its issue instead"), a closed issue, and an issue
 whose Kind is `epic` ("an epic is ready through its stories"; an epic's own done rule is in
-the decision).
+the decision), and an issue labelled `standing` ("a standing item has no ready check": a
+lane's item or a standing chore stays open and carries no criteria or Size).
 
 It **writes nothing**: no comment, label, field, Status, board item, issue type or link. An
 issue that is not on the board stays off it (the `size` rule fails instead), unlike the

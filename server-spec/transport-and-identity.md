@@ -49,7 +49,7 @@ A preset is a ceiling on which tools a joined agent may see and call. They are o
 | Class | Meaning | Tools the kit relies on in this class |
 | --- | --- | --- |
 | `desk` | Identify yourself only (plus any coordination-desk tools a server offers) | `whoami` |
-| `read` | Read repos, boards, profiles, claim state | `profile_get`, `profile_list`, `project_get`, `project_items`, `project_item_find`, `project_views_list`, `list_next_actions`, `issue_list`, `issue_blocked_by_list`, `item_get` |
+| `read` | Read repos, boards, profiles, claim state | `profile_get`, `profile_list`, `project_get`, `project_items`, `project_item_find`, `project_views_list`, `list_next_actions`, `issue_list`, `issue_blocked_by_list`, `item_get`, `activity_since` |
 | `work` | Change issues and boards, claim and report | `capture`, `issue_comment`, `issue_labels`, `item_claim`, `item_renew`, `item_release`, `item_report`, `project_set_status`, `project_set_field`, `project_item_move`, `project_add_item`, `project_report` |
 | `full` | Anything else: board and view creation, field deletion, webhooks, repo variables, deletes | everything not listed above |
 
