@@ -2,7 +2,7 @@
 
 ## 2026-11-06
 
-* **Added**: closed is Done (kit 0.37.0). A board whose repo has no sync owning Status on close kept closed issues in In Review, because GitHub's built-in Item closed workflow starts off and has no API. `board-fields` names the writer: the repo's sync where it owns close (built-ins stay off), else Item closed and Pull request merged set `Done`, turned on once by a person. Onboarding checks it with `project_workflows`, the BOARD.local.md template says so, and an agent that finds a closed item outside a closed column records `Done` once and names what is missing.
+* **Added**: closed is Done (kit 0.37.0). A board whose repo has no sync owning Status on close kept closed issues in In Review. `board-fields` names the writer: the repo's sync where it owns close, else the server's bot (its App's `issues` and `pull_request` closed events set the profile's closed column, with a periodic sweep as backstop). The board's built-in close workflows are optional, since free plans limit them and no API sets them. Onboarding records which writer a repo uses, and an agent that finds a closed item in an open column records the closed column once and reports the gap.
 
 ## 2026-11-05
 

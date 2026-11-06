@@ -73,9 +73,8 @@ Fill it from what the repo and the board say, not from memory:
 - `profile_get` for the profile: its columns, labels, `needs:*` values and fields.
 - `project_get` and `project_views_list` for the board in `.github/gtd-context.json`.
 - Does `.github/workflows/project-sync.yml` exist? If not, fill the Status-per-label table.
-- `project_workflows` on the board: with no sync that owns Status on close, ask your person
-  to turn on **Item closed** and **Pull request merged**, both setting `Done`, on the board's
-  Workflows page (no API can); with one, both stay off
+- Who moves a closed item to `Done`: the repo's sync if it owns close, else the server's
+  bot, which needs the App's issues and pull request events. Note which in BOARD.local.md
   ([closed is Done](knowledge/model/board-fields.md#closed-is-done)).
   Take it from the profile when `profile_get` shows the map; otherwise ask your person.
 - The repo's own README, `CLAUDE.md` and `AGENTS.md`: domain rules, channels, hosts, and

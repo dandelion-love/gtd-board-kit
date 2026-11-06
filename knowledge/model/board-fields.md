@@ -52,16 +52,18 @@ records it. So something must move a closed item out of the open columns, and it
 named, or closed items sit in In Review and In Progress for good:
 
 - **A repo with a sync that owns Status on close** (`project-sync.yml` with a profile map,
-  which may use its own closed columns such as Abandoned): the sync writes it. The board's
-  built-in Item closed and Pull request merged workflows stay **off**, so the two never
-  fight over the column.
-- **Any other repo**: the board's built-in **Item closed** workflow is **on** and sets
-  `Done`, and **Pull request merged** is on and sets `Done`. GitHub has no API to turn a
-  workflow on or choose its Status: a person does it once on the board's Workflows page.
-  `project_workflows` reports which are on, and onboarding checks it.
-- An agent that finds a closed item outside a closed column records `Done` once with
-  `project_set_status` (the close already happened, so this only writes it down), and tells
-  the person which of the two above is missing. It never sets `Done` on an open item.
+  which may use its own closed columns such as Abandoned): the sync writes it.
+- **Any other repo: the server's bot.** The server's GitHub App receives the `issues`
+  closed and `pull_request` closed (merged) events and sets each board's Status to the
+  profile's closed column (`Done` by default), as the App, within a minute. A pull request
+  closed without merging changes nothing. A periodic sweep on the same App records the
+  closed column for any closed item still in an open column, so a lost event is caught.
+- The board's built-in Item closed and Pull request merged workflows are optional. Free
+  plans limit how many a board may have, and GitHub has no API to set them, so the kit does
+  not rely on them. Where a sync owns close they stay off, so the two never fight.
+- An agent that finds a closed item outside a closed column records the closed column once
+  with `project_set_status` (the close already happened, so this only writes it down), and
+  reports the gap if the bot should have caught it. It never sets `Done` on an open item.
 
 # Why
 
