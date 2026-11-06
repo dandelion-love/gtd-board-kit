@@ -45,6 +45,24 @@ with `needs:<who>`), the card must say so without a click:
   agent to touch the item clears the `needs:*` label if the person has not, updates
   `Gates` and `Last report`, and moves the card on.
 
+# Closed is Done
+
+Closing an issue, or merging the PR that closes it, is the decision; the Status column only
+records it. So something must move a closed item out of the open columns, and it must be
+named, or closed items sit in In Review and In Progress for good:
+
+- **A repo with a sync that owns Status on close** (`project-sync.yml` with a profile map,
+  which may use its own closed columns such as Abandoned): the sync writes it. The board's
+  built-in Item closed and Pull request merged workflows stay **off**, so the two never
+  fight over the column.
+- **Any other repo**: the board's built-in **Item closed** workflow is **on** and sets
+  `Done`, and **Pull request merged** is on and sets `Done`. GitHub has no API to turn a
+  workflow on or choose its Status: a person does it once on the board's Workflows page.
+  `project_workflows` reports which are on, and onboarding checks it.
+- An agent that finds a closed item outside a closed column records `Done` once with
+  `project_set_status` (the close already happened, so this only writes it down), and tells
+  the person which of the two above is missing. It never sets `Done` on an open item.
+
 # Why
 
 Board views group and filter by these fields (Epic rollup, In flight by Lane, Needs a

@@ -44,6 +44,10 @@ for anything specific to this repo. Delete any section you don't need.
 | blocked | |
 | <!-- the owner's needs:* label --> | <!-- its own column, e.g. Needs owner; not Blocked (see knowledge/model/board-fields.md) --> |
 
+Closed items: `Done`, set by the board's built-in Item closed and Pull request merged
+workflows, which a person turns on once (`project_workflows` shows them). See
+.gtd/kit/knowledge/model/board-fields.md, "Closed is Done".
+
 ## Fields and columns
 
 <!-- The kit's standard fields and their writers are in .gtd/kit/knowledge/model/board-fields.md.

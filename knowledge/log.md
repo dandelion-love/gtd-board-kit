@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-06
+
+* **Added**: closed is Done (kit 0.37.0). A board whose repo has no sync owning Status on close kept closed issues in In Review, because GitHub's built-in Item closed workflow starts off and has no API. `board-fields` names the writer: the repo's sync where it owns close (built-ins stay off), else Item closed and Pull request merged set `Done`, turned on once by a person. Onboarding checks it with `project_workflows`, the BOARD.local.md template says so, and an agent that finds a closed item outside a closed column records `Done` once and names what is missing.
+
 ## 2026-11-05
 
 * **Fixed**: compiled Python is no longer tracked (kit 0.36.1). A rebuilt `.pyc` carries the absolute path of the machine that compiled it, which this public repo must not hold; `__pycache__/` and `*.pyc` are now ignored.
