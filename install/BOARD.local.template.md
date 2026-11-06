@@ -44,6 +44,9 @@ for anything specific to this repo. Delete any section you don't need.
 | blocked | |
 | <!-- the owner's needs:* label --> | <!-- its own column, e.g. Needs owner; not Blocked (see knowledge/model/board-fields.md) --> |
 
+Closed items: <!-- the closed column, default Done --> , set by <!-- this repo's sync | the server's bot --> on close.
+See .gtd/kit/knowledge/model/board-fields.md, "Closed is Done".
+
 ## Fields and columns
 
 <!-- The kit's standard fields and their writers are in .gtd/kit/knowledge/model/board-fields.md.

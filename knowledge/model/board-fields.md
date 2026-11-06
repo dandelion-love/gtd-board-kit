@@ -45,6 +45,28 @@ with `needs:<who>`), the card must say so without a click:
   agent to touch the item clears the `needs:*` label if the person has not, updates
   `Gates` and `Last report`, and moves the card on.
 
+# Closed is Done
+
+Closing an issue, or merging the PR that closes it, is the decision; the Status column only
+records it. So something must move a closed item out of the open columns, and it must be
+named, or closed items sit in In Review and In Progress for good:
+
+- **A repo with a sync that owns Status on close** (`project-sync.yml` with a profile map,
+  which may use its own closed columns such as Abandoned): the sync writes it.
+- **Any other repo: the server's bot.** The server's GitHub App receives the `issues`
+  closed and `pull_request` closed (merged) events and sets each board's Status to the
+  profile's closed column (`Done` by default), as the App, within a minute. A pull request
+  closed without merging changes nothing. A periodic sweep on the same App records the
+  closed column for any closed item still in an open column, so a lost event is caught.
+- The board's built-in Item closed and Pull request merged workflows are optional. Free
+  plans limit how many a board may have, and GitHub has no API to set them, so the kit does
+  not rely on them. Where a sync owns close they stay off, so the two never fight.
+- An agent that finds a closed item outside a closed column, on a repo the server's bot
+  serves, records the profile's closed column once with `project_set_status` (the close
+  already happened, so this only writes it down) and reports the gap. On a repo whose sync
+  owns close, it leaves the column to the sync and reports the gap instead. It never sets a
+  closed column on an open item.
+
 # Why
 
 Board views group and filter by these fields (Epic rollup, In flight by Lane, Needs a

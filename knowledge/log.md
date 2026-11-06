@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-06
+
+* **Added**: closed is Done (kit 0.37.0). A board whose repo has no sync owning Status on close kept closed issues in In Review. `board-fields` names the writer: the repo's sync where it owns close, else the server's bot (its App's `issues` and `pull_request` closed events set the profile's closed column, with a periodic sweep as backstop). The board's built-in close workflows are optional, since free plans limit them and no API sets them. Onboarding records which writer a repo uses, and an agent that finds a closed item in an open column records the closed column once and reports the gap.
+
 ## 2026-11-05
 
 * **Fixed**: compiled Python is no longer tracked (kit 0.36.1). A rebuilt `.pyc` carries the absolute path of the machine that compiled it, which this public repo must not hold; `__pycache__/` and `*.pyc` are now ignored.
