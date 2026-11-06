@@ -152,7 +152,7 @@ A server that lists `profile_updates` in `tools/list` must also pass these.
 A server that lists `pr_open` in `tools/list` must also pass these
 ([opening pull requests](tools.md#opening-pull-requests)). PR1 and PR2 open nothing. PR3 needs
 a branch already pushed to the sandbox repo (the runner's `--pr-head`) and leaves one PR
-open for a person to close.
+open for a person to close. PR5 to PR7 use that PR and post on it.
 
 | Id | Check |
 | --- | --- |
@@ -160,6 +160,12 @@ open for a person to close.
 | PR2 | `pr_open` refuses an empty `issues` and says so (the refusal names `issues`); refuses an issue the caller holds no claim on and names it; refuses a `body` that holds a `gtd-pr` marker and names `gtd-pr`; refuses a `body` of `Rollback: hold or close #<n>` and says `closing keyword`. Each refusal gives that reason, not only a missing branch |
 | PR3 | With a claim on a sandbox issue and a pushed `head`, `pr_open` opens the PR: `author` is not the caller's GitHub login and ends in `[bot]`, `by` equals the caller's `whoami` principal, and the returned `body` ends with exactly one `gtd-pr v1` marker whose `by` and `issues` match. Without `closes` it reports `closes` false and the body has no `Closes #` line. A second `pr_open` for the same `head` and `base` refuses and gives the open PR's URL |
 | PR4 | The PR PR3 opened: its `body` holds exactly one `gtd-sign v1` marker with `act` `pr` and `by` the caller's principal, before the `gtd-pr` marker, and the result's `signoff` equals it |
+| PR5 | The PR PR3 opened: `issue_comment` on its number succeeds; the body holds exactly one `gtd-sign v1` marker with `act` `comment`, `by` the caller's principal and `role` `worker` (the caller's work claim on the issue the PR's marker names), and the result's `signoff` equals it and it returns the comment's `url`; with `--github-token-env` the runner reads the comment from GitHub and its author is PR3's `author`, not the caller's login. The same call with `review_stage` and `review_verdict` refuses |
+| PR6 | When `pr_review` is offered, on the PR PR3 opened: refuses `event="approve"` naming `approve`; refuses `event="request-changes"` (the server's identity authored that PR) and says to use `comment`; refuses a `body` holding a `gtd-sign` marker naming `gtd-sign`; refuses an inline comment whose `body` holds a `gtd-desk` marker naming `gtd-desk`; refuses a `repo` not on the allowlist. None of these posts a review |
+| PR7 | When `pr_review` is offered, on the PR PR3 opened: `event="comment"` with no inline comments posts one review; `author` ends in `[bot]` and is not the caller's login; the body holds exactly one `gtd-sign v1` marker with `act` `pr-review` and `by` the caller's principal, and `signoff` equals it |
+| PR8 | When `pr_review` is offered: a review with one inline comment on a line of the diff signs the review body and the inline body, each with one marker; a review whose second inline comment is off the diff refuses and posts no review and no inline comment (*manual*: needs a PR with a known diff) |
+| PR9 | When `pr_review_reply` is offered, on a PR with a review comment: a reply is signed (`act` `pr-reply`, `by` the principal) under the App; with `resolve=true` the thread is resolved and `resolved` is true; a second call with `resolve=true` and no `body` posts nothing; a `comment_id` from another PR refuses naming `comment_id`. A PR whose `gtd-pr` marker is in a body written by a person gives the caller the ordinary default role, not `reviewer` (*manual*: needs a review thread and a hand-made PR) |
+| PR10 | On the PR PR3 opened, a caller holding no claim on the issue its `gtd-pr` marker names gets the ordinary default role on `issue_comment` (`worker` for an agent, `owner` for a person); and on a PR whose trusted marker names an issue the server cannot read, the caller also gets the ordinary default and the comment still posts (*manual*: needs a second principal and a hand-made PR) |
 
 ## Ready check (when offered)
 
@@ -276,16 +282,19 @@ and its sub-issues):
 ## Issue artifacts (when offered)
 
 A server that lists any `issue_artifact_*` tool in `tools/list` must also pass these
-([issue artifacts](tools.md#issue-artifacts)). A1 to A4 need a sandbox repo where GitHub's
+([issue artifacts](tools.md#issue-artifacts)). A1 to A6 need a sandbox repo where GitHub's
 issue artifacts are available; they create artifacts on a sandbox issue and delete
-nothing.
+nothing. A5 and A6 also need an HTML page the server may fetch (`--artifact-source-url`
+and `--artifact-source-sha256`); without one they are skipped.
 
 | Id | Check |
 | --- | --- |
 | A1 | `tools/list` has all four of `issue_artifact_list`, `issue_artifact_get`, `issue_artifact_create` and `issue_artifact_update`, and no tool whose name starts `issue_artifact_` and contains `delete` |
-| A2 | `issue_artifact_create` of a `generic` and a `link` artifact returns `number`, `type`, `name` and `url`; `issue_artifact_list` shows both, and with `type=link` only the link; `issue_artifact_get` returns the body as written |
+| A2 | `issue_artifact_create` of a `generic` and a `link` artifact returns `number`, `type`, `name` and `url`; `issue_artifact_list` shows both, and with `type=link` only the link; `issue_artifact_get` returns the body as written, with `sha256` and `bytes` of it |
 | A3 | `issue_artifact_update` of the generic artifact's body returns the new body, and `versions` is one more than before |
 | A4 | Each refuses and says why: `type` `report` (the refusal lists the four types); an empty `name`; a `link` body that is not one `https` URL; a body with a record marker; a body over 60000 characters |
+| A5 | `issue_artifact_create` of an `embedded_html` artifact from `source_url` and `sha256` returns that `sha256` and `bytes` over 0; `issue_artifact_get` with `include_body=false` returns the same `sha256` and no body, and with the body returns one whose UTF-8 SHA-256 is that hash |
+| A6 | Starting from A5's good create (its page and correct `sha256`), each case breaks one rule and refuses, and the issue gains no artifact (A6 fails when that good create is refused): `type` `generic`; `body` added; `sha256` left out; the URL as `http://`; a `sha256` that does not match the page |
 
 ## Intake (when offered)
 

@@ -3,7 +3,7 @@ name: board-review
 description: Review a board issue labelled agent-review (by a person, or by an agent asking another session to check its work), against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.5.0
+  version: 0.6.0
 ---
 
 # Review an issue
@@ -57,7 +57,8 @@ Read the issue, its parent, its sub-issues and its blockers (`item_get`,
   the PR is a `link` artifact on the issue (a server without artifact tools: the report
   says so and the PR's evidence row holds the link instead), as
   `.gtd/kit/knowledge/model/evidence-places.md` says. A missing tick, pointer or
-  artifact is a finding.
+  artifact is a finding, and so is a row that describes a produced file (an export, a
+  screenshot, a render) without linking the file itself.
 - **Speaks for itself.** From the issue alone, without the PR body or chat, can a person
   tell where it is, who acts next and whether each criterion is met, each in one click
   (`.gtd/kit/knowledge/model/self-reviewable-items.md`)? Each gap is a finding.
@@ -76,6 +77,13 @@ body:
 1. Findings, most important first, each with the section it is about and a suggested
    text a person can paste.
 2. What you did not check, and why.
+
+Findings about lines of a PR's code (a work review) may also go on the PR as one
+`pr_review(repo, number=<PR>, body, event="comment" or "request-changes", comments,
+session)` when the server offers it, linked from the issue comment (`comment` on a PR
+the server opened: GitHub refuses changes requested by a PR's author). Never approve a PR,
+and never use your own GitHub tool for it when the server offers `pr_review`: the server
+signs it.
 
 Never edit the person's text, never add `agent-ready` or `run-agent`, never start a
 build, never close the issue. A finding that is new work: `capture` it with

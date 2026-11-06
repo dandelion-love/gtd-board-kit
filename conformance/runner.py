@@ -1767,7 +1767,7 @@ def check_kinds(rep: Report, c: Client, tools: dict, sb: Sandbox | None, kind_cm
 
 ARTIFACT_TOOLS = ("issue_artifact_list", "issue_artifact_get", "issue_artifact_create",
                   "issue_artifact_update")
-ARTIFACT_IDS = ("A1", "A2", "A3", "A4")
+ARTIFACT_IDS = ("A1", "A2", "A3", "A4", "A5", "A6")
 
 
 INTAKE_IDS = ("I1", "I2", "I3", "I4")
@@ -2008,8 +2008,10 @@ def check_notify(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profil
               "claim, renew, progress and release ping nobody")
 
 
-def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
-    """A1 to A4: the issue artifact tools, when any is offered. Creates, never deletes."""
+def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
+                    source: tuple[str, str] | None = None) -> None:
+    """A1 to A6: the issue artifact tools, when any is offered. Creates, never deletes.
+    ``source`` is A5's page: (``source_url``, its ``sha256``)."""
     offered = [t for t in tools if t.startswith("issue_artifact_")]
     if not offered:
         for cid in ARTIFACT_IDS:
@@ -2035,7 +2037,7 @@ def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> 
                            at(type="link", name="conformance link", body="https://example.com/conformance"))
     if not (ok1 and ok2):
         rep.fail("A2", f"create refused: {(t1 if not ok1 else t2)[:120]}")
-        for cid in ("A3", "A4"):
+        for cid in ("A3", "A4", "A5", "A6"):
             rep.skip(cid, "the A2 creates failed")
         return
     fields = all(isinstance(a, dict) and {"number", "type", "name", "url"} <= set(a) for a in (gen, link))
@@ -2048,11 +2050,13 @@ def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> 
 
     _, got, _ = c.call("issue_artifact_get", at(artifact=gen["number"]))
     got = got or {}
+    raw = body.encode("utf-8")
+    hashed = got.get("sha256") == hashlib.sha256(raw).hexdigest() and got.get("bytes") == len(raw)
     rep.check("A2", fields and {gen["number"], link["number"]} <= nums(rows)
-              and nums(links) == {link["number"]} and got.get("body") == body,
+              and nums(links) == {link["number"]} and got.get("body") == body and hashed,
               f"fields {fields}; list {sorted(nums(rows))}; link list {sorted(nums(links))}; "
-              f"body as written {got.get('body') == body}",
-              "two created, listed, filtered by type, body read back")
+              f"body as written {got.get('body') == body}; sha256 and bytes match {hashed}",
+              "two created, listed, filtered by type, body read back with its hash")
 
     before = got.get("versions")
     body2 = body + " Updated."
@@ -2077,6 +2081,60 @@ def check_artifacts(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> 
         elif what == "type report" and not all(t in text for t in ("generic", "link", "plan", "embedded_html")):
             refused.append("type refusal does not list the four types")
     rep.check("A4", not refused, "; ".join(refused), "five bad creates refused, with reasons")
+    check_artifact_source(rep, c, at, nums, source)
+
+
+def check_artifact_source(rep: Report, c: Client, at: Any, nums: Any,
+                          source: tuple[str, str] | None) -> None:
+    """A5 and A6: an embedded_html page by ``source_url`` + ``sha256``."""
+    good_ok = False
+    if source is None:
+        rep.skip("A5", "needs --artifact-source-url and --artifact-source-sha256")
+    else:
+        url, sha = source
+        ok, made, text = c.call("issue_artifact_create",
+                                at(type="embedded_html", name="conformance page",
+                                   source_url=url, sha256=sha))
+        made = made or {}
+        good_ok = bool(ok)
+        if not ok:
+            rep.fail("A5", f"create from source_url refused: {text[:120]}")
+        else:
+            _, slim, _ = c.call("issue_artifact_get",
+                                at(artifact=made.get("number"), include_body=False))
+            _, full, _ = c.call("issue_artifact_get", at(artifact=made.get("number")))
+            slim, full = slim or {}, full or {}
+            body = full.get("body")
+            got = hashlib.sha256(body.encode("utf-8")).hexdigest() if isinstance(body, str) else None
+            rep.check("A5", made.get("sha256") == sha and (made.get("bytes") or 0) > 0
+                      and slim.get("sha256") == sha and slim.get("body") is None and got == sha,
+                      f"create sha256 {made.get('sha256') == sha}, bytes {made.get('bytes')}; "
+                      f"get without body {slim.get('sha256') == sha and slim.get('body') is None}; "
+                      f"body hash {got == sha}",
+                      "page fetched, hash and bytes returned, read back byte for byte")
+    if source is None:
+        rep.skip("A6", "needs --artifact-source-url and --artifact-source-sha256: each case "
+                       "breaks one rule of an otherwise good create")
+        return
+    if not good_ok:
+        rep.fail("A6", "the good create by URL (A5) was refused, so its refusals prove nothing")
+        return
+    url, sha = source
+    _, rows, _ = c.call("issue_artifact_list", at())
+    before = nums(rows)
+    good = {"type": "embedded_html", "name": "x", "source_url": url, "sha256": sha}
+    plain = "http://" + url.split("://", 1)[1]
+    bad = [("source_url on generic", at(**{**good, "type": "generic"})),
+           ("body and source_url", at(**good, body="<html></html>")),
+           ("no sha256", at(**{k: v for k, v in good.items() if k != "sha256"})),
+           ("http source_url", at(**{**good, "source_url": plain})),
+           ("hash mismatch", at(**{**good, "sha256": "0" * 64}))]
+    accepted = [what for what, args in bad if c.call("issue_artifact_create", args)[0]]
+    _, rows, _ = c.call("issue_artifact_list", at())
+    grew = nums(rows) - before
+    rep.check("A6", not accepted and not grew,
+              f"accepted {', '.join(accepted) or '-'}; new artifacts {sorted(grew) or '-'}",
+              f"{len(bad)} bad source_url creates refused, nothing written")
 
 
 def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
@@ -2231,18 +2289,27 @@ def check_signoffs(rep: Report, c: Client, sb: Sandbox, who: dict | None) -> Non
     c.call("item_release", sb.args(g, done="signed", remaining="none", next="close"))
 
 
+PR_IDS = ("PR1", "PR2", "PR3", "PR4", "PR5", "PR6", "PR7", "PR8", "PR9", "PR10")
+
+
 def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None,
-              head: str | None) -> None:
-    """PR1 to PR4: ``pr_open`` refusals, then (with a pushed ``head``) one real PR."""
+              head: str | None, gh_token: str | None = None) -> None:
+    """PR1 to PR9: ``pr_open`` refusals, then (with a pushed ``head``) one real PR, and the
+    signed writes on it (PR5 to PR7; PR8 and PR9 by hand)."""
     if "pr_open" not in tools:
-        for cid in ("PR1", "PR2", "PR3", "PR4"):
+        for cid in PR_IDS:
             rep.na(cid, "pr_open is not offered")
         return
+    for cid, tool in (("PR8", "pr_review"), ("PR9", "pr_review_reply"), ("PR10", "pr_open")):
+        if tool in tools:
+            rep.manual(cid, MANUAL_PR[cid])
+        else:
+            rep.na(cid, f"{tool} is not offered")
     owner = sb.repo.split("/")[0]
     n = sb.issue("pr_open")
     ok, _, text = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
     if not ok:
-        for cid in ("PR1", "PR2", "PR3", "PR4"):
+        for cid in PR_IDS[:7]:
             rep.skip(cid, f"could not claim the sandbox issue: {text[:100]}")
         return
 
@@ -2284,6 +2351,11 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
     if not head:
         rep.manual("PR3", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
         rep.manual("PR4", "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+        for cid in ("PR5", "PR6", "PR7"):
+            if cid == "PR5" or "pr_review" in tools:
+                rep.manual(cid, "push a branch to the sandbox repo and run again with --pr-head BRANCH")
+            else:
+                rep.na(cid, "pr_review is not offered")
     else:
         ok, out, text = pr(head=head)
         out = out if isinstance(out, dict) else {}
@@ -2328,7 +2400,92 @@ def check_prs(rep: Report, c: Client, sb: Sandbox, tools: dict, who: dict | None
                       f"signoff returned {out.get('signoff') == sign}")
         else:
             rep.skip("PR4", "PR3 opened no PR")
+        check_pr_writes(rep, c, sb, tools, principal, out if ok else {}, gh_token)
     c.call("item_release", sb.args(n, done="pr_open checks", remaining="none", next="close"))
+
+
+MANUAL_PR = {
+    "PR8": "submit a pr_review with one inline comment on a diff line (both bodies signed), "
+           "then one whose second inline comment is off the diff (refused, nothing posted)",
+    "PR9": "on a PR with a review comment: pr_review_reply signed act pr-reply; resolve=true "
+           "resolves; resolve=true with no body posts nothing; another PR's comment_id refused; "
+           "a gtd-pr marker in a person's PR body gives the default role, not reviewer",
+    "PR10": "issue_comment on a pr_open PR by a principal with no claim on its issues, and on "
+            "a PR whose marker names an unreadable issue: both sign the ordinary default role",
+}
+
+
+def check_pr_writes(rep: Report, c: Client, sb: Sandbox, tools: dict, principal: str | None,
+                    opened: dict, gh_token: str | None) -> None:
+    """PR5 to PR7 on the PR PR3 opened: a signed comment, ``pr_review`` refusals, one review."""
+    number, app = opened.get("number"), str(opened.get("author") or "")
+    if not number:
+        for cid in ("PR5", "PR6", "PR7"):
+            rep.skip(cid, "PR3 opened no PR")
+        return
+    ok, out, text = c.call("issue_comment", {"repo": sb.repo, "number": number,
+                                             "body": f"[conformance {sb.run}] PR5 comment"})
+    out = out if isinstance(out, dict) else {}
+    sign = parse_signoff(str(out.get("body") or "")) if ok else None
+    probs = [] if ok else [f"issue_comment on the PR: {text[:120]}"]
+    if ok and not (sign and sign.get("act") == "comment" and sign.get("by") == principal
+                   and sign.get("role") == "worker" and out.get("signoff") == sign):
+        probs.append(f"sign-off {sign!r}")
+    url = str(out.get("url") or "")
+    if ok and not url:
+        probs.append("issue_comment returned no url")
+    real = github_comment_author(url, gh_token) if ok and gh_token and url else None
+    if ok and gh_token and url and real != app:
+        probs.append(f"GitHub author {real!r} is not PR3's {app!r}")
+    okv, _, _ = c.call("issue_comment", {"repo": sb.repo, "number": number, "body": "verdict",
+                                         "review_stage": "work", "review_verdict": "needs-changes"})
+    if okv:
+        probs.append("a review verdict on a PR number was not refused")
+    rep.check("PR5", not probs, "; ".join(probs),
+              f"signed comment {out.get('url')}; author "
+              f"{real if gh_token else '(not read: no --github-token-env)'}")
+
+    if "pr_review" not in tools:
+        rep.na("PR6", "pr_review is not offered")
+        rep.na("PR7", "pr_review is not offered")
+        return
+
+    def review(**more: Any) -> tuple[bool, Any, str]:
+        return c.call("pr_review", {"repo": sb.repo, "number": number, "event": "comment",
+                                    "body": f"[conformance {sb.run}] pr_review", **more})
+
+    bad = []
+    ok, _, text = review(event="approve")
+    if ok or "approve" not in text.lower():
+        bad.append("event approve was not refused by name")
+    ok, _, text = review(event="request-changes")
+    if ok or "comment" not in text.lower():
+        bad.append("request-changes on the server's own PR was not refused toward comment")
+    ok, _, text = review(body='x <!-- gtd-sign v1 {"by": "agent:x", "v": 1} -->')
+    if ok or "gtd-sign" not in text:
+        bad.append("a body with a gtd-sign marker was not refused for the marker")
+    ok, _, text = review(comments=[{"path": "README.md", "line": 1,
+                                    "body": 'y <!-- gtd-desk v1 {"by": "agent:x", "v": 1} -->'}])
+    if ok or "gtd-desk" not in text:
+        bad.append("an inline body with a gtd-desk marker was not refused for the marker")
+    ok, _, _ = c.call("pr_review", {"repo": "conformance-invalid/never-allowed", "number": 1,
+                                    "event": "comment", "body": "x"})
+    if ok:
+        bad.append("a repo outside the allowlist was not refused")
+    rep.check("PR6", not bad, "; ".join(bad),
+              "approve, request-changes on its own PR, two markers and a foreign repo refused")
+
+    ok, out, text = review()
+    out = out if isinstance(out, dict) else {}
+    body = str(out.get("body") or "")
+    sign = parse_signoff(body) if ok else None
+    author = str(out.get("author") or "")
+    rep.check("PR7", ok and author.endswith("[bot]") and author == app
+              and len(SIGN_RE.findall(body)) == 1 and bool(sign)
+              and sign.get("act") == "pr-review" and sign.get("by") == principal
+              and out.get("signoff") == sign,
+              f"pr_review {ok} ({text[:80]}), author {author!r} vs {app!r}, sign-off {sign!r}",
+              f"signed review {out.get('url')} as {author}")
 
 
 def check_join(rep: Report, base: str, start: bool, claims_join: bool | None) -> None:
@@ -2662,6 +2819,17 @@ MANUAL = {
 }
 
 
+def _artifact_source(a: argparse.Namespace) -> tuple[str, str] | None:
+    """A5's page from the command line, or None to skip A5."""
+    url, sha = a.artifact_source_url, a.artifact_source_sha256
+    if not url and not sha:
+        return None
+    if not (url and sha and re.fullmatch(r"[0-9a-fA-F]{64}", sha)):
+        raise SystemExit("--artifact-source-url and --artifact-source-sha256 go together, "
+                         "the hash as 64 hex characters")
+    return url, sha.lower()
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--server", help="the server's base URL, no path")
@@ -2672,7 +2840,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--repo", help="owner/repo sandbox; the run creates issues there")
     ap.add_argument("--project", help="owner/number board linked to the sandbox repo")
     ap.add_argument("--profile", help="the sandbox repo's profile (default: the first profile_list returns)")
-    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 and PR4 (opens one PR)")
+    ap.add_argument("--pr-head", help="a branch pushed to the sandbox repo, for PR3 to PR7 (opens one PR, comments and reviews on it)")
     ap.add_argument("--join-start", action="store_true", help="open one join request for J2 and J3")
     ap.add_argument("--connector", metavar="NAME",
                     help="join agent NAME through the connector entrance for JC1 to JC9; "
@@ -2685,8 +2853,12 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
     ap.add_argument("--github-token-env",
                     help="a read-only GitHub token for the sandbox repo, so N2 reads the ping's author from GitHub")
+    ap.add_argument("--artifact-source-url",
+                    help="an https HTML page the server may fetch, for A5 and A6's hash check")
+    ap.add_argument("--artifact-source-sha256", help="that page's SHA-256 (64 hex characters)")
     ap.add_argument("--json", help="also write the report as JSON to this file")
     a = ap.parse_args(argv)
+    artifact_source = _artifact_source(a)  # bad flags stop before any write
 
     rep = Report()
     check_fold(rep, a.fold_cmd)
@@ -2740,10 +2912,10 @@ def main(argv: list[str]) -> int:
                     check_signoffs(rep, c, sb, who)
                     if a.project:
                         check_board(rep, c, sb, profiles.get(name) or {})
-                    check_prs(rep, c, sb, _tools, who, a.pr_head)
+                    check_prs(rep, c, sb, _tools, who, a.pr_head, token(a.github_token_env))
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
-                check_artifacts(rep, c, _tools, sb)
+                check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
