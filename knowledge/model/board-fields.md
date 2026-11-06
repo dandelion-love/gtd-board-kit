@@ -61,9 +61,11 @@ named, or closed items sit in In Review and In Progress for good:
 - The board's built-in Item closed and Pull request merged workflows are optional. Free
   plans limit how many a board may have, and GitHub has no API to set them, so the kit does
   not rely on them. Where a sync owns close they stay off, so the two never fight.
-- An agent that finds a closed item outside a closed column records the closed column once
-  with `project_set_status` (the close already happened, so this only writes it down), and
-  reports the gap if the bot should have caught it. It never sets `Done` on an open item.
+- An agent that finds a closed item outside a closed column, on a repo the server's bot
+  serves, records the profile's closed column once with `project_set_status` (the close
+  already happened, so this only writes it down) and reports the gap. On a repo whose sync
+  owns close, it leaves the column to the sync and reports the gap instead. It never sets a
+  closed column on an open item.
 
 # Why
 
