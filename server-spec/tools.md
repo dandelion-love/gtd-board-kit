@@ -32,12 +32,25 @@ Common rules for every tool:
 | Tool | Class | Arguments | Returns |
 | --- | --- | --- | --- |
 | `list_next_actions` | read | `repo`, `context?` (one label; empty for all open), `limit?` (default 30) | open **issues** (never PRs) with `number`, `title`, `labels`, `url` |
-| `issue_list` | read | `repo`, `state?` (`open`, `closed`, `all`), `labels?` (all must match), `limit?` | the same shape |
+| `issue_list` | read | `repo`, `state?` (`open`, `closed`, `all`), `labels?` (all must match), `limit?`, `query?` | the same shape; query results also report `truncated`, `incomplete`, and `search_warning` |
 | `issue_blocked_by_list` | read | `repo`, `number` | the issues blocking it (native blocked-by links), each with `repo`, `number`, `title`, `state` |
 | `project_get` | read | `project` | board `id`, `title`, `url`, `fields` (name, type, options), `status_options` (the live column names) |
 | `project_items` | read | `project`, `limit?` (1 to 100, default 50), `cursor?` | one page of items **in the board's manual order**: `repo`, `number`, `title`, `labels`, `state`, `status`, and every field value by name |
 | `project_item_find` | read | `repo`, `number`, `project` | the item for that issue with every field value, archived or not; refuses if it is not on the board |
 | `project_views_list` | read | `project` | the board's views: `number`, `name`, `layout`, `filter`, `fields`, `sort`, `group_by` |
+
+When supported, `issue_list(query=...)` finds compact issue candidates in the named
+repository without returning every board item. `query` is 1–10 keywords, at most 200
+characters; all words match in title or body. `state` and all `labels` still filter,
+and the search limit is 1–100. Results are relevance-ordered candidates, not a duplicate
+verdict. `truncated` signals more matches and `incomplete` signals a provider-incomplete
+search. An indexed search can miss recent changes even when both are false; the
+`search_warning` states this. An empty result never proves a duplicate does not exist.
+Use a few distinctive terms, refine if needed, then `issue_get` only the candidates that
+need inspection. This search covers repository issues, not membership in a Project;
+PRs are excluded. It cannot be combined with the direct body `marker` lookup, which
+retains its read-after-write semantics. Servers predating this extension may not support
+`query`; check their advertised tool schema before using it.
 
 ### Claims and reports
 

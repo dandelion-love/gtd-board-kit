@@ -38,6 +38,7 @@ reports pass, fail, skip or manual for every id below.
 | P7 | `project_items` returns items in the board's manual order and pages with a cursor |
 | P8 | No profile declares a [retired Kind](repo-context-and-profiles.md#kinds): no `kind:task`, `kind:question` or `kind:decision` label, and, when `profile_get` returns `item_types`, no entry whose `name` or `issue_type` is `task`, `question` or `decision` (any case) |
 | P9 | No profile declares a view whose `filter` uses a [deprecated qualifier](repo-context-and-profiles.md#view-filters) (`last-updated:`, any case) |
+| P10 | If `issue_list` advertises `query`, a keyword search returns compact issue candidates and boolean `truncated` and `incomplete` flags plus `search_warning`; invalid or incompatible query arguments refuse. No result is required for a fresh issue because the index may lag. |
 
 ## Claims (Core)
 
