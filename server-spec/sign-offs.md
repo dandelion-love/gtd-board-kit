@@ -58,7 +58,11 @@ The sign-off is a rule, one visible line, then the marker:
 | `act` | yes | From the table above |
 | `t` | yes | UTC, `YYYY-MM-DDTHH:MM:SSZ`, the server's clock |
 | `session` | no | The caller's own name for its session, at most 200 characters. Stated by the caller, not verified: it tells two sessions of one agent apart, it is not identity |
+| `model` | agent writes | Caller-reported model name, or `unknown` if unavailable; not verified |
+| `reasoning` | agent writes | Caller-reported reasoning level, or `unknown` if unavailable; not verified |
 | `review` | only when `act` is `review` | `{"stage": <stage>, "verdict": <verdict>}` |
+
+New agent sign-offs include both fields in the visible line and marker. An older v1 sign-off without them remains valid; never infer historical values. `item_claim` accepts `model` and `reasoning`, stores them with its mandate, and uses them on the claim, its subsequent records, and the PR opened under it. `issue_comment` accepts both for an independent write; when omitted, it uses the caller's live claim on the issue if any, otherwise `unknown`. Values are single-line strings of at most 200 characters and may not contain `<` or `>`. A person's sign-off need not include these fields.
 
 ### Roles
 

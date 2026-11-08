@@ -2278,13 +2278,17 @@ def check_signoffs(rep: Report, c: Client, sb: Sandbox, who: dict | None) -> Non
     g = sb.issue("sign-off records")
     s_work = f"conformance-{sb.run}-sign-work"
     ok_k, out_k, t_k = c.call("item_claim", sb.args(g, basis="explicit", asked_by="conformance",
-                                                     lease="30m", session=s_work))
+                                                     lease="30m", session=s_work, model="conformance-model", reasoning="high"))
     ok_p, out_p, t_p = c.call("item_report", sb.args(g, state="progress", note="signed"))
     k_sign = (out_k or {}).get("signoff") or {}
     p_sign = (out_p or {}).get("signoff") or {}
     rep.check("G5", ok_k and ok_p and k_sign.get("act") == "claim" and p_sign.get("act") == "report"
               and k_sign.get("by") == principal and p_sign.get("by") == principal
-              and k_sign.get("session") == s_work and p_sign.get("session") == s_work,
+              and k_sign.get("session") == s_work and p_sign.get("session") == s_work
+              and (not str(principal or "").startswith(("agent:", "local:")) or
+                   (all(s.get("model") == "conformance-model" and s.get("reasoning") == "high"
+                        for s in (k_sign, p_sign)) and sign.get("model") == "unknown"
+                    and sign.get("reasoning") == "unknown")),
               f"claim {ok_k} ({t_k[:60]}) {k_sign!r}; report {ok_p} ({t_p[:60]}) {p_sign!r}")
     c.call("item_release", sb.args(g, done="signed", remaining="none", next="close"))
 
