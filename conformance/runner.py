@@ -1314,6 +1314,24 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
               all("agent-ready" in (r.get("labels") or []) for r in rows),
               f"list_next_actions: {text[:120] if not ok else 'missing or unlabelled rows'}")
 
+    # P10 is optional until the server advertises the query argument. Do not
+    # assert that the just-created issue is indexed yet.
+    issue_tool = next((t for t in c.tools() if t.get("name") == "issue_list"), {})
+    properties = (issue_tool.get("inputSchema") or {}).get("properties") or {}
+    if "query" not in properties:
+        rep.na("P10", "issue_list does not advertise keyword search")
+    else:
+        ok, out, text = c.call("issue_list", {"repo": repo, "query": "conformance", "limit": 1})
+        refused, _, _ = c.call("issue_list", {"repo": repo, "query": "!!!"})
+        conflict, _, _ = c.call("issue_list", {"repo": repo, "query": "conformance", "marker": "x"})
+        data = out or {}
+        rows = data.get("items") or []
+        rep.check("P10", ok and not refused and not conflict and
+                  isinstance(data.get("truncated"), bool) and
+                  isinstance(data.get("incomplete"), bool) and bool(data.get("search_warning")) and
+                  all("number" in row and "title" in row and "url" in row and "body" not in row
+                      for row in rows), f"keyword search: {text[:120] if not ok else 'invalid response'}")
+
     # C1 claim
     n = sb.issue("claim")
     ok_a, _, _ = c.call("item_claim", sb.args(n, basis="explicit"))

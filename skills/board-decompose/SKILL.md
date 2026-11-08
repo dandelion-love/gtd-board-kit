@@ -1,9 +1,9 @@
 ---
 name: board-decompose
-description: Break an epic into story-level issues, or a story into steps, the kit's standard way, through the gtd MCP server. Use when asked to plan, split, slice or decompose an epic, an outcome or a large issue into stories, or a story into steps, in a repo that has gtd-board-kit. It proposes work for a person to promote; it never makes work agent-ready.
+description: Decompose an epic or outcome into stories, or a story into steps, through the gtd MCP server. Proposes work for a person to promote; never makes work agent-ready.
 metadata:
   author: gtd-board-kit
-  version: 0.3.0
+  version: 0.3.1
 ---
 
 # Decompose work into stories and steps
@@ -33,7 +33,8 @@ issue: steps have no PR and no claim. A step that needs its own PR is a `chore`:
 1. `profile_get`: its Kinds and `pickup_sizes`. Never use a retired Kind (`task`,
    `question`, `decision`).
 2. The epic: its body, `sub_issues_list` (stories that already exist) and
-   `issue_blocked_by_list`. Extend what is there; never duplicate a story.
+   `issue_blocked_by_list`. Extend what is there. For related work, use
+   `issue_list(query=...)` if offered; indexed search can miss recent issues.
 3. Planning an epic is work on it: claim it `explicit` (`board-claim` §1, no `branch`).
 
 ## 2. The epic's body
