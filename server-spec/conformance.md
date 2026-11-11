@@ -92,7 +92,7 @@ on sandbox issues.
 | G2 | `issue_comment` with `session` records it in the sign-off; with `role="coordinator"` signs as `coordinator`; refuses `role="owner"` from an agent principal, and an unknown role with a refusal that lists `worker`, `reviewer`, `coordinator` and `owner` |
 | G3 | `issue_comment` refuses a body that holds `<!-- gtd-sign v1 {...} -->`, and the refusal names `gtd-sign` |
 | G4 | `issue_comment` with `review_stage` and `review_verdict` refuses without the caller's review claim, refuses with only one of the two, and refuses `review_verdict="approved"` listing the three verdicts. With the review claim, a `session` other than S refuses. Holding a review claim (session S), `review_stage="work"`, `review_verdict="needs-changes"` succeeds: `act` `review`, `role` `reviewer`, `review` `{"stage": "work", "verdict": "needs-changes"}`, `session` S, and the body's first line is `Work review: Needs changes` |
-| G5 | `item_claim` with `session` S, then `item_report` by the holder: both results carry `signoff` with `by` the caller's principal, `session` S, and `act` `claim` and `report` |
+| G5 | An agent `item_claim` with `session` S, `model` and `reasoning`, then `item_report` by the holder: both sign-offs carry those values, the caller's principal, session S and the respective acts; an independent agent comment without values records both as `unknown` |
 
 ## Join (Join level)
 

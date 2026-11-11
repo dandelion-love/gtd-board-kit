@@ -1,9 +1,9 @@
 ---
 name: board-claim
-description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
+description: Claim and work a board item on a gtd/issue-N branch, then hand it back as a PR through the gtd MCP server.
 metadata:
   author: gtd-board-kit
-  version: 0.8.0
+  version: 0.9.0
 ---
 
 # Claim an item and work it
@@ -15,7 +15,7 @@ this session; the local file's labels, columns and rules win over anything below
 ## 1. Claim before touching anything
 
 ```
-item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, session, project)
+item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, session, model, reasoning, project)
 ```
 
 - `explicit`: you were pointed at it. `asked_by` is who pointed you (your person's
@@ -26,13 +26,13 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, sessio
 - Refused because someone holds it: leave it. Never take over a live lease.
 - Lease: enough for the work, at most 72h; renew it (`board-report`).
 - `branch`: where your commits for it land (`gtd/issue-<number>`, or the combined branch).
+- `model` and `reasoning`: name the model and reasoning level used for the work; omit either when unknown. These values are self-reported, not verified.
 - `session`: one name for this session (its runtime id, or a token made once); no
   session reviews its own work.
 
 ## Several stories on one branch
 
-Your unit of work may be one or more stories, and the session that owns them may combine
-them on one integration (release-candidate) branch.
+A session may combine several stories on one integration branch.
 
 - **Claim every story you work on**, one `item_claim` each, before its first commit.
   An unclaimed story never gets a commit, even on a combined branch. Refused on one?

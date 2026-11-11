@@ -22,6 +22,7 @@ therefore ends everything it writes for a caller with a **sign-off**: a visible 
 An agent never writes a sign-off itself and never pastes one; the server refuses a body
 that holds a marker. What an agent does:
 
+- Pass `model` and `reasoning` on `item_claim` and independent `issue_comment` writes when known. These are the caller's statements, not verified identity; unavailable values appear as `unknown`.
 - Pass `session` on `item_claim` (BOARD.md rule 5) and on `issue_comment`, so a reader can
   tell this session's words from another's.
 - Write on a PR through the server too: `issue_comment` with the PR's number, a code
