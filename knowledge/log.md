@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-13
+
+* **Changed**: a merge grant counts only with the owner's approval (kit 0.39.0). The kit said a grant counted once its block was merged, so the only record of the owner's authority could be text an agent wrote (the lab's 2026-11-04 incident, where a merge also went through with checks pending). Now a grant counts only if the PR that added that exact block has an approving review by `granted_by` on its final head, or the owner authored and merged it; an edited block is a new grant, and earlier grants stop counting until re-added with approval. An agent merges only through the new optional, off-by-default `pr_merge` (Pull requests group), which checks the claim, the grant, the owner's approval, green and finished checks, no requested changes and no conflict, server-side. `board-claim` 0.8.1 and `grants.md` say so.
+
 ## 2026-11-06
 
 * **Added**: closed is Done (kit 0.37.0). A board whose repo has no sync owning Status on close kept closed issues in In Review. `board-fields` names the writer: the repo's sync where it owns close, else the server's bot (its App's `issues` and `pull_request` closed events set the profile's closed column, with a periodic sweep as backstop). The board's built-in close workflows are optional, since free plans limit them and no API sets them. Onboarding records which writer a repo uses, and an agent that finds a closed item in an open column records the closed column once and reports the gap.
