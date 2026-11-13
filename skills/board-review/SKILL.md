@@ -3,7 +3,7 @@ name: board-review
 description: Review a board issue labelled agent-review (by a person, or by an agent asking another session to check its work), against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.6.0
+  version: 0.7.0
 ---
 
 # Review an issue
@@ -45,6 +45,9 @@ Read the issue, its parent, its sub-issues and its blockers (`item_get`,
   `.gtd/kit/skills/board-decompose/templates.md`. An epic: Problem, Outcome check,
   Scope, Out of scope, Stories, Decisions, Risks and open questions, Gates. A story: one
   `## Acceptance criteria` heading, `Steps`, `Blocked by` lines.
+- **Title and summary.** `prose_check(repo, number)` when offered (epics too): each
+  `fail` is a finding, each `warn` one when you agree. Suggest the rewritten title and
+  summary (`templates.md`, Titles and summaries).
 - **Criteria.** Numbered `AC1`...; each checkable, each naming its evidence; at least one
   error or rejection case. `.gtd/kit/knowledge/decomposition/acceptance-and-verification/`
   has the heuristics.

@@ -9,7 +9,7 @@ It needs Python 3.10 or later and nothing else (standard library only).
 ## Quick start
 
 ```bash
-# 1. Offline: the claim-fold (C13), ready-check (R1) and Kind-rule (K1) golden cases, against the references.
+# 1. Offline: the claim-fold (C13), ready-check (R1), prose-check (R9) and Kind-rule (K1) golden cases, against the references.
 python3 conformance/runner.py
 
 # 2. Unauthenticated: the 401 challenge and resource metadata (T1).
@@ -136,6 +136,22 @@ The command answers with `verdict`, `missing` (rule names, or `{rule, detail}` o
 statement of the rules in [ready check](../server-spec/ready-check.md). If the server
 offers `item_ready` and you give no `--ready-cmd`, R1 is listed as manual.
 
+## Testing your prose check offline
+
+R9 feeds each case in [prose_cases.json](prose_cases.json) to a command on stdin:
+
+```json
+{"title": "Show reviewers what each board item delivers", "body": "When ...", "kind": "story"}
+```
+
+The command answers with `verdict` (`clear` or `unclear`) and `findings`, each
+`{rule, level, detail}` with `level` `fail` or `warn`. The file's `words` holds the verb,
+jargon, provenance and file-extension lists the rules use; a server copies them as given.
+A `{#}` in a case's title or body stands for an issue reference; the runner sends it as `#` and a number.
+The runner's `reference_prose` is a readable statement of the rules in
+[prose check](../server-spec/prose-check.md). If the server offers `item_ready` and you give
+no `--prose-cmd`, R9 is listed as manual.
+
 ## Testing your Kind rules offline
 
 K1 feeds each case in [kind_cases.json](kind_cases.json) to a command on stdin. A link case
@@ -159,7 +175,7 @@ Issue structure tools and you give no `--kind-cmd`, K1 is listed as manual.
 
 - It is black-box. It cannot see your logs (X1 covers response bodies only) or whether a
   refused call reached GitHub (P5 checks the refusal only).
-- Optional tool groups are not checked beyond their class (X2), except Customization (O1 to O3) and Readiness (R1 to R8) and the Kind and parent rules (K1 to K4).
+- Optional tool groups are not checked beyond their class (X2), except Customization (O1 to O3) and Readiness (R1 to R10) and the Kind and parent rules (K1 to K4).
 - A server's own tools, outside the spec, are checked by the class they declare in `_meta` `gtd-board-kit/class`, else as `full` (X2).
 - P6 and C8 re-read a label-filtered list, and B3 the board's order, for up to 30 seconds after a write, because those reads can lag.
 - It does not clean up after itself; it never deletes issues, and closes only the one R7 makes.

@@ -5,7 +5,7 @@ title: ""
 type: Epic
 ---
 
-<!-- One line: the outcome, for whom, and why now. -->
+<!-- Title: a verb and one outcome, 25 to 72 characters, no prefix. Summary first: For <who>, <the outcome>. Today <what is wrong>. -->
 
 ## Problem
 
@@ -41,3 +41,7 @@ type: Epic
 
 - G1 epic intent: <!-- needed (four stories or more) or skipped -->
 - G3 walking skeleton: <!-- #n, or skipped (changes an existing, working system) -->
+
+## Context
+
+<!-- Where this came from, evidence links, revisions and approvals. -->

@@ -9,8 +9,8 @@ beyond its grants. A real folder in `.claude/skills` replaces the kit skill of t
 name.
 
 1. **The board is reached only through the gtd MCP server.** `whoami` first; use a
-   skill only if its level is in `conformance` (kit model `server-version`). No tools?
-   In a claude.ai cloud thread, ask your person for the gtd connector; else follow
+   skill only if its level is in `conformance` (model `server-version`). No tools?
+   In a claude.ai cloud thread, ask for the gtd connector; else
    `<server>/join`. Never use a token, GraphQL or `gh` for the board, nor ask for a
    credential.
 2. **Know the repo.** `.github/gtd-context.json` names the `profile` and the board
@@ -32,8 +32,8 @@ name.
    reversible choices in the item, record each and its undo. Ask only for a stop
    reason (`board-needs-person`), then stop that item (a lane goes on).
 8. **New work you discover** goes in with `capture` and `agent-proposed`, never straight
-   to `run-agent` or `agent-ready`.
-9. **Hard limits.** Work on a branch (`gtd/issue-<n>`); never the default branch. Hand
+   to `run-agent` or `agent-ready`. Title verb first, summary first.
+9. **Hard limits.** Work on a branch (`gtd/issue-<n>`), never the default. Hand
    back with `pr_open`. Merge only if a merge grant names every file in the PR; touch
    `.github/workflows/**` only if a workflow grant names that path. Grants count only in
    `.gtd/BOARD.local.md` on the default branch (`board-claim`). Never read, print or
