@@ -80,11 +80,13 @@ SUMMARY_FIELDS: dict[str, list[tuple[str, str]]] = {
 
 
 def _ref(item, folders: dict | None) -> str:
-    """An item id as a relative link to its page when its prefix names a folder, else plain text."""
+    """An item id as a relative link to its page when its prefix is in the map, else plain text.
+    Each map value is the page's path relative to the linking page's own folder, with `{id}` for
+    the id: `../{id}/README.md` between item folders, `../listening/{id}.md` to a flat folder."""
     if isinstance(item, str) and SAFE_ID.match(item):
-        for prefix, folder in (folders or {}).items():
+        for prefix, target in (folders or {}).items():
             if item.startswith(prefix):
-                return f"[{_esc(item)}](../{folder}/{item}.md)"
+                return f"[{_esc(item)}]({target.replace('{id}', item)})"
     return _esc(str(item))
 
 

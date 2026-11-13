@@ -385,9 +385,9 @@ Cases ([page_cases.json](../conformance/page_cases.json)):
 
 | Case | Check | What |
 | --- | --- | --- |
-| `experiment` | RP1 | a registration, a result, two readings, an item link, an artifact link, an attempt with no time |
-| `no-folders` | RP1 | without a folder map, a link target is a plain id |
-| `fact` | RP1 | a finding citing two items, one whose prefix names no folder |
+| `experiment` | RP1 | a registration, a result, two readings, an item link, an artifact link, an attempt with no time, on an item-folder page |
+| `no-folders` | RP1 | without a link map, a link target is a plain id |
+| `fact` | RP1 | a flat page citing an item-folder page, and an id the link map does not name |
 | `listening` | RP1 | a listening-test registration |
 | `new-page`, `append`, `no-change` | RP2 | pass |
 | `edit-record`, `edit-text`, `delete-entry` | RP2 | `edits-existing-content` |

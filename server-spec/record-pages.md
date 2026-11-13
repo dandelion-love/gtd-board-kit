@@ -39,9 +39,14 @@ _Addendum-only record. ..._
 </details>
 ```
 
-- **The file** is `<folder>/<id>.md`, one folder per register. The id is the item's id: a
-  record's `id`, or a link record's `from` when it has no `id`. Ids are 1 to 121 characters
-  of letters, digits, `.`, `_` and `-`, starting with a letter or digit.
+- **The file** is in one folder per register, in one of two layouts the repository picks
+  per register: **flat**, `<folder>/<id>.md`, or **item folders**, `<folder>/<id>/README.md`,
+  so the item's other files (results, keys, cards) sit beside its page and a forge shows the
+  page when the folder is opened. Only the page is a record; the other files in an item
+  folder are not under this rule. The id is the item's id: a record's `id`, or a link
+  record's `from` when it has no `id`, and it is the file's stem (flat) or the folder's name
+  (item folders). Ids are 1 to 121 characters of letters, digits, `.`, `_` and `-`, starting
+  with a letter or digit.
 - **The front matter** is written once, from the item's first record, and never changes:
   `type` (the register's kind), `id`, `title` (the first record's `title`, else its
   `statement`, else the id; whitespace collapsed, at most 200 characters), `format`
@@ -55,8 +60,11 @@ _Addendum-only record. ..._
 - **The readable text** is written by the reference renderer and nothing else: for each
   event the fields it summarises, values made Markdown-safe (no raw HTML, no line that opens
   a heading, fence or table), long values clipped with a pointer to the record. A writer
-  MAY pass a map from id prefix to sibling folder, so that a link's target and a finding's
-  citations render as relative links to their pages; the map is the repository's, and a
+  MAY pass a map from id prefix to a link target, so that a link's target and a finding's
+  citations render as relative links to their pages. A target is the page's path relative to
+  the linking page's own folder, with `{id}` standing for the id (`../{id}/README.md` from one
+  item folder to another, `../../listening/{id}.md` from an item folder to a flat register).
+  The map is the repository's, one per register since the relative paths differ, and a
   checker uses the same one.
 
 ## The addendum-only rule
@@ -70,7 +78,7 @@ For each page, between a base revision and a head:
 | `page-is-not-rendered` | a page new since the base is not exactly the render of its records |
 | `page-removed` | a page at the base is gone at the head (deleted or renamed) |
 | `record-for-another-item:<id>` | an entry's record belongs to another item |
-| `front-matter-id-is-not-the-file-name` | the front matter's `id` is not the file's |
+| `front-matter-id-is-not-the-file-name` | the front matter's `id` is not the file's stem, or its item folder's name |
 | `conflict-markers` | the page holds a line opening with `<<<<<<< ` or `>>>>>>> ` |
 | `bad-record-json` | a record line is not JSON |
 
@@ -90,7 +98,9 @@ merge driver, and where the driver is not installed git falls back to an ordinar
 ## A server and record pages
 
 A profile source that reads a register MAY name a page folder instead of a file
-([profiles](repo-context-and-profiles.md#profiles)). Then a server:
+([profiles](repo-context-and-profiles.md#profiles)), as
+`pages: {folder, layout, type, links}`: the folder, `flat` or `item-folder`, the front
+matter's `type`, and the link map its pages are rendered with. Then a server:
 
 - **reads** a register as the record lines of all its pages: across pages in time order of
   each record's `t`, each page's own order kept. Every fold here (claims excepted, which are
