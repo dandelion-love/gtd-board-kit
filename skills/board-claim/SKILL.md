@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.8.0
+  version: 0.8.1
 ---
 
 # Claim an item and work it
@@ -91,12 +91,12 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
    bridge, set Status to the review column. Add `agent-review` too to ask another
    session to review it (`board-review`).
 4. `item_report(state="ready", note="PR open: <one line>", links=[<PR url>])`.
-5. Only under a merge grant covering every changed file, with checks green, no changes
-   requested and no conflict: merge it, and report with the merged link (`grants.md`).
+5. Only under an owner-approved merge grant covering every changed file: `pr_merge`
+   (refuses on pending checks, requested changes or conflict). No `pr_merge`, no merge.
+   Report with the merged link (`grants.md`).
 6. `item_release(repo, number, done, remaining, next, project)`, or keep holding (renew)
    to answer review comments yourself (`activity_since`): each finding with
    `pr_review_reply(…, resolve=true)` (what changed, the commit), a PR note with
    `issue_comment`. Your own GitHub tool only if neither is offered: it is unsigned.
 
-Never approve or close the issue yourself, and never merge unless a merge grant covers
-every file (above): a person's merge completes it.
+Never approve or close the issue yourself, and never merge outside step 5.

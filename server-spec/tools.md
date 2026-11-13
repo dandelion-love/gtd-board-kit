@@ -206,7 +206,7 @@ that offers the capability uses the name.
 | Channels | `channels_list`, `channel_comments_read` (read), `channel_comment_post` (work) | Long-lived discussion issues a repo names as channels |
 | Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps. A server that starts runs from `run-agent` also starts a review run from `agent-review`: see [review requests](#review-requests) |
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
-| Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
+| Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work); optional `pr_merge` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
 | Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
 
@@ -298,6 +298,25 @@ Two GitHub settings decide whether the owner can then approve:
   that push. If the agent's host pushes with the owner's own credential, the owner cannot
   approve under that rule. Turn the rule off, or have the agent push with an identity that
   is not the owner's.
+
+## Merging pull requests
+
+`pr_merge(repo, number, method?)` is optional and **off by default**: a server offers it
+only when its operator turned merge grants on, and then merges as the server's own
+identity. It merges nothing, and says why, unless all of these hold:
+
+1. The PR is open, ready, unmerged and targets the default branch.
+2. It was opened by `pr_open` (the trusted `gtd-pr` marker) for the caller's principal,
+   and the caller holds a live claim on every issue the marker names. The principal alone
+   is not enough where many sessions share one agent identity.
+3. ONE merge grant on the default branch names every file the PR changes (both sides of
+   a rename; never `.github/` or `.gtd/`; no patterns), and the owner approved the PR that
+   added that exact block ([owner approval](../knowledge/model/grants.md#owner-approval-of-a-grant)).
+4. Every check on the head is finished and green. A pending check is a refusal, not a
+   wait. Nobody has requested changes, and there is no conflict.
+
+`method` is `squash` (default), `merge` or `rebase`. It returns the merge commit, the
+grant and the owner it names. It never approves, closes an issue or force-pushes.
 
 ## Reviewing pull requests
 
