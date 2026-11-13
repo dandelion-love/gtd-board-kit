@@ -368,6 +368,39 @@ L1 cases ([link_cases.json](../conformance/link_cases.json); the items are `EXP-
 | `chain` | a follow-up chain lists each step on both sides | 2 edges |
 | `every-kind` | each kind's inverse name | 11 edges; blocked-by |
 
+## Record pages (when offered)
+
+A server that reads or writes a register kept as record pages ([record pages](record-pages.md))
+must pass these. The runner runs them against the reference implementation offline, and against
+the server's own page code with `--page-cmd`, which reads one case as JSON on stdin (`op` is
+`render`, `check` or `merge`) and writes the result as JSON on stdout.
+
+| Id | Check |
+| --- | --- |
+| RP1 | The render cases below give the stated page byte for byte (`{"page": ...}`), and parsing that page gives back exactly the case's records, in order |
+| RP2 | The rule cases below give the stated refusals (`{"refused": [...]}`, empty for a pass) |
+| RP3 | The merge cases below give the stated page, or `null` for a refused merge (`{"page": ...}`) |
+
+Cases ([page_cases.json](../conformance/page_cases.json)):
+
+| Case | Check | What |
+| --- | --- | --- |
+| `experiment` | RP1 | a registration, a result, two readings, an item link, an artifact link, an attempt with no time |
+| `no-folders` | RP1 | without a folder map, a link target is a plain id |
+| `fact` | RP1 | a finding citing two items, one whose prefix names no folder |
+| `listening` | RP1 | a listening-test registration |
+| `new-page`, `append`, `no-change` | RP2 | pass |
+| `edit-record`, `edit-text`, `delete-entry` | RP2 | `edits-existing-content` |
+| `delete-page` | RP2 | `page-removed` |
+| `loose-prose`, `text-disagrees` | RP2 | `added-text-is-not-rendered-entries` |
+| `hand-page` | RP2 | `page-is-not-rendered` |
+| `other-item` | RP2 | `record-for-another-item:EXP-2` |
+| `markers` | RP2 | `conflict-markers` |
+| `wrong-id` | RP2 | `front-matter-id-is-not-the-file-name` |
+| `two-appends` | RP3 | base, ours, then theirs |
+| `same-append` | RP3 | the same entry on both sides is kept once |
+| `one-edited` | RP3 | refused (`null`) |
+
 ## Security (all levels)
 
 | Id | Check |

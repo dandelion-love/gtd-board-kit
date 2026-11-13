@@ -9,7 +9,7 @@ It needs Python 3.10 or later and nothing else (standard library only).
 ## Quick start
 
 ```bash
-# 1. Offline: the claim-fold (C13), ready-check (R1) and Kind-rule (K1) golden cases, against the references.
+# 1. Offline: the claim-fold (C13), ready-check (R1), Kind-rule (K1), typed-link (L1) and record-page (RP1 to RP3) golden cases, against the references.
 python3 conformance/runner.py
 
 # 2. Unauthenticated: the 401 challenge and resource metadata (T1).
@@ -55,7 +55,7 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 
 | Option | Unlocks | Side effects |
 | --- | --- | --- |
-| none | C13, R1, K1 | none |
+| none | C13, R1, K1, L1, RP1 to RP3 | none |
 | `--server` | T1, T8, T9 (from the well-known document's levels); J2 and J3 skip unless the server claims Join | none |
 | `--token-env` | T0, T2, T3, T5, T7, T8 compared with `whoami`, J10, P1 to P3, P8, P9, X1 | none (reads only) |
 | `--preset-token PRESET=ENV` (repeat) | T6, X2 for each preset you pass | none |
@@ -68,6 +68,7 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 | `--connector NAME` | JC1 to JC9, when `/join` lists the connector entrance | registers two OAuth clients with a loopback redirect, joins agent `NAME` at `desk` after a person approves it in a browser, and revokes it at the end when the server advertises `revocation_endpoint` (otherwise revoke it at `/join/agents`) |
 | `--fold-cmd CMD` | C13 against **your** fold instead of the reference | runs `CMD` locally |
 | `--ready-cmd CMD` | R1 against **your** ready check; without `--server`, R1 runs against the reference | runs `CMD` locally |
+| `--page-cmd CMD` | RP1 to RP3 against **your** record-page code (render, rule, merge); without it they run against [record_pages.py](record_pages.py) | runs `CMD` locally |
 | `--kind-cmd CMD` | K1 against **your** Kind rules; without `--server`, K1 runs against the reference | runs `CMD` locally |
 
 Use a **scratch repo and board** that nothing else watches. The runner lists the issues it
