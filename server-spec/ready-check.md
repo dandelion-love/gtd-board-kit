@@ -27,7 +27,7 @@ only: it never refuses on it ([the ready verdict on a claim](tools.md#claims-and
   - `ready-blocked`: every rule passes, but at least one native blocker is open;
   - `needs-refinement`: at least one rule fails. Open blockers do not change this.
 - `missing` lists each failed rule as `{rule, detail}`, in the order of the table below;
-  empty unless the verdict is `needs-refinement`. `rule` is one of the five names below;
+  empty unless the verdict is `needs-refinement`. `rule` is one of the six names below;
   `detail` is one line a person can act on (for `unlinked-blocker`, the reference; for
   `blocker-cycle`, the issues in the cycle).
 - `blockers` lists the issue's **open** native blockers (blocked-by links), each with
@@ -53,6 +53,7 @@ board tools that add an issue first.
 | `unlinked-blocker` | Every blocker is a native blocked-by link: (a) every issue reference (`#N`, `owner/repo#N`, or an issue URL) on a body line after the words `blocked by` or `depends on` (any case, outside fenced code) is one of the issue's native blockers, open or closed; and (b) when the issue carries the `blocked` label, at least one native blocker is open. A reference to the issue itself is ignored |
 | `blocker-cycle` | Following **open** native blockers from the issue (an issue's blockers, then theirs) reaches no cycle, whether or not the cycle passes through the issue itself. The walk counts the issue itself; when it reaches 50 issues it stops and the rule fails with a detail saying so, never passes silently. So 49 issues are checked, and 50 fail |
 | `size` | The board is readable, the issue is on it, and its `Size` is one of the profile's `pickup_sizes` ([profiles](repo-context-and-profiles.md#profiles)). No board, no item, no Size, or a Size outside the list fails |
+| `prose` | The title and body pass every **fail** rule of the [prose check](prose-check.md) (a title that says the outcome; a body that opens with a summary). Warn rules do not count. `detail` names the failed prose rules |
 
 The `size` rule is the same pull limit an `inferred` claim applies (check C5), so a story
 that is `ready` here is never refused on Size by that claim.

@@ -171,18 +171,21 @@ open for a person to close. PR5 to PR7 use that PR and post on it.
 ## Ready check (when offered)
 
 A server that lists `item_ready` in `tools/list` must also pass these
-([ready check](ready-check.md)).
+([ready check](ready-check.md), [prose check](prose-check.md)). The Readiness group holds
+both `item_ready` and `prose_check`.
 
 | Id | Check |
 | --- | --- |
 | R1 | The golden cases below, fed to the server's own ready logic (`--ready-cmd`), give the stated `verdict`, failed rules in rule order, and open blockers |
-| R2 | `item_ready` returns `repo`, `number`, `title`, `verdict` (one of the three words), `missing` (rules from the five), `blockers`, `kind`, `size`; with a board, an issue with criteria and an allowed Size, nothing else on it, is `ready` |
+| R2 | `item_ready` returns `repo`, `number`, `title`, `verdict` (one of the three words), `missing` (rules from the six), `blockers`, `kind`, `size`; with a board, an issue with a clear title and summary, criteria and an allowed Size, nothing else on it, is `ready` |
 | R3 | It writes nothing: the issue's claim state (`item_get`) is the same after two calls, and an issue not on the board is still not on it |
 | R4 | An issue without an acceptance-criteria section fails `acceptance-criteria`; one with the section and a `needs:*` label fails `open-question` and not `acceptance-criteria` |
 | R5 | "Blocked by `#N`" in the body without a native link, and the `blocked` label with no open native blocker, each fail `unlinked-blocker`; once linked, the blocker is in `blockers` and the rule passes; linking back either refuses with a reason that names the cycle (GitHub refuses a dependency cycle itself, so `issue_blocked_by_add` passes its reason through) or, when the link lands, fails `blocker-cycle`. The cycle rule itself is covered offline by R1 |
 | R6 | With a board, no Size, and a Size outside `pickup_sizes`, each fail `size` |
 | R7 | A pull request, a closed issue, an issue of Kind `epic`, and an issue labelled `standing` are refused |
 | R8 | `item_claim` returns `ready` whose `verdict`, failed rules and open blockers equal what `item_ready` returns for the issue; an explicit claim on an issue without criteria succeeds (the verdict never refuses) and a `warnings` line names `needs-refinement`; a claim on a `ready` issue has no "not ready" warning ([the ready verdict on a claim](tools.md#claims-and-reports)) |
+| R9 | `prose_check` is offered, and the [prose golden cases](../conformance/prose_cases.json), fed to the server's own prose logic (`--prose-cmd`), give the stated `verdict`, fail rules and warn rules, each in rule order |
+| R10 | `prose_check` on a sandbox issue whose title has a prefix and whose body opens with a heading is `unclear` with `title-prefix` and `summary-first`, and `item_ready` on it fails `prose`; on draft text (`title`, `body`, `kind` `epic`) with no Outcome check it returns exactly the fail rule `epic-sections` |
 
 R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,
 `pickup_sizes` is `XS`, `S`, `M`, and it is on the board unless the case says otherwise):
@@ -219,6 +222,12 @@ R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Siz
 | `size-large` | a Size outside pickup_sizes | needs-refinement: `size` |
 | `no-board` | no readable board | needs-refinement: `size` |
 | `several` | every failure is listed, in rule order, with the open blocker | needs-refinement: `acceptance-criteria`, `open-question`, `unlinked-blocker`, `size`; blockers B |
+| `prose-title` | a prefixed title fails prose | needs-refinement: `prose` |
+| `prose-summary` | a body that opens with provenance fails prose | needs-refinement: `prose` |
+| `prose-warn-only` | a warning alone does not fail prose | ready |
+
+Every R1 case has the title `Show the thing working for its owner` unless it names its
+own, and a body that opens with a summary unless the case is about the summary.
 
 ## Kind and parent rules (when offered)
 

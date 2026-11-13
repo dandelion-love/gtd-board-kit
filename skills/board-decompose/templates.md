@@ -11,10 +11,41 @@ out of scope, its own "done when" and the decisions it makes
 plan a person approves at G1 fits on one screen
 ([epic intent](../../knowledge/decomposition/human-gates/design-approval-gate.md)).
 
+## Titles and summaries
+
+Every title and every body's first lines follow the
+[prose check](../../server-spec/prose-check.md)
+([why](../../knowledge/decisions/clear-titles-and-summaries.md)). In short:
+
+- **Title**: an imperative verb, then one outcome a person or agent gains, in plain words,
+  25 to 72 characters. No prefix (`Epic:`, `Server:`, `Part 3:`, `[docs]`), no subtitle, no
+  list, no tool, file, field or label names, no issue numbers or dates.
+- **Summary**: the body opens with one to three sentences, under 400 characters: who it
+  helps, what is wrong or missing today, what they can do once it closes.
+- **Context last**: parent epic, origin, evidence links, revisions and approvals go under
+  `## Context` at the end.
+
+| Instead of | Write |
+| --- | --- |
+| Part 3: the export retries on a busy store | Retry the export when the store is busy |
+| Server: export_job gets a backoff parameter | Retry the export without flooding the store |
+| Epic: lanes get slots, intake rules, and a review label | Let a lane run several agents in parallel without idling |
+| Flow metrics contract: wait reasons, cycle time | Define how wait time and cycle time are recorded |
+| Warn on a missing kit, and review plan PRs | Two stories: "Warn at session start when the kit is missing", "Review a plan PR as the plan itself" |
+
+A summary, before and after:
+
+- Before: "Part of the export epic (gap 2). Today a 429 from the store is logged and dropped."
+- After: "When the store is busy, the nightly export retries instead of dropping rows, so
+  owners stop finding gaps in the next day's report. Today a busy store loses the batch."
+
+When the server offers `prose_check`, run it on each title and body before `capture` and fix
+every `fail`; weigh each `warn`.
+
 ## Epic
 
 ```
-<One line: the outcome, for whom, and why now.>
+For <who>, <the outcome>. Today <what is wrong>. <One more line if needed.>
 
 ## Problem
 <What is wrong or missing today, with links to evidence.>
@@ -42,6 +73,9 @@ plan a person approves at G1 fits on one screen
 ## Gates
 - G1 epic intent: <needed (four stories or more) or skipped>
 - G3 walking skeleton: <#n, or skipped (changes an existing, working system)>
+
+## Context
+<Where this came from, evidence links, revisions and approvals.>
 ```
 
 - The **Stories** table is the plan as approved; the native sub-issues stay the record.
@@ -56,7 +90,7 @@ plan a person approves at G1 fits on one screen
 ## Story
 
 ```
-<One or two lines: what changes, for whom, and why; link the epic.>
+When <situation>, <who> can <outcome>, so <benefit>. Today <what happens instead>.
 
 ## Acceptance criteria
 - [ ] AC1: <one checkable statement>; Evidence: <test, command and output, screenshot, file>
@@ -66,6 +100,9 @@ plan a person approves at G1 fits on one screen
 - [ ] <a step inside this story; no PR of its own>
 
 Blocked by #<n>
+
+## Context
+<Origin, evidence links, revisions and approvals. The parent link shows the epic.>
 ```
 
 - Exactly one `## Acceptance criteria` heading. A rule list, one checkable line each;

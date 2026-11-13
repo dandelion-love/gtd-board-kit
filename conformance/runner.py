@@ -18,8 +18,8 @@ What it needs, and which checks each unlocks:
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
     profile_updates offered O1 (with a token), O2 (with --repo); O3 is manual
-    item_ready offered      R1 (with --ready-cmd), R2 to R8 (with --repo; R2 and R6 in full
-                            with --project)
+    item_ready offered      R1 (with --ready-cmd), R9 (with --prose-cmd), R2 to R8 and R10
+                            (with --repo; R2 and R6 in full with --project)
     sub_issue_add offered   K1 (with --kind-cmd), K2 to K4 (with --repo whose owner has the
                             Issue Types Epic, Story, Chore, Spike and Finding)
     issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
@@ -28,8 +28,8 @@ What it needs, and which checks each unlocks:
                             second files one labelled request, the first acks it); I5 is manual
     work_items_plan/_sync   L1 (with --link-cmd, which runs it whatever the token sees);
     offered                 L2 is manual
-    no --server             C13, R1, K1 and L1, against the reference fold, ready check, Kind
-                            rules and link fold
+    no --server             C13, R1, R9, K1 and L1, against the reference fold, ready check,
+                            prose check, Kind rules and link fold
 
 Tokens are read from environment variables, never from the command line, and are never
 printed. Checks that need a person (J4 to J9, C4, C10, T4) are listed as manual with what
@@ -746,7 +746,7 @@ def check_fold(rep: Report, fold_cmd: str | None) -> None:
 # ---------------------------------------------------------------------------
 
 #: The ready rules, in the order `missing` lists them.
-READY_RULES = ("acceptance-criteria", "open-question", "unlinked-blocker", "blocker-cycle", "size")
+READY_RULES = ("acceptance-criteria", "open-question", "unlinked-blocker", "blocker-cycle", "size", "prose")
 READY_VERDICTS = ("ready", "ready-blocked", "needs-refinement")
 READY_WALK_LIMIT = 50
 _FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
@@ -815,7 +815,7 @@ def body_blockers(body: str, repo: str) -> list[str]:
 def reference_ready(issue: dict) -> dict:
     """The ready check over a plain description of an issue and its blocker graph.
 
-    ``issue``: ``repo``, ``number``, ``body``, ``labels``, ``board`` (bool), ``size``,
+    ``issue``: ``repo``, ``number``, ``title``, ``body``, ``labels``, ``board`` (bool), ``size``,
     ``pickup_sizes``, ``blocked_by`` (``owner/repo#N`` of each native blocker) and
     ``issues`` (``owner/repo#N`` to ``{state, blocked_by}`` for every other issue).
     Returns ``verdict``, ``missing`` (rule names) and ``blockers`` (open ones)."""
@@ -861,8 +861,121 @@ def reference_ready(issue: dict) -> dict:
         missing.append("blocker-cycle")
     if not issue.get("board", True) or issue.get("size") not in (issue.get("pickup_sizes") or []):
         missing.append("size")
+    if "title" in issue and reference_prose(issue["title"], issue.get("body") or "",
+                                            issue.get("kind") or "story")["verdict"] != "clear":
+        missing.append("prose")
     verdict = "needs-refinement" if missing else "ready-blocked" if open_blockers else "ready"
     return {"verdict": verdict, "missing": missing, "blockers": open_blockers}
+
+
+# ---------------------------------------------------------------------------
+# Prose check (server-spec/prose-check.md)
+# ---------------------------------------------------------------------------
+
+#: The prose rules, in the order `findings` lists them.
+PROSE_RULES = ("title-prefix", "title-subtitle", "title-list", "title-code", "title-length",
+               "title-verb", "title-and", "title-jargon", "summary-first", "summary-length",
+               "epic-sections")
+PROSE_WORDS = json.loads((HERE / "prose_cases.json").read_text())["words"]
+TITLE_MIN, TITLE_MAX, SUMMARY_MAX = 25, 72, 400
+PROSE_REF_NUMBER = 12  # what a case's {#} becomes
+_SUBTITLE = re.compile(r"[:;→]|->|\s[-–—]\s")
+_HTML_COMMENT = re.compile(r"^\s*<!--.*-->\s*$")
+_REF_START = re.compile(r"^(?:[\w.-]+/[\w.-]+)?#\d|^https?://", re.IGNORECASE)
+
+
+def _word(w: str) -> str:
+    return w.strip(".,;:!?()[]{}\"'`").lower()
+
+
+def reference_prose(title: str, body: str, kind: str = "story") -> dict:
+    """The prose check over a title, a body and a Kind: `verdict` and `findings`."""
+    t = " ".join((title or "").split())
+    found: list[tuple[str, str, str]] = []
+    rest = t
+    if t.startswith("["):
+        found.append(("title-prefix", "fail", "starts with ["))
+    else:
+        m = re.match(r"^((?:\S+\s+){0,3}?\S*?:)(?:\s|$)", t)
+        if m:
+            found.append(("title-prefix", "fail", f"prefix {m.group(1)!r}"))
+            rest = t[m.end():]
+    sub = _SUBTITLE.search(rest)
+    if sub:
+        found.append(("title-subtitle", "fail", f"holds {sub.group(0).strip()!r}"))
+    if t.count(",") >= 2:
+        found.append(("title-list", "fail", f"{t.count(',')} commas"))
+    exts = "|".join(map(re.escape, PROSE_WORDS["code_extensions"]))
+    code = re.search(r"`|\w*[A-Za-z0-9]_[A-Za-z0-9]\w*|\w\.(?:%s)\b|#\d|\b\d{4}-\d{2}-\d{2}\b" % exts, t)
+    if code:
+        found.append(("title-code", "fail", f"holds {code.group(0)!r}"))
+    if not TITLE_MIN <= len(t) <= TITLE_MAX:
+        found.append(("title-length", "fail", f"{len(t)} characters, not {TITLE_MIN} to {TITLE_MAX}"))
+    words = [_word(w) for w in t.split()]
+    if not words or words[0] not in PROSE_WORDS["verbs"]:
+        found.append(("title-verb", "warn", f"first word {words[0] if words else ''!r} is not a listed verb"))
+    if "and" in words:
+        found.append(("title-and", "warn", "holds 'and': one outcome or two?"))
+    jargon = [w for w in words if w in PROSE_WORDS["jargon"]]
+    if jargon:
+        found.append(("title-jargon", "warn", f"spec-only words: {', '.join(jargon)}"))
+    lines = [ln for ln in _prose_lines(body or "") if not _HTML_COMMENT.match(ln)]
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    first = lines[0].strip() if lines else ""
+    low = first.lower()
+    if not first:
+        found.append(("summary-first", "fail", "the body is empty"))
+    elif _HEADING.match(first) or _LIST_MARKER.match(first) or first.startswith(("|", ">")) \
+            or _REF_START.match(first):
+        found.append(("summary-first", "fail", f"opens with {first[:40]!r}, not a summary"))
+    elif any(low.startswith(p) for p in PROSE_WORDS["provenance_starts"]):
+        found.append(("summary-first", "fail", f"opens with provenance {first[:40]!r}"))
+    summary = []
+    for ln in lines:
+        if not ln.strip() or _HEADING.match(ln):
+            break
+        summary.append(ln.strip())
+    joined = " ".join(summary)
+    if len(joined) > SUMMARY_MAX:
+        found.append(("summary-length", "fail", f"{len(joined)} characters, over {SUMMARY_MAX}"))
+    if (kind or "").lower() == "epic":
+        heads = [_HEADING.match(ln).group(2).strip().lower() for ln in lines if _HEADING.match(ln)]
+        lacks = [h for h in ("problem", "outcome check") if not any(x.startswith(h) for x in heads)]
+        if lacks:
+            found.append(("epic-sections", "fail", f"no {' or '.join(lacks)} heading"))
+    found.sort(key=lambda f: PROSE_RULES.index(f[0]))
+    findings = [{"rule": r, "level": lv, "detail": d} for r, lv, d in found]
+    verdict = "unclear" if any(f["level"] == "fail" for f in findings) else "clear"
+    return {"verdict": verdict, "findings": findings}
+
+
+def check_prose_cases(rep: Report, prose_cmd: str | None) -> None:
+    """R9: the golden prose cases, against the reference or a server's own logic (--prose-cmd)."""
+    fixtures = json.loads((HERE / "prose_cases.json").read_text())
+    bad = []
+    for case in fixtures["cases"]:
+        ref = f"#{PROSE_REF_NUMBER}"
+        inp = {"title": case["title"].replace("{#}", ref), "body": case["body"].replace("{#}", ref),
+               "kind": case.get("kind", "story")}
+        if prose_cmd:
+            proc = subprocess.run(prose_cmd, shell=True, input=json.dumps(inp),
+                                  capture_output=True, text=True, timeout=60, check=False)
+            try:
+                got = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                bad.append(f"{case['name']}: no JSON from --prose-cmd")
+                continue
+        else:
+            got = reference_prose(**inp)
+        fs = got.get("findings") or []
+        fails = [f.get("rule") for f in fs if f.get("level") == "fail"]
+        warns = [f.get("rule") for f in fs if f.get("level") == "warn"]
+        exp = case["expect"]
+        if got.get("verdict") != exp["verdict"] or fails != exp["fail"] or warns != exp["warn"]:
+            bad.append(f"{case['name']} ({case['what']}): {got.get('verdict')} fail {fails} warn {warns}")
+    who = "--prose-cmd" if prose_cmd else "the reference prose check"
+    rep.check("R9", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
 
 
 def ready_inputs(fixtures: dict) -> list[tuple[dict, dict, dict]]:
@@ -882,7 +995,8 @@ def ready_inputs(fixtures: dict) -> list[tuple[dict, dict, dict]]:
         issues = {ref(x): {"state": "closed" if x in closed else "open",
                            "blocked_by": [ref(y) for y in case["blocked_by"].get(x, [])]}
                   for x in letters if x != "S"}
-        inp = {"repo": repo, "number": num["S"], "body": body, "labels": case["labels"],
+        inp = {"repo": repo, "number": num["S"], "title": case.get("title", fixtures["title"]),
+               "body": body, "labels": case["labels"],
                "board": case.get("board", True), "size": case["size"],
                "pickup_sizes": fixtures["pickup_sizes"],
                "blocked_by": [ref(y) for y in case["blocked_by"].get("S", [])], "issues": issues}
@@ -1212,8 +1326,13 @@ class Sandbox:
         self.c, self.repo, self.project, self.run = c, repo, project, run
         self.made: list[int] = []
 
-    def issue(self, what: str, labels: list[str] | None = None, body: str = "") -> int:
-        args = {"title": f"[conformance {self.run}] {what}", "repo": self.repo,
+    def clear_title(self, what: str) -> str:
+        """A title that passes the prose check and still names the run."""
+        return f"Show conformance run {self.run} passing {what}"[:72]
+
+    def issue(self, what: str, labels: list[str] | None = None, body: str = "",
+              title: str | None = None) -> int:
+        args = {"title": title or f"[conformance {self.run}] {what}", "repo": self.repo,
                 "note": (body + "\n" if body else "")
                 + "Created by the gtd-board-kit conformance runner. Safe to close."}
         if labels:
@@ -1484,12 +1603,14 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
 
 READY_FIELDS = ("repo", "number", "title", "verdict", "missing", "blockers", "kind", "size")
 READY_AC = "## Acceptance criteria\n\n- AC1: the conformance runner sees this criterion\n"
+READY_SUMMARY = "When the conformance runner reads this story, it finds it clear, so the ready check is shown.\n\n"
 
 
 def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
-                    ready_cmd: str | None) -> None:
-    """R1 to R7: item_ready, when the server offers it (server-spec/ready-check.md)."""
-    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8")
+                    ready_cmd: str | None, prose_cmd: str | None = None) -> None:
+    """R1 to R10: item_ready and prose_check, when the server offers them
+    (server-spec/ready-check.md, server-spec/prose-check.md)."""
+    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10")
     if "item_ready" not in tools:
         for cid in ids:
             rep.na(cid, "item_ready is not offered")
@@ -1498,9 +1619,16 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         check_ready_cases(rep, ready_cmd)
     else:
         rep.manual("R1", "run the golden cases against the server's own rules: --ready-cmd CMD")
+    if "prose_check" not in tools:
+        rep.fail("R9", "item_ready is offered but prose_check is not (the Readiness group has both)")
+    elif prose_cmd:
+        check_prose_cases(rep, prose_cmd)
+    else:
+        rep.manual("R9", "run the golden prose cases against the server's own rules: --prose-cmd CMD")
     if sb is None:
         for cid in ids[1:]:
-            rep.skip(cid, "needs --repo")
+            if cid != "R9":
+                rep.skip(cid, "needs --repo")
         return
     owner_needs = profile.get("owner_needs") or "triage"
     sizes = profile.get("pickup_sizes") or []
@@ -1516,8 +1644,8 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         if sb.project:
             c.call("project_set_field", sb.args(n, field="Size", **({"value": size} if size else {"clear": True})))
 
-    # R2: shape, and a story with criteria and an allowed Size is ready.
-    n = sb.issue("ready", body=READY_AC)
+    # R2: shape, and a story with criteria, an allowed Size and clear prose is ready.
+    n = sb.issue("ready", body=READY_SUMMARY + READY_AC, title=sb.clear_title("ready"))
     sized(n, sizes[0] if sizes else None)
     ok, out, text = ready(n)
     shape = [f for f in READY_FIELDS if f not in out]
@@ -1637,10 +1765,29 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         return probs
 
     n1 = sb.issue("claim not ready", body="Make the thing work.\n")
-    n2 = sb.issue("claim ready", body=READY_AC)
+    n2 = sb.issue("claim ready", body=READY_SUMMARY + READY_AC, title=sb.clear_title("claim ready"))
     sized(n2, sizes[0] if sizes else None)
     probs = claim_ready(n1) + claim_ready(n2)
     rep.check("R8", not probs, "; ".join(probs[:3]), "verdict matches item_ready; not ready warns, never refuses")
+
+    # R10: prose_check on an issue and on draft text; the ready check's prose rule.
+    if "prose_check" not in tools:
+        rep.fail("R10", "prose_check is not offered")
+        return
+    probs = []
+    n1 = sb.issue("prose", body=READY_AC)  # the runner's own prefixed title, no summary
+    ok, out, text = c.call("prose_check", {"repo": sb.repo, "number": n1})
+    got = [f.get("rule") for f in (out or {}).get("findings") or [] if f.get("level") == "fail"]
+    if not ok or (out or {}).get("verdict") != "unclear" or "title-prefix" not in got or "summary-first" not in got:
+        probs.append(f"issue: {text[:60] if not ok else ''} {(out or {}).get('verdict')} {got}")
+    if "prose" not in rules(ready(n1)[1]):
+        probs.append("item_ready on the same issue does not fail prose")
+    ok, out, text = c.call("prose_check", {"title": "Notify the owner only when they must act", "kind": "epic",
+                                           "body": "For owners, fewer pings.\n\n## Problem\n\nToo many.\n"})
+    got = [f.get("rule") for f in (out or {}).get("findings") or [] if f.get("level") == "fail"]
+    if not ok or got != ["epic-sections"]:
+        probs.append(f"draft epic: {text[:60] if not ok else ''} {got}")
+    rep.check("R10", not probs, "; ".join(probs), "an issue, the ready rule and a draft epic")
 
 
 LINK_CASE_KEYS = ("items", "prefixes", "records")
@@ -2867,6 +3014,7 @@ def main(argv: list[str]) -> int:
                     help="seconds to wait for that approval (default 600)")
     ap.add_argument("--fold-cmd", help="a command that folds {now, comments} from stdin to JSON on stdout")
     ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
+    ap.add_argument("--prose-cmd", help="a command that runs the prose check on one case from stdin (R9)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
     ap.add_argument("--github-token-env",
@@ -2882,6 +3030,7 @@ def main(argv: list[str]) -> int:
     check_fold(rep, a.fold_cmd)
     if not a.server:
         check_ready_cases(rep, a.ready_cmd)
+        check_prose_cases(rep, a.prose_cmd)
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
     seen: list[str] = []
@@ -2931,7 +3080,7 @@ def main(argv: list[str]) -> int:
                     if a.project:
                         check_board(rep, c, sb, profiles.get(name) or {})
                     check_prs(rep, c, sb, _tools, who, a.pr_head, token(a.github_token_env))
-                check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
+                check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd, a.prose_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
