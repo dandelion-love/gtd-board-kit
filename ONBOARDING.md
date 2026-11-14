@@ -24,8 +24,13 @@ at `.gtd/kit/ONBOARDING.md`.
 
 Show your person: the repo root, `git status`, the current branch, the origin remote, and
 `.github/gtd-context.json`. That file should name the `profile`, the board as
-`project`, and the MCP server as `mcp_url`. If it is missing or looks wrong, stop and ask.
-Do not invent a board or a server address.
+`project`, and, in a private repo, the MCP server as `mcp_url`. A public repo leaves
+`mcp_url` out or sets it to `"local"`, so the address is never published. Then run
+`python3 .gtd/kit/tools/gtd_server.py` (after step 2 if the kit is not there yet; the
+tool is one file you can fetch from the kit): it says which of the four places answered
+([agent sign-in](knowledge/model/agent-sign-in.md)). If none did, it names them; set one,
+and ask your person only if you cannot. If the profile or board is missing or looks wrong,
+stop and ask. Do not invent a board or a server address.
 
 ## 2. Add the kit (skip if `.gtd/kit` exists)
 
@@ -60,9 +65,11 @@ Call `whoami`.
 - `whoami` shows your person's own principal (for example `google:<email>`) instead of
   `agent:<name>`: the connector signed in as them, so your work is recorded under their
   name. Ask them to reconnect as an agent if this repo wants agent names.
-- The tools are missing anywhere else: follow `<mcp_url>/join`, with `mcp_url` from
-  `.github/gtd-context.json` (if it is missing, ask your person for the address and add it
-  to that file in this PR). You run the join client; your person opens the link and
+- The tools are missing anywhere else: follow `<mcp_url>/join`, with the address from
+  `python3 .gtd/kit/tools/gtd_server.py --url`. If it finds none, ask your person for it
+  and run `python3 .gtd/kit/tools/init_checkout.py` after setting `$GTD_MCP_URL` once;
+  never add it to a public repo's files, and add it to `.github/gtd-context.json` only
+  in a private repo. You run the join client; your person opens the link and
   approves. Ask for the smallest preset that does the job. The rules for keeping and renewing that access
   are in [agent sign-in](knowledge/model/agent-sign-in.md).
 
