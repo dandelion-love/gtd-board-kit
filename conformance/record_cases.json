@@ -1435,7 +1435,8 @@
       "started": "Start date",
       "agent": "Agent",
       "last_report": "Last report"
-     }
+     },
+     "timezone": "America/New_York"
     },
     "timezone": "America/New_York",
     "expect": {
@@ -1455,8 +1456,8 @@
       "closed": false,
       "fields": {
        "Pre-reg": "CLEAN",
-       "Start date": "2026-07-02",
-       "Last report": "2026-07-02 start: go"
+       "Start date": "2026-07-01",
+       "Last report": "2026-07-01 start: go"
       }
      }
     }
