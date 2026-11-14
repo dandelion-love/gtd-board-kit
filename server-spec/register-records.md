@@ -60,7 +60,7 @@ author always answers the question.
 | `result` | `verdict`, `rule_hash`, `note` | `verdict` is a key of the registration's `decision_rule`, or `VOID`. Optional `data`, `artifacts` (a list of `{path or uri, sha256, role}`), `code` (`{commit, dirty}`), `run_dirs`, `env` |
 | `reading` | `of`, `kind`, `says`, `because` | What a result means now; the result is unchanged. `of`: the sha256 of the result line read, or null for the experiment as a whole. `kind`: `interim`, `reading`, `stage-read`, `exploratory`, `ruling` |
 | `link`, `unlink` | `to`, `kind`, `why` | An item link ([typed links](typed-links.md)) |
-| `artifact` | `kind`, `why`, and `url` or `local` | A pointer to something outside the register. `kind`: `run`, `pr`, `checkpoint`, `bucket`, `hub`, `page`, `other` |
+| `artifact` | `kind`, `why`, and `url` or `local` | A pointer to something outside the register. `kind`: `run`, `pr`, `issue`, `checkpoint`, `mlflow`, `bucket`, `hub`, `listening`, `report`, `doc`, `page`, `other` |
 | `block`, `unblock` | `note` | |
 | `retire`, `unretire` | `kind`, `note` | `retire` `kind`: `void`, `abandoned`, `superseded`, `retired`. `unretire` needs `note` only |
 

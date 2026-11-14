@@ -115,9 +115,14 @@
          "enum": [
           "run",
           "pr",
+          "issue",
           "checkpoint",
+          "mlflow",
           "bucket",
           "hub",
+          "listening",
+          "report",
+          "doc",
           "page",
           "other"
          ]
