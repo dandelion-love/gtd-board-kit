@@ -207,6 +207,7 @@ that offers the capability uses the name.
 | Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps. A server that starts runs from `run-agent` also starts a review run from `agent-review`: see [review requests](#review-requests) |
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
 | Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work); optional `pr_merge` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
+| Comment edits | `comment_update` (work): `repo`, `comment_id`, `body`, `session?`; `comment_redact` (work): `repo`, `comment_id`, `find`, `replace`, `session?` | Correcting a comment the server wrote, through the server, so the edit is signed instead of made with `gh` under a person's credentials. See [editing comments](#editing-comments) |
 | Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
@@ -377,6 +378,59 @@ or null when not asked) and `resolve_error` (why a resolve failed). A reply that
 stands even when the resolve fails. To retry only the resolve, call again with `resolve`
 true and no `body`: it posts nothing, so a retry never duplicates the reply. Answering a
 review finding is one call: say what changed and the commit, with `resolve` true.
+
+## Editing comments
+
+`comment_update` and `comment_redact` correct a comment the server itself wrote, on an
+issue or a pull request, so a wrong or leaky comment can be fixed without leaving the
+board rules ([BOARD.md](../BOARD.md) rule 1). Both are `work`. Neither exists in `read`.
+Both check the repo and the caller first, exactly as `issue_comment` does, and both write
+with the identity that wrote the comment (on a PR, the App: [pull request
+writes](sign-offs.md#pull-request-writes)).
+
+Both **refuse**, naming the reason, when:
+
+- the comment's GitHub author is not the server's own identity (the same authors as
+  [C10](conformance.md#claims-core)): a person's comment is theirs to edit;
+- the comment is a review comment on a pull request's diff: those belong to
+  [`pr_review`](#reviewing-pull-requests), and the refusal names it;
+- the new text holds a record marker or a sign-off marker (`comment_redact`: `find` or
+  `replace` holds `<!--` or `-->`): only the server writes markers;
+- the text is longer than a comment may be, or `body` or `find` is empty.
+
+### `comment_update`
+
+Replaces the prose of one comment. `body` is the new text, with no marker in it.
+
+- It **refuses** a comment that holds a record (`gtd-desk`) or an intake ack (`gtd-ack`),
+  and says to use `comment_redact`: a record's meaning is not rewritten.
+- The comment's own sign-off stays. The server adds one `edits` entry to that sign-off's
+  JSON, `{"by": <caller's principal>, "t": <UTC time>, "session": <if given>}`, and one
+  visible line `Edited by <principal> · <time>` above the marker. Entries only ever
+  append, in order, so every edit is on the comment. A comment that had no sign-off gets
+  one for the caller, `act` `comment`, with the first `edits` entry.
+- It returns `repo`, `number`, `comment_id`, `url`, `body` and `signoff` (the marker's JSON, with
+  `edits`).
+
+### `comment_redact`
+
+Replaces every literal occurrence of `find` with `replace` in one comment, record or not,
+and changes nothing else. It exists for the case where text must come out of a record the
+server wrote (a leaked name in a claim's note, a link, a title) without the record's
+meaning changing.
+
+- `find` is not empty. It returns `replaced`, the number of occurrences; zero refuses
+  ("nothing to redact") and writes nothing.
+- The result must leave every marker in the comment parsing to the same JSON **except in
+  free-text values**. These never change, in a `gtd-desk` record or a sign-off: `v`, `event`,
+  `act`, `by`, `role`, `t`, `session`, `lease_until`, `takeover_of`, `handoff_to`, `state`,
+  `attention`, `review`, and in `mandate` the `basis`, `purpose`, `session`, `rule`,
+  `policy_version`, `scope.repo`, `scope.item` and `scope.body_sha256`. Keys are never added
+  or removed. A `find` or `replace` that would change one of them refuses, naming the
+  field. Every other string (a note, a link, a title, `pointed_in`, `asked_by`) may change.
+- It appends an `edits` entry to the comment's sign-off as `comment_update` does, with
+  `"redacted": true`. A record that carries no sign-off gets one added, as above.
+- It returns `repo`, `number`, `comment_id`, `url`, `replaced` and `signoff`.
 
 ## Issue artifacts
 
