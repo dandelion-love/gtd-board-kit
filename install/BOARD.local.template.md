@@ -144,7 +144,24 @@ See .gtd/kit/knowledge/model/board-fields.md, "Closed is Done".
 
 - paths:
   - <!-- an exact file, e.g. a register an agent appends to -->
+- registers:
+  - <!-- optional: a register named under ## Register pages; covers its record pages when the PR only appends valid records to them -->
 - granted_by: <!-- the owner's handle -->
 - date: <!-- YYYY-MM-DD -->
 - link: <!-- the owner's message, comment or PR -->
 - also: <!-- optional: extra conditions, e.g. "only PRs opened with pr_open"; default none -->
+
+## Register pages
+
+<!-- Where a register keeps its record pages (server-spec/record-pages.md). A merge grant
+     above may name a register here instead of exact files. A person changes this section,
+     never a grant: nothing under .gtd/ can be merged under a grant. -->
+
+### register: example-register
+
+- kind: <!-- experiment, benchmark or finding -->
+- folder: <!-- the register's page folder, e.g. records/experiments; no pattern -->
+- layout: <!-- flat (folder/id.md) or item-folder (folder/id/README.md) -->
+- type: <!-- optional: the pages' front matter type; default is this block's name -->
+- links:
+  - <!-- optional: id prefix: link target, as the repo's own page check uses it -->

@@ -312,7 +312,9 @@ identity. It merges nothing, and says why, unless all of these hold:
    and the caller holds a live claim on every issue the marker names. The principal alone
    is not enough where many sessions share one agent identity.
 3. ONE merge grant on the default branch names every file the PR changes (both sides of
-   a rename; never `.github/` or `.gtd/`; no patterns), and the owner approved the PR that
+   a rename; never `.github/` or `.gtd/`; no patterns). A grant names a file exactly, or
+   names a register ([register form](../knowledge/model/grants.md#register-form)) whose
+   record page the PR only appends valid records to. The owner approved the PR that
    added that exact block ([owner approval](../knowledge/model/grants.md#owner-approval-of-a-grant)).
 4. Every check on the head is finished and green. A pending check is a refusal, not a
    wait. Nobody has requested changes, and there is no conflict.

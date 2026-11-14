@@ -324,6 +324,12 @@ prc = subprocess.run([sys.executable, str(ROOT / "tests" / "test_pr_check.py")],
 if prc.returncode != 0:
     fail("tests/test_pr_check.py failed:\n" + prc.stderr.strip()[-2000:])
 
+# tools/lanes.py: register-form merge grants (tests/test_lanes_register.py).
+r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_lanes_register.py")],
+                   capture_output=True, text=True)
+if r.returncode != 0:
+    fail("tests/test_lanes_register.py failed:\n" + r.stderr.strip()[-2000:])
+
 # tools/agent_guard.py: the Claude and Codex hook rules (tests/test_agent_guard.py).
 r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_agent_guard.py")],
                    capture_output=True, text=True)

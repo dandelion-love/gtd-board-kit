@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.8.1
+  version: 0.8.2
 ---
 
 # Claim an item and work it
@@ -68,9 +68,9 @@ them on one integration (release-candidate) branch.
 ## Grants (BOARD.md rule 9)
 
 Workflow files and merging stay off-limits unless a grant in `.gtd/BOARD.local.md` **on
-the default branch** names the exact paths (`knowledge/model/grants.md`). `git fetch`, then
+the default branch** names the paths (`knowledge/model/grants.md`). `git fetch`, then
 run `python3 .gtd/kit/tools/lanes.py check --merged` with `--covers <workflow path>` before
-touching a workflow, or `--merge <every changed file>` before merging; go on only on exit 0.
+touching a workflow, or `--head <branch> --merge <every changed file>` before merging; go on only on exit 0.
 A grant on a branch, issue or comment counts for nothing; never add or widen one. A push refused for workflow permission: `board-needs-person`.
 
 ## 4. Hand back

@@ -46,8 +46,8 @@ which grant covers which file.
 ## Merge grants
 
 `### merge: <name>` under `## Merge grants`, with `paths` (exact files, never a folder or
-pattern, never under `.github/` or `.gtd/`), `granted_by`, `date`, `link` and an optional
-`also` for extra conditions. An agent may merge a PR only when all of these hold:
+pattern, never under `.github/` or `.gtd/`) and/or `registers` (below), `granted_by`,
+`date`, `link` and an optional `also` for extra conditions. An agent may merge a PR only when all of these hold:
 
 1. **One** merged merge grant names **every** file the PR changes:
    `lanes.py check --merged --merge $(git diff --name-only --no-renames origin/HEAD...<head>)`
@@ -65,6 +65,38 @@ An agent merges only through the server's `pr_merge`
 and reports `ready` with the merged PR's link, then releases the item. If any condition
 fails, or the server offers no `pr_merge`, it leaves the PR for a person, as without a
 grant. A merge grant never covers approving a PR, closing an issue by hand, or a force push.
+
+### Register form
+
+A grant may name a register instead of listing each record page, so that registering
+a new item or appending to one needs no new grant. `registers` lists names; each name is
+a `### register: <name>` block under `## Register pages` in the same file, with `kind`
+(`experiment`, `benchmark` or `finding`), `folder` (one plain folder, no pattern, never
+under `.github/` or `.gtd/`), `layout` (`flat` or `item-folder`), and optionally `type`
+and `links`, the page front matter type and link map the repo's own page check uses
+([record pages](../../server-spec/record-pages.md)). A changed file is covered by a
+register only when **all** of these hold:
+
+1. The path is a record page of that register: `<folder>/<id>.md` (flat) or
+   `<folder>/<id>/README.md` (item folders), with a valid id. Nothing else in the folder
+   is covered.
+2. The change is addendum-only by the page rule: the page grows by whole rendered entries
+   or is a new page rendered from its records. An edit to existing text, a removed entry
+   or a deleted page is refused.
+3. Every added record validates against the register-records schema
+   ([register records](../../server-spec/register-records.md)), with the page's earlier
+   records as context, and is for the page's item.
+
+`lanes.py check --merged --head <ref> --merge <files>` reads each page at the default
+branch and at `<ref>` and applies this; without `--head`, only exact `paths` count. One
+grant must still cover every changed file, and a grant may mix `paths` and `registers`.
+
+This is no wider than exact files. A record page can only gain validated records, so the
+form covers no code, no rule, no edit of an existing record and no page outside the
+folder; the same change to an exact-file register would be a line appended to a file the
+grant already names. The `## Register pages` block is under `.gtd/`, which no grant
+covers, so a person decides where the pages are and an agent cannot move them. The grant
+block itself counts only with the owner's approval, as above.
 
 # Why
 
