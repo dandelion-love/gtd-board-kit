@@ -24,7 +24,9 @@ A link is one line in an append-only register, written by whoever records it:
 - `from` and `to` name items by id. A register in which every line carries `id` MAY write
   `id` in place of `from`; a reader takes `from` when present, else `id`.
 - `to` makes it an **item link**. A `link` line with a `url` and no `to` is an artifact
-  pointer (a page, a PR, a checkpoint), not an edge, and the fold ignores it.
+  pointer (a page, a PR, a checkpoint), not an edge, and the fold ignores it. A version 1
+  record writes a pointer as an `artifact` event instead ([register records](register-records.md)),
+  and a reader upgrades such a `link` to one.
 - `kind` is one of the kinds below. A free-text kind is refused: a graph whose edge names
   drift cannot be walked.
 - `why` says what the link asserts, in a sentence. A writer requires it; a reader accepts

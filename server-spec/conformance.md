@@ -410,6 +410,30 @@ Cases ([page_cases.json](../conformance/page_cases.json)):
 | `same-append` | RP3 | the same entry on both sides is kept once |
 | `one-edited` | RP3 | refused (`null`) |
 
+## Register records (when offered)
+
+A server that writes, reads or mirrors register records ([register records](register-records.md))
+must pass these. The runner runs RR1 to RR4 against the reference implementation offline, and
+against the server's own record code with `--record-cmd`, which reads one case as JSON on stdin
+(`op` is `validate`, `upgrade` or `fold`) and writes the result as JSON on stdout.
+
+| Id | Check |
+| --- | --- |
+| RR1 | The validate cases below give the stated refusals (`{"refused": [...]}`, empty for a pass) |
+| RR2 | The upgrade cases give the stated record (`{"record": ...}`) |
+| RR3 | The fold cases give the stated state and verdict (`{"state": {"state", "verdict", ...}}`) |
+| RR4 | The same fold cases, shown through the case's source, give the stated labels, managed labels, Status, closed and fields (`{"shown": ...}`) |
+| RR5 | By hand, on a scratch repo: `record_append` writes a valid record as one entry on the item's page with the envelope filled; an invalid one is refused and nothing is written; the same call with the same `eid` writes nothing and succeeds; an experiment `result` is refused `written-on-the-host` |
+| RR6 | By hand: a sync of a scratch repo whose register holds a blocked experiment, a waiting benchmark and a record that fails its schema gives each issue the profile's issue type, kind label, state labels, invalid-record label, Status and fields, and a body with a Record link to the item's page; a second sync plans no edit |
+
+Cases ([record_cases.json](../conformance/record_cases.json)):
+
+| Check | Cases | What they cover |
+| --- | --- | --- |
+| RR1 | 35 | a complete registration and a version 0 line pass; bad JSON, an unknown event, a version ahead, a missing envelope field, a time without offset, a `by` that is no principal, a missing spec field, an enum miss, a missing stopping rule, a verdict outside the rule, a differing rule hash, an event before registration, a second registration, a reused `eid`, a link kind outside the list, an artifact with no pointer, a citation that is no hash |
+| RR2 | 13 | a current record unchanged; a naive time read in the source's zone; no time; a free-text `by`; a link with a URL becoming an artifact; an observation headline moving to `title`; prereg from a tag, from a plain registered-before, and left empty when qualified; a reading with no kind; `from` with no `id`; a benchmark result's status from its counts |
+| RR3, RR4 | 20 | an experiment registered, running, blocked, unblocked, closed by a verdict, unvalidated, retired void, a verdict standing over a later retire, unretired, holding an invalid record, and a version 0 one; a benchmark waiting, partial, complete and withdrawn; a finding current, stale after a reading, unchanged by a planning link, stale after another item's contradicts link, and retired |
+
 ## Security (all levels)
 
 | Id | Check |
