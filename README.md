@@ -114,7 +114,7 @@ Each repo layers its own rules on top of the kit without touching it:
   `board-lane` skill re-creates schedules after a restart.
 - **Workflow grants and merge grants** in `.gtd/BOARD.local.md`: the only ways rule 9
   opens (`knowledge/model/grants.md`). A workflow grant names workflow files an agent may
-  edit on a branch; a merge grant names exact files, and an agent may merge its own green
+  edit on a branch; a merge grant names exact files or a register's record pages, and an agent may merge its own green
   PR (through the server's `pr_merge`) only when one merge grant names every file it
   changes. Each says who granted it, when, and a link, and counts only on the default
   branch; a merge grant also needs the owner's approval of the PR that added it. No grant: never.

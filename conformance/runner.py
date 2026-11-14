@@ -76,6 +76,7 @@ class Family(Enum):
     ARTIFACTS = "A"         # Issue artifacts (when the issue_artifact_* tools are offered)
     INTAKE = "I"            # Intake (when intake_list or intake_ack is offered)
     NOTIFY = "N"            # Notifications (when notify_get is offered)
+    EDITS = "CE"            # Comment edits (when comment_update or comment_redact is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
     RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
@@ -91,7 +92,7 @@ HEADINGS = {
     Family.CLAIMS: "Claims", Family.SIGNOFFS: "Sign-offs", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
-    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
+    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
     Family.RECORDS: "Register records",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
@@ -116,7 +117,7 @@ LEVEL_OF = {
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
-    Family.NOTIFY: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
+    Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
 }
 
@@ -179,7 +180,7 @@ CLASS.update(dict.fromkeys((
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
-    "issue_artifact_update", "intake_ack"), "work"))
+    "issue_artifact_update", "intake_ack", "comment_update", "comment_redact"), "work"))
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -2133,6 +2134,86 @@ def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
               "no label, bad state and a record marker refused with a reason")
 
 
+EDIT_IDS = ("CE1", "CE2", "CE3", "CE4")
+
+
+def check_comment_edits(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """CE1 to CE4: the comment edit tools, when either is offered."""
+    have = [t for t in ("comment_update", "comment_redact") if t in tools]
+    if not have:
+        for cid in EDIT_IDS:
+            rep.na(cid, "the comment edit tools are not offered")
+        rep.na("CE5", "the comment edit tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("CE1", classes == {"comment_update": "work", "comment_redact": "work"},
+              f"offered {classes}", "comment_update and comment_redact, both work")
+    rep.manual("CE5", "a comment by a login that is not a record author, and a review comment "
+                      "on a pull request's diff: each refused with a reason; the second names pr_review")
+    if sb is None or len(have) < 2:
+        for cid in EDIT_IDS[1:]:
+            rep.skip(cid, "needs --repo and both tools")
+        return
+    n = sb.issue("comment edits")
+    ok0, posted, t0 = c.call("issue_comment", sb.args(n, body="First draft."))
+    cid0 = (posted or {}).get("comment_id")
+    if not ok0 or not cid0:
+        raise CheckError(f"issue_comment: {t0[:160]}")
+    original = parse_signoff(str((posted or {}).get("body") or "")) or {}
+
+    ok1, out1, t1 = c.call("comment_update", sb.args(n, comment_id=cid0, body="Second draft."))
+    ok2, out2, t2 = c.call("comment_update", sb.args(n, comment_id=cid0, body="Third draft."))
+    b1, b2 = str((out1 or {}).get("body") or ""), str((out2 or {}).get("body") or "")
+    s1, s2 = parse_signoff(b1) or {}, parse_signoff(b2) or {}
+    e1, e2 = s1.get("edits") or [], s2.get("edits") or []
+    shown = re.sub(r"<!--.*?-->", "", b2, flags=re.DOTALL)
+    kept = all(s2.get(k) == original.get(k) for k in ("by", "act", "role", "t"))
+    rep.check("CE2", ok1 and ok2 and bool((out1 or {}).get("url")) and "Second draft." in b1
+              and "Third draft." in b2 and kept and len(e1) == 1 and len(e2) == 2 and e2[0] == e1[0]
+              and all(e.get("by") and e.get("t") for e in e2) and (out2 or {}).get("signoff") == s2
+              and "Edited by" in shown and b2.count("gtd-sign v1") == 1,
+              f"updates {ok1}/{ok2} ({t1[:50]}); original kept {kept}; edits {len(e1)} then {len(e2)}",
+              "text replaced, sign-off kept, one edits entry per edit, visible line shown")
+
+    ok_m, _, t_m = c.call("comment_update", sb.args(
+        n, comment_id=cid0, body=f'x <!-- {SIGN_MARKER} v1 {{"by": "agent:someone-else", "v": 1}} -->'))
+    ok_r, _, t_r = c.call("comment_update", sb.args(
+        n, comment_id=cid0, body=f'x <!-- {MARKER} v1 {{"event": "claim", "v": 1}} -->'))
+    note = f"conformance {sb.run} secret-name"
+    g = sb.issue("comment edits: record")
+    ok_k, out_k, t_k = c.call("item_claim", sb.args(g, basis="explicit", asked_by="conformance",
+                                                     lease="30m", session=f"conformance-{sb.run}-edit"))
+    ok_p, out_p, t_p = c.call("item_report", sb.args(g, state="progress", note=note))
+    rec_id = (out_p or {}).get("comment_id")
+    ok_rec, _, t_rec = c.call("comment_update", sb.args(g, comment_id=rec_id, body="rewritten"))
+    rep.check("CE3", not ok_m and SIGN_MARKER in t_m and not ok_r and not ok_rec
+              and "comment_redact" in t_rec and ok_k and ok_p and bool(rec_id),
+              f"sign-off marker refused {not ok_m} ({t_m[:40]}); record marker refused {not ok_r}; "
+              f"a record refused {not ok_rec} and names comment_redact {'comment_redact' in t_rec}",
+              "markers and a record refused, each with its reason")
+
+    ok_x, out_x, t_x = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="secret-name",
+                                                         replace="[redacted]"))
+    _, got, _ = c.call("item_get", sb.args(g))
+    last = str((((got or {}).get("last_report") or {}).get("note")) or "")
+    still = (((got or {}).get("holder")) == (who_principal(out_k) or (got or {}).get("holder")))
+    ok_b, _, t_b = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="agent:", replace="agent-x:"))
+    ok_n, _, _ = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="no-such-text-xyz", replace="y"))
+    ok_h, _, _ = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="[redacted]", replace="<!-- x -->"))
+    rep.check("CE4", ok_x and (out_x or {}).get("replaced") == 1 and "[redacted]" in last
+              and "secret-name" not in last and still and not ok_b and "by" in t_b
+              and not ok_n and not ok_h,
+              f"redact {ok_x} ({t_x[:50]}); note now {last[:40]!r}; identity change refused {not ok_b} "
+              f"({t_b[:50]}); no match refused {not ok_n}; marker in replace refused {not ok_h}",
+              "text redacted, the record still folds, identity fields, no match and a marker refused")
+    c.call("item_release", sb.args(g, done="checked", remaining="none", next="close"))
+
+
+def who_principal(out: Any) -> str | None:
+    """The holder an ``item_claim`` result names, if any."""
+    return ((out or {}).get("item") or {}).get("holder")
+
+
 NOTIFY_IDS = ("N1", "N2", "N3", "N4", "N5")
 NOTIFY_HAND = {
     "N6": "pr_open a non-draft PR: review_requested is the owner's login and GitHub shows the "
@@ -3198,6 +3279,7 @@ def main(argv: list[str]) -> int:
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
+                check_comment_edits(rep, c, _tools, sb)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)

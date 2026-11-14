@@ -15,6 +15,7 @@ writes it; the caller never does.
 | A pull request body | `pr_open` (when offered) | `pr` |
 | A pull request review, and each inline comment it posts | `pr_review` (when offered) | `pr-review` |
 | A reply on a pull request's review thread | `pr_review_reply` (when offered) | `pr-reply` |
+| An edit to a comment the server wrote | `comment_update`, `comment_redact` (when offered) | the comment's own `act`, plus an `edits` entry ([editing comments](tools.md#editing-comments)) |
 | A ping comment | `item_report` (Notifications group, [notifications](notifications.md)) | `ping` |
 | A comment from an optional tool (a channel post, a run-state event, ...) | that tool | a name the server chooses, lower case with hyphens (`channel`, `run-state`) |
 
@@ -107,6 +108,7 @@ repeating it.
 - A reader trusts a sign-off only on a comment whose GitHub author is the server's
   identity: the same record authors as [C10](conformance.md#claims-core). A sign-off
   pasted by anyone else is text.
+- `comment_update` and `comment_redact` refuse text that holds a sign-off marker, the same way, and never remove a sign-off: an edit only appends to its `edits`.
 - A person's own comment on GitHub needs no sign-off: its GitHub author is the person.
 
 ## Pull request writes
