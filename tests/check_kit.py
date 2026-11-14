@@ -330,6 +330,12 @@ r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_agent_guard.py")]
 if r.returncode != 0:
     fail("tests/test_agent_guard.py failed:\n" + r.stderr.strip()[-2000:])
 
+# tools/gtd_server.py, init_checkout.py and the guard's work-repo mode (tests/test_gtd_server.py).
+r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_gtd_server.py")],
+                   capture_output=True, text=True)
+if r.returncode != 0:
+    fail("tests/test_gtd_server.py failed:\n" + r.stderr.strip()[-2000:])
+
 if errors:
     print("\n".join(f"FAIL {e}" for e in errors))
     sys.exit(1)
