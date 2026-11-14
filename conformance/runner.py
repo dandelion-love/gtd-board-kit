@@ -77,6 +77,7 @@ class Family(Enum):
     INTAKE = "I"            # Intake (when intake_list or intake_ack is offered)
     NOTIFY = "N"            # Notifications (when notify_get is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
+    PAGES = "RP"            # Record pages (when a register is kept as pages)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -89,7 +90,7 @@ HEADINGS = {
     Family.CLAIMS: "Claims", Family.SIGNOFFS: "Sign-offs", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
-    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.LINKS: "Typed links",
+    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -113,7 +114,7 @@ LEVEL_OF = {
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
-    Family.NOTIFY: Level.EXTENDED, Family.LINKS: Level.EXTENDED,
+    Family.NOTIFY: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -1820,6 +1821,51 @@ def check_link_cases(rep: Report, link_cmd: str | None) -> None:
     rep.check("L1", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
 
 
+def _page_case_result(case: dict, op: str, page_cmd: str | None):
+    """One record-page case through the reference implementation or --page-cmd."""
+    inp = {k: v for k, v in case.items() if k not in ("name", "what", "expect")}
+    inp["op"] = op
+    if page_cmd:
+        proc = subprocess.run(page_cmd, shell=True, input=json.dumps(inp), capture_output=True,
+                              text=True, timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --page-cmd"}
+    sys.path.insert(0, str(HERE))
+    import record_pages as rp
+    f = inp.get("folders")
+    if op == "render":
+        return {"page": rp.render_page(inp["item"], inp["kind"], inp["records"], f)}
+    if op == "check":
+        return {"refused": rp.check_page(inp["old"], inp["new"], item=inp["item"], kind=inp["kind"], folders=f)}
+    return {"page": rp.merge_pages(inp["base"], inp["ours"], inp["theirs"], item=inp["item"],
+                                   kind=inp["kind"], folders=f)}
+
+
+def check_page_cases(rep: Report, page_cmd: str | None) -> None:
+    """RP1 to RP3: the golden record-page cases, against the reference or a server's own
+    page code (--page-cmd)."""
+    sys.path.insert(0, str(HERE))
+    import record_pages as rp
+    cases = json.loads((HERE / "page_cases.json").read_text(encoding="utf-8"))["cases"]
+    who = "--page-cmd" if page_cmd else "the reference record pages"
+    bad = []
+    for c in cases["render"]:
+        got = _page_case_result(c, "render", page_cmd)
+        if got.get("page") != c["expect"]["page"]:
+            bad.append(f"{c['name']}: page differs")
+        elif rp.parse_page(c["expect"]["page"]) != c["records"]:
+            bad.append(f"{c['name']}: does not parse back to its records")
+    rep.check("RP1", not bad, "; ".join(bad[:4]), f"{len(cases['render'])} cases, {who}")
+    bad = [f"{c['name']}: {got.get('refused')}" for c in cases["check"]
+           if (got := _page_case_result(c, "check", page_cmd)).get("refused") != c["expect"]["refused"]]
+    rep.check("RP2", not bad, "; ".join(bad[:4]), f"{len(cases['check'])} cases, {who}")
+    bad = [c["name"] for c in cases["merge"]
+           if _page_case_result(c, "merge", page_cmd).get("page", "absent") != c["expect"]["page"]]
+    rep.check("RP3", not bad, "; ".join(bad[:4]), f"{len(cases['merge'])} cases, {who}")
+
+
 def check_links(rep: Report, tools: dict, link_cmd: str | None) -> None:
     """L1 and L2: typed links, when the server offers the Repo setup group. The plan is
     a read tool, so a caller at work sees it even where the fenced sync is hidden; a
@@ -3017,6 +3063,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--prose-cmd", help="a command that runs the prose check on one case from stdin (R9)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
+    ap.add_argument("--page-cmd", help="a command that answers one record-page case from stdin (RP1 to RP3)")
     ap.add_argument("--github-token-env",
                     help="a read-only GitHub token for the sandbox repo, so N2 reads the ping's author from GitHub")
     ap.add_argument("--artifact-source-url",
@@ -3033,6 +3080,7 @@ def main(argv: list[str]) -> int:
         check_prose_cases(rep, a.prose_cmd)
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
+        check_page_cases(rep, a.page_cmd)
     seen: list[str] = []
     secrets: list[str] = []
 

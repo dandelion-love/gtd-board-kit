@@ -25,6 +25,7 @@ sense of RFC 2119 and leaves the how open.
 | [work-plan.md](work-plan.md) | The same spec cut into work units a coding agent can plan and build one at a time |
 | [ready-check.md](ready-check.md) | The read-only ready check: its verdicts and the six rules every server applies the same way |
 | [prose-check.md](prose-check.md) | The prose check: what an epic or story title and summary must say, and the rules every server checks the same way |
+| [record-pages.md](record-pages.md) | Record pages: one addendum-only Markdown page per register item, the rule, the merge, and how a server reads and writes them |
 | [typed-links.md](typed-links.md) | Typed links between items: the record, the kinds and their native forms, the fold, the Related section, the graph render |
 | [sign-offs.md](sign-offs.md) | The sign-off the server ends every write with: who, in which role, which act, which session |
 | [notifications.md](notifications.md) | Who an ask pings, under which identity, once: the map, `notify_get`, the ping comment, review requests, the push copy |
