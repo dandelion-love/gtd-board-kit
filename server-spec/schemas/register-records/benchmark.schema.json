@@ -1,0 +1,621 @@
+{
+ "x-dialect": "JSON Schema, draft 2020-12 (the keywords conformance/register_records.py reads)",
+ "$id": "urn:gtd-board-kit:register-records:benchmark:1",
+ "title": "Benchmark register records, version 1 (server-spec/register-records.md)",
+ "x-register": "Benchmark",
+ "x-version": 1,
+ "x-events": [
+  "artifact",
+  "deviation",
+  "link",
+  "reading",
+  "register",
+  "result",
+  "retire",
+  "unlink",
+  "unretire"
+ ],
+ "oneOf": [
+  {
+   "$ref": "#/$defs/artifact"
+  },
+  {
+   "$ref": "#/$defs/deviation"
+  },
+  {
+   "$ref": "#/$defs/link"
+  },
+  {
+   "$ref": "#/$defs/reading"
+  },
+  {
+   "$ref": "#/$defs/register"
+  },
+  {
+   "$ref": "#/$defs/result"
+  },
+  {
+   "$ref": "#/$defs/retire"
+  },
+  {
+   "$ref": "#/$defs/unlink"
+  },
+  {
+   "$ref": "#/$defs/unretire"
+  }
+ ],
+ "$defs": {
+  "envelope": {
+   "type": "object",
+   "required": [
+    "event",
+    "v",
+    "id",
+    "eid",
+    "t",
+    "by",
+    "via"
+   ],
+   "properties": {
+    "event": {
+     "type": "string",
+     "minLength": 1
+    },
+    "v": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$"
+    },
+    "eid": {
+     "type": "string",
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "t": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\+00:00$"
+    },
+    "by": {
+     "type": "string",
+     "pattern": "^[a-z][a-z0-9-]*:\\S+$"
+    },
+    "for": {
+     "type": "string",
+     "pattern": "^[a-z][a-z0-9-]*:\\S+$"
+    },
+    "via": {
+     "type": "string",
+     "pattern": "^\\S+@\\S+$"
+    },
+    "note": {
+     "type": "string"
+    }
+   }
+  },
+  "artifact": {
+   "allOf": [
+    {
+     "allOf": [
+      {
+       "$ref": "#/$defs/envelope"
+      },
+      {
+       "type": "object",
+       "required": [
+        "kind",
+        "why"
+       ],
+       "properties": {
+        "event": {
+         "const": "artifact"
+        },
+        "kind": {
+         "enum": [
+          "run",
+          "pr",
+          "issue",
+          "checkpoint",
+          "mlflow",
+          "bucket",
+          "hub",
+          "listening",
+          "report",
+          "doc",
+          "page",
+          "other"
+         ]
+        },
+        "why": {
+         "type": "string",
+         "minLength": 1
+        },
+        "url": {
+         "type": "string",
+         "minLength": 1
+        },
+        "local": {
+         "type": "string",
+         "minLength": 1
+        }
+       }
+      }
+     ]
+    },
+    {
+     "anyOf": [
+      {
+       "required": [
+        "url"
+       ]
+      },
+      {
+       "required": [
+        "local"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "deviation": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/envelope"
+    },
+    {
+     "type": "object",
+     "required": [
+      "what",
+      "original",
+      "reason",
+      "timing",
+      "impact"
+     ],
+     "properties": {
+      "event": {
+       "const": "deviation"
+      },
+      "what": {
+       "type": "string",
+       "minLength": 1
+      },
+      "original": {
+       "type": "string",
+       "minLength": 1
+      },
+      "reason": {
+       "type": "string",
+       "minLength": 1
+      },
+      "timing": {
+       "enum": [
+        "before-data",
+        "after-data-access",
+        "after-results-known"
+       ]
+      },
+      "impact": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    }
+   ],
+   "description": "A change from the registration, with when it was made"
+  },
+  "link": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/envelope"
+    },
+    {
+     "type": "object",
+     "required": [
+      "to",
+      "kind",
+      "why"
+     ],
+     "properties": {
+      "event": {
+       "const": "link"
+      },
+      "to": {
+       "type": "string",
+       "minLength": 1
+      },
+      "kind": {
+       "enum": [
+        "depends-on",
+        "follows-up",
+        "references",
+        "evaluates",
+        "rests-on",
+        "refines",
+        "contradicts",
+        "corroborates",
+        "supersedes",
+        "reuses-material",
+        "shares-listener"
+       ]
+      },
+      "why": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    }
+   ]
+  },
+  "reading": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/envelope"
+    },
+    {
+     "type": "object",
+     "required": [
+      "of",
+      "kind",
+      "says",
+      "because",
+      "changes"
+     ],
+     "properties": {
+      "event": {
+       "const": "reading"
+      },
+      "of": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "pattern": "^[0-9a-f]{64}$"
+      },
+      "kind": {
+       "enum": [
+        "interim",
+        "reading",
+        "stage-read",
+        "exploratory",
+        "ruling"
+       ]
+      },
+      "says": {
+       "type": "string",
+       "minLength": 1
+      },
+      "because": {
+       "type": "string",
+       "minLength": 1
+      },
+      "changes": {
+       "type": [
+        "string",
+        "array",
+        "object"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "register": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/envelope"
+    },
+    {
+     "type": "object",
+     "required": [
+      "title",
+      "spec_hash",
+      "spec",
+      "experiments"
+     ],
+     "properties": {
+      "event": {
+       "const": "register"
+      },
+      "title": {
+       "type": "string",
+       "minLength": 1
+      },
+      "spec_hash": {
+       "type": "string",
+       "minLength": 1
+      },
+      "spec": {
+       "type": "object",
+       "required": [
+        "question",
+        "arms",
+        "material",
+        "metric",
+        "resolves",
+        "cannot_answer",
+        "decision_rule",
+        "instrument",
+        "listener",
+        "positive_control",
+        "reference_anchor"
+       ],
+       "properties": {
+        "question": {
+         "type": "string",
+         "minLength": 1
+        },
+        "arms": {
+         "type": [
+          "object",
+          "array"
+         ]
+        },
+        "material": {
+         "type": [
+          "string",
+          "object",
+          "array"
+         ]
+        },
+        "metric": {
+         "type": [
+          "string",
+          "object",
+          "array"
+         ]
+        },
+        "resolves": {
+         "type": [
+          "string",
+          "array"
+         ]
+        },
+        "cannot_answer": {
+         "type": [
+          "string",
+          "array"
+         ]
+        },
+        "decision_rule": {
+         "anyOf": [
+          {
+           "type": "object",
+           "minProperties": 1
+          },
+          {
+           "const": "DESCRIPTIVE"
+          }
+         ]
+        },
+        "instrument": {
+         "type": "object",
+         "required": [
+          "profile",
+          "version"
+         ],
+         "properties": {
+          "profile": {
+           "type": "string",
+           "minLength": 1
+          },
+          "version": {
+           "type": [
+            "integer",
+            "string"
+           ]
+          }
+         }
+        },
+        "listener": {
+         "type": [
+          "string",
+          "object",
+          "array"
+         ]
+        },
+        "positive_control": {
+         "type": "string",
+         "minLength": 1,
+         "description": "the thing itself, or a string starting 'none:' that says why not"
+        },
+        "reference_anchor": {
+         "type": "string",
+         "minLength": 1,
+         "description": "the thing itself, or a string starting 'none:' that says why not"
+        },
+        "screening": {
+         "type": [
+          "string",
+          "object",
+          "array"
+         ]
+        }
+       }
+      },
+      "experiments": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1
+       }
+      }
+     }
+    }
+   ]
+  },
+  "result": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/envelope"
+    },
+    {
+     "type": "object",
+     "required": [
+      "status",
+      "measured",
+      "judged",
+      "available",
+      "note"
+     ],
+     "properties": {
+      "event": {
+       "const": "result"
+      },
+      "status": {
+       "enum": [
+        "complete",
+        "partial",
+        "withdrawn"
+       ]
+      },
+      "measured": {
+       "type": "object"
+      },
+      "judged": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "available": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "note": {
+       "type": "string",
+       "minLength": 1
+      },
+      "verdict": {
+       "type": "string",
+       "minLength": 1
+      },
+      "artifacts": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "required": [
+         "sha256",
+         "role"
+        ],
+        "properties": {
+         "path": {
+          "type": "string",
+          "minLength": 1
+         },
+         "uri": {
+          "type": "string",
+          "minLength": 1
+         },
+         "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+         },
+         "role": {
+          "type": "string",
+          "minLength": 1
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  "retire": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/envelope"
+    },
+    {
+     "type": "object",
+     "required": [
+      "kind",
+      "note"
+     ],
+     "properties": {
+      "event": {
+       "const": "retire"
+      },
+      "kind": {
+       "enum": [
+        "void",
+        "abandoned",
+        "superseded",
+        "retired"
+       ]
+      },
+      "note": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    }
+   ]
+  },
+  "unlink": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/envelope"
+    },
+    {
+     "type": "object",
+     "required": [
+      "to",
+      "kind",
+      "why"
+     ],
+     "properties": {
+      "event": {
+       "const": "unlink"
+      },
+      "to": {
+       "type": "string",
+       "minLength": 1
+      },
+      "kind": {
+       "enum": [
+        "depends-on",
+        "follows-up",
+        "references",
+        "evaluates",
+        "rests-on",
+        "refines",
+        "contradicts",
+        "corroborates",
+        "supersedes",
+        "reuses-material",
+        "shares-listener"
+       ]
+      },
+      "why": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    }
+   ]
+  },
+  "unretire": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/envelope"
+    },
+    {
+     "type": "object",
+     "required": [
+      "note"
+     ],
+     "properties": {
+      "event": {
+       "const": "unretire"
+      },
+      "note": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    }
+   ]
+  }
+ }
+}

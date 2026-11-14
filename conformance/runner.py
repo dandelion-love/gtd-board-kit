@@ -78,6 +78,7 @@ class Family(Enum):
     NOTIFY = "N"            # Notifications (when notify_get is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
+    RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -91,6 +92,7 @@ HEADINGS = {
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
     Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
+    Family.RECORDS: "Register records",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -115,6 +117,7 @@ LEVEL_OF = {
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
     Family.NOTIFY: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
+    Family.RECORDS: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -1866,6 +1869,67 @@ def check_page_cases(rep: Report, page_cmd: str | None) -> None:
     rep.check("RP3", not bad, "; ".join(bad[:4]), f"{len(cases['merge'])} cases, {who}")
 
 
+def _record_case_result(case: dict, op: str, record_cmd: str | None) -> dict:
+    """One register-record case through the reference implementation or --record-cmd."""
+    inp = {k: v for k, v in case.items() if k not in ("name", "what", "expect")}
+    inp["op"] = op
+    if record_cmd:
+        proc = subprocess.run(record_cmd, shell=True, input=json.dumps(inp), capture_output=True,
+                              text=True, timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --record-cmd"}
+    sys.path.insert(0, str(HERE))
+    import register_records as rr
+    return rr.answer(inp)
+
+
+def check_record_cases(rep: Report, record_cmd: str | None) -> None:
+    """RR1 to RR4: the golden register-record cases, against the reference or a server's own
+    record code (--record-cmd)."""
+    cases = json.loads((HERE / "record_cases.json").read_text(encoding="utf-8"))["cases"]
+    who = "--record-cmd" if record_cmd else "the reference register records"
+    bad = [f"{c['name']}: {got.get('refused')}" for c in cases["validate"]
+           if (got := _record_case_result(c, "validate", record_cmd)).get("refused") != c["expect"]["refused"]]
+    rep.check("RR1", not bad, "; ".join(bad[:4]), f"{len(cases['validate'])} cases, {who}")
+    bad = [c["name"] for c in cases["upgrade"]
+           if _record_case_result(c, "upgrade", record_cmd).get("record") != c["expect"]["record"]]
+    rep.check("RR2", not bad, "; ".join(bad[:4]), f"{len(cases['upgrade'])} cases, {who}")
+    folded = [(c, _record_case_result(c, "fold", record_cmd)) for c in cases["fold"]]
+    bad = [c["name"] for c, got in folded
+           if [(got.get("state") or {}).get(k) for k in ("state", "verdict")]
+           != [c["expect"]["state"], c["expect"]["verdict"]]]
+    rep.check("RR3", not bad, "; ".join(bad[:4]), f"{len(cases['fold'])} cases, {who}")
+    bad = [c["name"] for c, got in folded if got.get("shown") != c["expect"]["shown"]]
+    rep.check("RR4", not bad, "; ".join(bad[:4]), f"{len(cases['fold'])} cases, {who}")
+
+
+def check_registers(rep: Report, tools: dict, record_cmd: str | None) -> None:
+    """RR1 to RR6 against a server: the cases through --record-cmd, and the two by hand when
+    the Registers group or a sync is offered."""
+    offered = "record_append" in tools or "record_get" in tools
+    syncs = "work_items_sync" in tools or "work_items_plan" in tools
+    if record_cmd:
+        check_record_cases(rep, record_cmd)
+    elif offered or syncs:
+        for cid in ("RR1", "RR2", "RR3", "RR4"):
+            rep.manual(cid, "run the golden register-record cases against the server's own code: --record-cmd CMD")
+    else:
+        for cid in ("RR1", "RR2", "RR3", "RR4"):
+            rep.na(cid, "the Registers group and the Repo setup group are not offered")
+    if offered:
+        rep.manual("RR5", "record_append on a scratch repo: a valid record lands with its envelope, an invalid "
+                          "one writes nothing, a retry with the same eid writes nothing, a result is refused")
+    else:
+        rep.na("RR5", "the Registers group (record_get, record_append) is not offered")
+    if syncs:
+        rep.manual("RR6", "sync a scratch repo's register: issue type, kind and state labels, invalid-record "
+                          "label, Status, fields and a Record link to the page; a second sync plans no edit")
+    else:
+        rep.na("RR6", "the Repo setup group (work_items_plan, work_items_sync) is not offered")
+
+
 def check_links(rep: Report, tools: dict, link_cmd: str | None) -> None:
     """L1 and L2: typed links, when the server offers the Repo setup group. The plan is
     a read tool, so a caller at work sees it even where the fenced sync is hidden; a
@@ -3064,6 +3128,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
     ap.add_argument("--page-cmd", help="a command that answers one record-page case from stdin (RP1 to RP3)")
+    ap.add_argument("--record-cmd", help="a command that answers one register-record case from stdin (RR1 to RR4)")
     ap.add_argument("--github-token-env",
                     help="a read-only GitHub token for the sandbox repo, so N2 reads the ping's author from GitHub")
     ap.add_argument("--artifact-source-url",
@@ -3081,6 +3146,7 @@ def main(argv: list[str]) -> int:
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
         check_page_cases(rep, a.page_cmd)
+        check_record_cases(rep, a.record_cmd)
     seen: list[str] = []
     secrets: list[str] = []
 
@@ -3134,6 +3200,7 @@ def main(argv: list[str]) -> int:
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
+                check_registers(rep, _tools, a.record_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)

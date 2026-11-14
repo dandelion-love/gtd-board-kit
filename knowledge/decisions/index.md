@@ -12,3 +12,4 @@
 * [Requests between projects go through an intake and get an ack](intake-and-acks.md) - intake_list and intake_ack, observe-first intake lanes, and a needs flag when no ack comes
 * [Notify a person only when they must act](notify-only-when-a-person-must-act.md) - Three reasons to push, through GitHub's mention or review request; new issues wait in views; an optional Web Push channel copies asks, with actions that only open or defer
 * [Titles and summaries say what an item delivers](clear-titles-and-summaries.md) - Verb-first outcome titles with no prefix, subtitle, list or code; bodies open with who it helps and what changes; mechanical failures make a story not ready
+* [Register records have one schema, upgraded on read](register-records-have-one-schema.md) - An envelope and per-event JSON Schemas in the kit, validated by every writer, older records upgraded on read, one fold and one GitHub view
