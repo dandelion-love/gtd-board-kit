@@ -3,7 +3,7 @@ name: board-lane
 description: Run one tick of a standing lane, or resume every lane's schedule after a session starts, through the gtd MCP server. A lane is recurring, pre-approved work declared in .gtd/BOARD.local.md. Use when a scheduled prompt says "run lane X", at session start in a repo with lanes, or when asked to start, hold, check or stop a lane.
 metadata:
   author: gtd-board-kit
-  version: 0.6.0
+  version: 0.7.0
 ---
 
 # Run a standing lane
@@ -66,8 +66,8 @@ does lands on an issue.
    it on (claim or `capture`). Answer the rest where written. Renew the lane item, and each item whose long
    job it started that has no marker yet, only when under two cadences of lease remain.
    The lease is the heartbeat (`resources-and-long-jobs.md`, Lane item size).
-3. **Recover before acting.** Check the repo, git history, the board and any marker
-   files before repeating an outside action: a previous tick may have done it.
+3. **Recover before acting.** Check the repo, git, the board and marker files before
+   repeating an outside action: a previous tick may have done it.
 4. **Work.** Take items in the order of the lane's `queue` view and keep their ETA
    (`board-report`, Queue order and ETA). Do only what `may` lists, never `never`. Each concrete item gets
    its own `item_claim` and the normal `board-claim` path (branch, PR, no merge without a merge grant).
@@ -76,9 +76,12 @@ does lands on an issue.
 5. **Questions don't stop the lane** (rule 7): ask on the item the question is about
    (`board-needs-person`) and carry on with the rest. Put `needs:*` on the lane item
    only to ask whether the lane should keep running; that holds it.
-6. **Speak only on change.** A tick that found nothing reports nothing.
-7. A person's direct ask comes before a tick; with a `resource` it jumps the
-   queue (`resources-and-long-jobs.md`).
+6. **Speak only on change.** A quiet tick reports nothing.
+7. A person's direct ask comes before a tick (a `resource` jumps the queue).
+
+## Finished items
+
+Finished items: `stale-done.md`.
 
 ## Long jobs, resources, board outages, intake
 
@@ -96,5 +99,5 @@ close a session while a lane's long job runs** in it.
 | `hold` | ticks only renew; no new job starts, a running one runs on; a person lifts it |
 | `off` | no new job starts; the next tick with no running job deletes the schedule and releases the lane item |
 
-Fast stop for a person, no PR: close the lane item (`off`) or add any `needs:*` label
-(`hold`). Never undo either yourself.
+Fast stop for a person, no PR: close the lane item (`off`) or add any `needs:*`
+label (`hold`). Never undo either yourself.

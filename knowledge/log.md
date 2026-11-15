@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-15
+
+* **Added**: closing finished items (kit 0.46.0). Items stayed open after their work merged into an integration branch, where GitHub never closes them, so a lab and a sibling repo held about 167 stale open issues. New optional Stale done group in `server-spec/tools.md`: `stale_done` (read) gives each open item with merged work a verdict `close` or `keep` with fixed reasons; `item_close_done` (work) re-checks, ticks the evidence boxes, posts one signed comment and closes, and refuses otherwise. A criterion is met only by its own evidence, so a PR that merely mentions an item closes nothing; epics, standing, `needs:*`, `agent:human`, `agent-proposed`, held items and mirrors are never closed. A repo turns the sweep off or narrows landed branches in `.gtd/BOARD.local.md`. Conformance gains SD1, SD2 and SD3 by hand. Skills: board-claim 0.9.0, board-lane 0.7.0.
+
 ## 2026-11-14
 
 * **Added**: a public work repo can reach the server without committing its address (kit 0.43.0). `mcp_url` was the only place for the address, so a public repo either published it or told a fresh agent to stop and ask. Agents now resolve it as `$GTD_MCP_URL`, then the clone's git config `gtd.mcpUrl`, then a user-level map `~/.config/gtd/servers.json` keyed by the board owner, then `mcp_url` in the context file, which may be absent or `"local"` in a public repo; the first source present wins and a malformed one is an error. New `tools/gtd_server.py` (the resolver, naming every place it looked in when none answers) and `tools/init_checkout.py` (records the answer in the clone's git config, never printing it). `public_guard.py --repo DIR` guards a work repo's staged files with the denylist plus the resolved host. `agent-sign-in`, `ONBOARDING.md`, the repo-context spec and `board-onboard` 0.6.0 say so. Agent-side only: no server behaviour or conformance check changes.

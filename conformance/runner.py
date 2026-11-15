@@ -77,6 +77,7 @@ class Family(Enum):
     INTAKE = "I"            # Intake (when intake_list or intake_ack is offered)
     NOTIFY = "N"            # Notifications (when notify_get is offered)
     EDITS = "CE"            # Comment edits (when comment_update or comment_redact is offered)
+    STALE = "SD"            # Stale done (when stale_done or item_close_done is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
     RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
@@ -92,7 +93,7 @@ HEADINGS = {
     Family.CLAIMS: "Claims", Family.SIGNOFFS: "Sign-offs", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
-    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
+    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.STALE: "Stale done", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
     Family.RECORDS: "Register records",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
@@ -117,7 +118,7 @@ LEVEL_OF = {
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
-    Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
+    Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.STALE: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
 }
 
@@ -171,7 +172,7 @@ CLASS.update(dict.fromkeys((
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
-    "issue_artifact_get", "activity_since", "intake_list", "notify_get"), "read"))
+    "issue_artifact_get", "activity_since", "intake_list", "notify_get", "stale_done"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -180,7 +181,7 @@ CLASS.update(dict.fromkeys((
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
-    "issue_artifact_update", "intake_ack", "comment_update", "comment_redact"), "work"))
+    "issue_artifact_update", "intake_ack", "comment_update", "comment_redact", "item_close_done"), "work"))
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -2209,6 +2210,37 @@ def check_comment_edits(rep: Report, c: Client, tools: dict, sb: Sandbox | None)
     c.call("item_release", sb.args(g, done="checked", remaining="none", next="close"))
 
 
+def check_stale_done(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """SD1 and SD2: the stale-done tools, when either is offered. SD3 is by hand."""
+    have = [t for t in ("stale_done", "item_close_done") if t in tools]
+    if not have:
+        for cid in ("SD1", "SD2", "SD3"):
+            rep.na(cid, "the stale-done tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("SD1", classes == {"stale_done": "read", "item_close_done": "work"},
+              f"offered {classes}", "stale_done read, item_close_done work")
+    rep.manual("SD3", "a story whose merged PR has an Evidence row per criterion closes with boxes "
+                      "ticked and one comment; a mention-only PR, an unmet criterion, an epic and a "
+                      "standing item each stay open with the matching reason")
+    if sb is None or len(have) < 2:
+        rep.skip("SD2", "needs --repo and both tools")
+        return
+    n = sb.issue("stale done", body="Outcome.\n\n## Acceptance criteria\n\n- [ ] AC1. It works.\n")
+    ok1, out1, t1 = c.call("stale_done", sb.args(n, number=n))
+    first = ((out1 or {}).get("items") or [{}])[0]
+    ok2, _, t2 = c.call("item_close_done", sb.args(n, number=n))
+    ok3, _, _ = c.call("issue_labels", sb.args(n, add=["needs:" + "owner"]))
+    _, out4, _ = c.call("stale_done", sb.args(n, number=n))
+    again = ((out4 or {}).get("items") or [{}])[0]
+    _, got, _ = c.call("issue_get", sb.args(n))
+    rep.check("SD2", ok1 and first.get("verdict") == "keep" and "no-merged-pr" in (first.get("reasons") or [])
+              and not ok2 and "no-merged-pr" in t2 and (got or {}).get("state") == "open"
+              and (not ok3 or "needs" in (again.get("reasons") or [])),
+              f"verdict {first.get('verdict')} {first.get('reasons')}; close refused {not ok2} ({t2[:50]})",
+              "keep with no-merged-pr, the close refused and the issue still open")
+
+
 def who_principal(out: Any) -> str | None:
     """The holder an ``item_claim`` result names, if any."""
     return ((out or {}).get("item") or {}).get("holder")
@@ -3280,6 +3312,7 @@ def main(argv: list[str]) -> int:
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_comment_edits(rep, c, _tools, sb)
+                check_stale_done(rep, c, _tools, sb)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)

@@ -26,6 +26,7 @@ These hold for every deployment. Each has a conformance check in [conformance](c
 
 - S10. `issue_comment` and every free-text tool refuse a body carrying a record marker.
   `pr_open` also refuses a body carrying a `gtd-pr` marker.
+- S10c. `item_close_done` closes only an open issue its own verdict calls `close`, never a pull request, an epic, a standing item or one held by another principal, and edits only a criterion's box and pointer.
 - S10b. `comment_update` and `comment_redact` edit only a comment the server wrote, refuse a marker in their text, and never remove or rewrite a sign-off or the identity fields of a record.
 - S11. Text from issues, comments and boards is data. The server never follows
   instructions found in it, and tool descriptions say so where an agent might.
