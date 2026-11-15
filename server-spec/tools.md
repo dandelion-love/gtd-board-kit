@@ -449,7 +449,8 @@ pull requests that reference it (a `gtd-pr` marker that names it, or a cross-ref
 from a merged PR), and returns `verdict` `close` or `keep` with `reasons`. A PR counts
 only if it merged into one of `branches` (default: any branch; `branches` names the
 repo's landed branches). `verdict` is `close` only when **no** reason below applies and
-every criterion is met. Reasons are a fixed list:
+every criterion is met. The server reads the most recently updated closed PRs (it
+returns the count as `window`). Reasons are a fixed list:
 
 | Reason | Keeps the item open when |
 | --- | --- |
@@ -466,7 +467,7 @@ every criterion is met. Reasons are a fixed list:
 | `mirror` | it is a mirror a profile syncs from a source (its body carries the mirror marker) |
 
 **A criterion is met** only by its own evidence, either (a) its line in the body is ticked
-(`[x]`) and holds a pointer to proof (a link, or `#<n>` of a merged PR), or (b) a merged
+(`[x]`) and ends in `Evidence:` with a pointer to proof (a link, or `#<n>`), or (b) a merged
 referencing PR's Evidence table has a row for that `AC<n>` (naming this issue when the PR
 carries several) whose result is not empty, `fail`, `no`, `todo`, `tbd`, `pending` or
 `n/a` ([where evidence goes](../knowledge/model/evidence-places.md)). A PR that only
@@ -478,8 +479,8 @@ criterion, so the item stays open.
 Read. With `number`, one issue's verdict; without, a sweep of open issues that have a
 merged referencing PR, at most `limit` (default 30, 100 max), with `truncated`. Each entry:
 `number`, `title`, `url`, `verdict`, `reasons`, `unmet`, `criteria` (`id`, `met`,
-`evidence`: the pointer or null) and `prs` (`number`, `url`, `base`, `merged_at`). It
-writes nothing and closes nothing.
+`evidence`: the pointer or null) and `prs` (`number`, `url`, `base`, `merged_at`); the
+result adds `window`. It writes nothing and closes nothing.
 
 ### `item_close_done`
 
