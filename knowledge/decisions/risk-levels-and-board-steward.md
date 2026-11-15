@@ -26,6 +26,17 @@ Every act has one level. Name it in the claim or report (`risk: R0|R1|R2`).
 | R1 reversible, outward | Undoable but others can see it or it costs something (comments on shared repos, spend above the lane budget, notifications to a person). | Proceed inside a standing grant or budget; otherwise ask once. |
 | R2 irreversible or outward | Cannot be undone, or reaches users or money outside the team (production deploy, merge to the default branch, deleting data, public posts, secrets, policy changes). | Ask. Stop that item until a person answers. |
 
+## A risk call carries its case
+
+Every R1 or R2 call states, in the claim, report or ask:
+
+- **Rationale**: why this level and not a lower one.
+- **Mitigations**: ways it could be made safer, each with the level it would reach (a dry run, a branch, a smaller scope, a backup, a staged rollout).
+- **Evidence**: proof a mitigation was applied and worked (a test run, a plan-mode output, a diff, a restore check), as a link or quoted result.
+- **Confidence**: high, medium or low, marked *calculated* (derived from evidence, such as tests passed or rows affected) or *researched* (from documentation or prior cases, with the source). A call with low confidence is treated one level higher.
+
+An agent proposes the mitigations before asking a person; a person is asked only when the level stays R2 after the mitigations. R0 acts need only the recorded undo.
+
 When two levels fit, take the higher. A person may name a standing grant that lowers a
 class of act by one level; grants live only in the repo's `.gtd/BOARD.local.md` on the
 default branch.
