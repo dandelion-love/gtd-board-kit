@@ -27,8 +27,9 @@ beyond its grants. A real folder in `.claude/skills` replaces the kit skill of t
    your own work (`board-review`).
 6. **Report, don't go quiet.** `item_report` at each milestone and the end.
 7. **Decide; ask, never guess.** Act on a mandate given, never re-approve it: decide
-   reversible choices, record each and its undo. Ask only for a stop
-   reason (`board-needs-person`), then stop that item (a lane goes on).
+   reversible choices (risk levels R0 and R1, see
+   `knowledge/decisions/risk-levels-and-board-steward.md`), record each and its undo. Ask only
+   for R2 acts or another stop reason (`board-needs-person`), then stop that item (a lane goes on).
 8. **New work you discover** goes in with `capture` and `agent-proposed`, never straight
    to `run-agent` or `agent-ready`. Title verb first, summary first.
 9. **Hard limits.** Work on a branch (`gtd/issue-<n>`), never the default. Hand back with `pr_open`. Merge only if a merge grant names
