@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.8.2
+  version: 0.9.0
 ---
 
 # Claim an item and work it
@@ -21,13 +21,12 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, sessio
 - `explicit`: you were pointed at it. `asked_by` is who pointed you (your person's
   handle, `coordinator`, a thread); `pointed_in` links the message or comment if you have one.
 - `inferred`: an unpointed `agent-ready` pull. The server refuses unless the board Size is
-  XS, S or M and no `agent:<x>` names someone else. **On that refusal, do not retry as
-  `explicit`** unless someone really did point you at it: pick another item or ask.
-- Refused because someone holds it: leave it. Never take over a live lease.
-- Lease: enough for the work, at most 72h; renew it (`board-report`).
-- `branch`: where your commits for it land (`gtd/issue-<number>`, or the combined branch).
-- `session`: one name for this session (its runtime id, or a token made once); no
-  session reviews its own work.
+  XS, S or M and no `agent:<x>` names someone else. **On refusal, do not retry as
+  `explicit`** unless someone really pointed you at it: pick another item or ask.
+- Held: leave it.
+- Lease: enough for the work, at most 72h; renew it.
+- `branch`: where its commits land (`gtd/issue-<number>`, or the combined branch).
+- `session`: one name for this session; no session reviews its own work.
 
 ## Several stories on one branch
 
@@ -37,10 +36,8 @@ them on one integration (release-candidate) branch.
 - **Claim every story you work on**, one `item_claim` each, before its first commit.
   An unclaimed story never gets a commit, even on a combined branch. Refused on one?
   Leave it out of the batch.
-- Each claim has its own lease, reports and release, with its own notes
-  (`board-report`). Dropping a story: take its commits off the branch and release it.
-- The owning session merges others' story branches in unclaimed; a fix commit for a
-  story needs its claim.
+- Each claim has its own lease, reports and release. Dropping a story: take its commits
+  off the branch and release it.
 - The PR lists every story it carries in `pr_open`'s `issues`. Before opening it, check
   each: you hold it (`item_get`), or it reached the combined branch through its own
   merged PR (the evidence for a released item).
@@ -83,10 +80,10 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
      `resolve`, any form) in `body` or commits, even in a rollback note ("release #n").
      Merging would close it.
    - Refused for a missing claim: claim it or take it out. Never route around a refusal.
-   - Work with no issue of its own (a register line, an experiment's result): claim the
-     experiment's issue or the repo's standing chore item (`.gtd/BOARD.local.md`).
+   - Work with no issue of its own (a register line): claim the experiment's issue or the
+     repo's standing chore item (`.gtd/BOARD.local.md`).
 2. No `pr_open` on the server: open it with your own GitHub tool, `Refs #<number>` for
-   each story (`Closes` only as `closes=true` allows), and say so in the ready report.
+   each story (`Closes` only if `closes=true`), and say so in the ready report.
 3. `issue_labels(add=["waiting-for-review"], remove=["agent-running"], …)` and, without a
    bridge, set Status to the review column. Add `agent-review` too to ask another
    session to review it (`board-review`).
@@ -99,4 +96,9 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
    `pr_review_reply(…, resolve=true)` (what changed, the commit), a PR note with
    `issue_comment`. Your own GitHub tool only if neither is offered: it is unsigned.
 
-Never approve or close the issue yourself, and never merge outside step 5.
+## 5. After it merges
+
+Your PR merged into any branch, the server lists `item_close_done`, and `.gtd/BOARD.local.md`
+has no `## Stale done` with `sweep: off`: `stale_done(repo, number, branches=<landed_branches>)`.
+`close`: `item_close_done(repo, number, session)`. `keep`: leave it open and report the
+reasons. Never close any other way, never approve, never merge outside Hand back step 5.

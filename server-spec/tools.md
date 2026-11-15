@@ -208,6 +208,7 @@ that offers the capability uses the name.
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
 | Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work); optional `pr_merge` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
 | Comment edits | `comment_update` (work): `repo`, `comment_id`, `body`, `session?`; `comment_redact` (work): `repo`, `comment_id`, `find`, `replace`, `session?` | Correcting a comment the server wrote, through the server, so the edit is signed instead of made with `gh` under a person's credentials. See [editing comments](#editing-comments) |
+| Stale done | `stale_done` (read): `repo`, `number?`, `branches?`, `limit?`; `item_close_done` (work): `repo`, `number`, `branches?`, `session?` | Finding open items whose merged work meets every acceptance criterion, and closing one only when the server's own check says so. See [closing finished items](#closing-finished-items) |
 | Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
@@ -431,6 +432,74 @@ meaning changing.
 - It appends an `edits` entry to the comment's sign-off as `comment_update` does, with
   `"redacted": true`. A record that carries no sign-off gets one added, as above.
 - It returns `repo`, `number`, `comment_id`, `url`, `replaced` and `signoff`.
+
+## Closing finished items
+
+Work often lands where GitHub never closes the item: a PR into an integration branch
+carries no closing keyword that acts, and `Closes` is written only for verified work into the
+default branch ([opening pull requests](#opening-pull-requests)). Items then stay open
+after their work is done. `stale_done` finds them and `item_close_done` closes one. The
+rule is one function of the issue and its merged PRs, so the sweep and a worker that just
+saw its PR merge reach the same verdict.
+
+### The verdict
+
+For an open issue the server reads its body, labels, sub-issues, claim fold and the merged
+pull requests that reference it (a `gtd-pr` marker that names it, or a cross-reference
+from a merged PR), and returns `verdict` `close` or `keep` with `reasons`. A PR counts
+only if it merged into one of `branches` (default: any branch; `branches` names the
+repo's landed branches). `verdict` is `close` only when **no** reason below applies and
+every criterion is met. The server reads the most recently updated closed PRs (it
+returns the count as `window`). Reasons are a fixed list:
+
+| Reason | Keeps the item open when |
+| --- | --- |
+| `no-merged-pr` | no merged PR references it |
+| `no-criteria` | the body has no numbered `AC<n>` criteria to meet |
+| `unmet-criteria` | a criterion has no evidence (`unmet` lists the ids) |
+| `epic` | its Issue Type or `kind:` is epic: a person closes an epic, after its sub-issues and its outcome check |
+| `open-sub-issues` | any sub-issue is open |
+| `standing` | it carries `standing` (a lane's item, a standing chore) |
+| `needs` | it carries any `needs:*` label |
+| `human` | it carries `agent:human` |
+| `proposed` | it carries `agent-proposed`: no person has decided it |
+| `held` | another principal holds a live claim |
+| `mirror` | it is a mirror a profile syncs from a source (its body carries the mirror marker) |
+
+**A criterion is met** only by its own evidence, either (a) its line in the body is ticked
+(`[x]`) and ends in `Evidence:` with a pointer to proof (a link, or `#<n>`), or (b) a merged
+referencing PR's Evidence table has a row for that `AC<n>` (naming this issue when the PR
+carries several) whose result is not empty, `fail`, `no`, `todo`, `tbd`, `pending` or
+`n/a` ([where evidence goes](../knowledge/model/evidence-places.md)). A PR that only
+mentions the item, such as a planning or skeleton PR naming future work, meets no
+criterion, so the item stays open.
+
+### `stale_done`
+
+Read. With `number`, one issue's verdict; without, a sweep of open issues that have a
+merged referencing PR, at most `limit` (default 30, 100 max), with `truncated`. Each entry:
+`number`, `title`, `url`, `verdict`, `reasons`, `unmet`, `criteria` (`id`, `met`,
+`evidence`: the pointer or null) and `prs` (`number`, `url`, `base`, `merged_at`); the
+result adds `window`. It writes nothing and closes nothing.
+
+### `item_close_done`
+
+Work. Re-runs the verdict for `number` (with the same `branches`) and **refuses**, naming
+the reasons, unless it is `close`; it never closes a pull request. Then, in this order: it
+ticks each criterion met by (b) and appends the pointer, editing only boxes and pointers
+and never a criterion's text; it posts one signed comment naming the merged PRs and each
+criterion's evidence; it closes the issue as `completed`. It returns `number`, `url`,
+`closed`, `prs` and `criteria`. A close is undone with `issue_reopen`; the result is the
+record an undo needs.
+
+### Skills and a repo's choice
+
+The kit's skills call `item_close_done` for an item they just handed back, and a lane may
+sweep with `stale_done` ([board-claim](../skills/board-claim/SKILL.md), [board-lane](../skills/board-lane/SKILL.md)).
+The server does not read `.gtd/BOARD.local.md`: a repo turns the sweep off, or narrows
+the landed branches, in a `## Stale done` block there (`sweep: on|off`, `landed_branches:`), and the
+skills obey it, passing `branches`. A repo whose own rules forbid an agent to close an item
+sets `sweep: off`.
 
 ## Issue artifacts
 

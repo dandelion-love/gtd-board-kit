@@ -333,6 +333,17 @@ these ([editing comments](tools.md#editing-comments)). CE2 to CE4 need a sandbox
 | CE4 | `comment_redact` on a claim record's `note` text replaces it and returns `replaced` 1, and the record still folds to the same state; it refuses, naming the field, a `find` that sits in the record's `by` or `lease_until`; it refuses a `find` with no match and a `replace` holding `<!--` |
 | CE5 | (by hand) Either tool refuses, with a reason, a comment by a login that is not a record author; and, given the id of a review comment on a pull request's diff, refuses and names `pr_review` |
 
+## Stale done (when offered)
+
+A server that lists `stale_done` or `item_close_done` in `tools/list` must also pass
+these ([closing finished items](tools.md#closing-finished-items)). SD2 needs a sandbox repo.
+
+| Id | Check |
+| --- | --- |
+| SD1 | `tools/list` has both `stale_done` (class `read`) and `item_close_done` (class `work`) |
+| SD2 | For a fresh open story with criteria and no merged PR, `stale_done(number)` returns `verdict` `keep` with `no-merged-pr`, and `item_close_done` refuses naming it and leaves the issue open; with a `needs:*` label added, `reasons` also holds `needs` |
+| SD3 | (by hand) A story whose merged PR carries an Evidence row for every criterion gets `close`, and `item_close_done` ticks the boxes, posts one signed comment and closes it `completed`; a story whose only merged PR mentions it, one with an unmet criterion, an epic, and a `standing` item each get `keep` with the matching reason |
+
 ## Notifications (when offered)
 
 A server that lists `notify_get` in `tools/list` must also pass these
