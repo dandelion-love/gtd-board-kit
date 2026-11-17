@@ -16,8 +16,10 @@ not an atomic reservation and does not authorize a start.
    and keep it in session-private secure storage, together with a stable request ID.
    Do not put proof, capability or credentials in a board record, log or shared file.
    Use `resource_acquire` for an immediate checkout, or `resource_enqueue` and bounded
-   `resource_wait` for an ordered wait, following the discovered schemas. Start only
-   after receiving an active committed grant and only through the participating
+   `resource_wait` for an ordered wait, following the discovered schemas. A granted
+   wait is a notification: call `resource_wait_recover` with the same request ID and
+   proof to obtain the active grant. Start only after receiving that committed grant
+   and only through the participating
    launcher and workload boundary configured for that resource. A timeout is not a
    grant and does not cancel a wait. A lane tick need not wait: report the pending
    request and resume it on a later tick with the same private proof.
