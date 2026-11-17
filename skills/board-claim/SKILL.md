@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.9.0
+  version: 0.10.0
 ---
 
 # Claim an item and work it
@@ -30,17 +30,14 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, sessio
 
 ## Several stories on one branch
 
-Your unit of work may be one or more stories, and the session that owns them may combine
-them on one integration (release-candidate) branch.
+A session may combine its stories on one integration branch.
 
 - **Claim every story you work on**, one `item_claim` each, before its first commit.
-  An unclaimed story never gets a commit, even on a combined branch. Refused on one?
-  Leave it out of the batch.
+  Refused on one? Leave it out.
 - Each claim has its own lease, reports and release. Dropping a story: take its commits
   off the branch and release it.
 - The PR lists every story it carries in `pr_open`'s `issues`. Before opening it, check
-  each: you hold it (`item_get`), or it reached the combined branch through its own
-  merged PR (the evidence for a released item).
+  each: you hold it (`item_get`), or its own merged PR brought it to the branch.
 
 ## 2. Show it on the board
 
@@ -60,6 +57,8 @@ them on one integration (release-candidate) branch.
 - The repo's own skill for the work and the PR body, if any, wins.
 - Scope is the issue as claimed (in a lane too). A new ask outside it: `capture` it with
   `agent-proposed`; never widen this item.
+- Before starting work on a shared resource, follow [resource checkout](resources.md).
+  An item claim does not reserve a resource.
 - Stuck on something only a person can settle: `board-needs-person`.
 
 ## Grants (BOARD.md rule 9)
@@ -78,8 +77,8 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
      `base` is the default branch. Into a combined branch: `closes=false`.
    - No `gtd-pr` marker, and no closing keyword before an issue (`close`, `fix`,
      `resolve`, any form) in `body` or commits, even in a rollback note ("release #n").
-     Merging would close it.
-   - Refused for a missing claim: claim it or take it out. Never route around a refusal.
+
+   - Missing claim: claim it or take it out; never route around a refusal.
    - Work with no issue of its own (a register line): claim the experiment's issue or the
      repo's standing chore item (`.gtd/BOARD.local.md`).
 2. No `pr_open` on the server: open it with your own GitHub tool, `Refs #<number>` for

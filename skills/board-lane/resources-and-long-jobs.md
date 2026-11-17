@@ -21,17 +21,12 @@ first. Optional lane keys used here: `resource`, `capacity`, `epics`, `on_board_
 
 ## Resources
 
-A lane that owns something only one job (or a few) can use at once names it:
-`resource: <name>` and `capacity: <n>` (default 1). The lane's queue is then the
-resource's queue.
-
-- Start a job only while fewer than `capacity` of the lane's jobs are running.
-  `capacity` counts this lane's jobs only. If anything else can use the resource (a
-  person, another lane), the repo names a `busy_check`: a command in the repo that exits
-  0 when the resource is free. Run it before each start and start nothing on non-zero.
-- A person's direct ask that needs the resource jumps the queue: it starts at the next
-  job boundary (when a running job ends), not by killing one, unless the person says to
-  stop that job.
+A lane names a shared resource in its local configuration. Before starting a job,
+follow [resource checkout](../board-claim/resources.md): the lane's own count, queue
+and work-item claim are not a reservation. A `busy_check` can detect some activity,
+but cannot exclude a competing start; never use it as the checkout. Use the server's
+queue for a shared resource even when a direct ask takes priority in the lane's work
+order. Do not jump an existing resource queue or interrupt a job without authorization.
 - **An idle resource is a question, not an answer.** The lane's `queue` shows only what
   someone already put there, so an empty queue does not prove there is nothing to run.
   A tick that finds the resource idle reads the open items under the epics the lane

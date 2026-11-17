@@ -3,7 +3,7 @@ name: board-lane
 description: Run one tick of a standing lane, or resume every lane's schedule after a session starts, through the gtd MCP server. A lane is recurring, pre-approved work declared in .gtd/BOARD.local.md. Use when a scheduled prompt says "run lane X", at session start in a repo with lanes, or when asked to start, hold, check or stop a lane.
 metadata:
   author: gtd-board-kit
-  version: 0.7.0
+  version: 0.8.0
 ---
 
 # Run a standing lane
@@ -28,8 +28,8 @@ the `policy` version. The tick may claim it at once (`explicit`, as above). Anyt
 
 ## Resume: at session start, and at least every 6 days
 
-Session schedules die with the session and expire after 7 days. The SessionStart hook
-prints the resume list into every new session, so any session resumes:
+Schedules die with the session and expire after 7 days. The SessionStart hook prints
+the resume list, so any session resumes:
 
 1. `python3 .gtd/kit/tools/lanes.py resume` lists each lane, its switch and cadence.
 2. For each lane with switch `auto`, `observe` or `hold` (held lanes keep renew-only
@@ -44,9 +44,9 @@ prints the resume list into every new session, so any session resumes:
    schedule it. `standing`: no ready check, and it stays open.
 3. Schedule with whatever your runtime has, with only a pointer as the prompt:
    `Run lane <name> as .gtd/BOARD.local.md defines it.` Never copy the rules in.
-4. Tell your person in one line which lanes you resumed and which you skipped.
+4. Tell your person which lanes you resumed or skipped.
 
-## The issue is the record
+## Issue record
 
 Every lane is an issue: open with `agent-running` and a live lease while it runs;
 `blocked` while a long job runs; `needs:*` while held; closed when off. Everything a tick
@@ -77,13 +77,14 @@ does lands on an issue.
    (`board-needs-person`) and carry on with the rest. Put `needs:*` on the lane item
    only to ask whether the lane should keep running; that holds it.
 6. **Speak only on change.** A quiet tick reports nothing.
-7. A person's direct ask comes before a tick (a `resource` jumps the queue).
+7. A person's direct ask comes before a tick in the lane's work order; resource
+   checkout follows the server's queue (`resources-and-long-jobs.md`).
 
 ## Finished items
 
 Finished items: `stale-done.md`.
 
-## Long jobs, resources, board outages, intake
+## Long jobs and intake
 
 Read `intake.md` for an intake lane or a cross-project request. Read `resources-and-long-jobs.md` before a lane starts a long job, owns a `resource` (or finds it idle),
 or finds the board down. In short: a tick never waits on a job; a job is
