@@ -182,6 +182,7 @@ CLASS.update(dict.fromkeys((
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
     "issue_artifact_update", "intake_ack", "comment_update", "comment_redact", "item_close_done"), "work"))
+CLASS["intake_check"] = "work"
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -1402,6 +1403,15 @@ def check_activity(rep: Report, c: Client, c2: Client | None, sb: Sandbox, n: in
               f"page 1 {t1[:60] if not ok1 else len(first)} next {bool(cur)}; page 2 {len(second)}")
 
 
+def next_action_rows(res: tuple) -> list[dict]:
+    """The rows of a ``list_next_actions`` result ``(ok, out, text)``, whichever envelope the
+    server uses: a bare list, or ``result``, ``items`` or ``issues``."""
+    out = res[1]
+    if isinstance(out, list):
+        return out
+    return (out or {}).get("result") or (out or {}).get("items") or (out or {}).get("issues") or []
+
+
 def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: dict,
                who: dict | None = None) -> None:
     repo = sb.repo
@@ -1427,9 +1437,7 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     # P6 next actions
     tag = sb.issue("next action", labels=["agent-ready"])
 
-    def next_rows(res):
-        out = res[1]
-        return out if isinstance(out, list) else (out or {}).get("result") or (out or {}).get("items") or []
+    next_rows = next_action_rows
 
     ok, out, text = settle(
         lambda: c.call("list_next_actions", {"repo": repo, "context": "agent-ready", "limit": 100}),
@@ -2138,6 +2146,102 @@ def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
 EDIT_IDS = ("CE1", "CE2", "CE3", "CE4")
 
 
+# ---------------------------------------------------------------------------
+# Intake check (server-spec/tools.md, The intake check)
+# ---------------------------------------------------------------------------
+
+def _intake_check_case_result(case: dict, cmd: str | None) -> dict:
+    if cmd:
+        proc = subprocess.run(cmd, shell=True, input=json.dumps(case), capture_output=True, text=True,
+                              timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --intake-cmd"}
+    sys.path.insert(0, str(HERE))
+    import intake_check as ic
+    if case["op"] == "write":
+        return {"refused": ic.valid(case["result"], case["clear"], case["small"], case["fits"], case.get("note"))}
+    return ic.derive(case["records"], case["created"], case["since"], case["mode"])
+
+
+def check_intake_check_cases(rep: Report, cmd: str | None) -> None:
+    """I6: the golden status and write cases, against the reference or a server's own rules."""
+    cases = json.loads((HERE / "intake_check_cases.json").read_text())["cases"]
+    bad = []
+    for case in cases:
+        got = _intake_check_case_result(case, cmd)
+        want = case["expect"]
+        if any(got.get(k) != v for k, v in want.items()):
+            bad.append(f"{case['name']}: {got}")
+    who = "--intake-cmd" if cmd else "the reference intake check"
+    rep.check("I6", not bad, "; ".join(bad[:4]), f"{len(cases)} cases, {who}")
+
+
+INTAKE_CHECK_MANUAL = {
+    "I10": "with record authors configured and INTAKE_CHECK_MODE=enforce on a scratch repo: a needs-more or decline item gets the "
+           "owner's needs label (held true), is absent from list_next_actions, and an inferred "
+           "claim of it refuses; an unchecked item and a grandfathered one stay pickable; a later pass by "
+           "the checker removes the label the server added; with no record authors configured the mode "
+           "reads watch whatever the setting; a call by the item's holder is refused not-the-checker",
+}
+
+
+def check_intake_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None, cmd: str | None) -> None:
+    """I6 to I10: the intake check, when ``intake_check`` is offered."""
+    if "intake_check" not in tools:
+        for cid in ("I6", "I7", "I8", "I9", "I10"):
+            rep.na(cid, "intake_check is not offered")
+        return
+    if cmd:
+        check_intake_check_cases(rep, cmd)
+    else:
+        rep.manual("I6", "run the golden intake-check cases against the server's own rules: --intake-cmd CMD")
+    for cid, how in INTAKE_CHECK_MANUAL.items():
+        rep.manual(cid, how)
+    cls = tool_class(tools["intake_check"])[0]
+    if sb is None:
+        for cid in ("I7", "I8", "I9"):
+            rep.skip(cid, "needs --repo")
+        return
+    n = sb.issue("intake check")
+    ok_u, out_u, _ = c.call("item_get", sb.args(n))
+    fresh = ((out_u or {}).get("item") or {}).get("intake_check") or {}
+    rep.check("I8", ok_u and fresh.get("status") == "unchecked",
+              f"a new item with no record read {fresh.get('status')!r}, not 'unchecked'")
+    base = sb.args(n, clear=True, small=False, fits=True)
+    bad, _, t_bad = c.call("intake_check", {**base, "result": "maybe", "note": "x"})
+    no_note, _, _ = c.call("intake_check", {**base, "result": "needs-more"})
+    all_no, _, _ = c.call("intake_check", {**base, "result": "pass"})
+    ok1, out1, t1 = c.call("intake_check", {**base, "result": "needs-more", "note": "Conformance run: split it."})
+    ok2, out2, t2 = c.call("intake_check", {**base, "result": "needs-more", "note": "Conformance run: split it."})
+    _, got, _ = c.call("item_get", sb.args(n))
+    chk = ((got or {}).get("item") or {}).get("intake_check") or {}
+    rep.check("I7", cls == "work" and not bad and all(w in t_bad for w in ("pass", "needs-more", "decline"))
+              and not no_note and not all_no and ok1 and (out1 or {}).get("url")
+              and ok2 and (out2 or {}).get("unchanged") is True
+              and chk.get("status") == "needs-more" and chk.get("small") is False
+              and chk.get("clear") is True and chk.get("fits") is True and chk.get("by"),
+              f"class {cls}; bad result refused {not bad}; no note refused {not no_note}; "
+              f"pass with a no refused {not all_no}; write {ok1}; repeat unchanged "
+              f"{(out2 or {}).get('unchanged') if ok2 else t2[:40]}; read {chk.get('status')!r}")
+    mode = chk.get("mode")
+    if mode != "watch":
+        rep.skip("I9", f"the server is in mode {mode!r}; I9 runs in watch mode")
+        return
+    d = sb.issue("intake decline", labels=["agent-ready"])
+    c.call("intake_check", sb.args(d, clear=True, small=True, fits=False, result="decline",
+                                   note="Conformance run: not this board's work."))
+    lbl = settle(lambda: c.call("list_next_actions", {"repo": sb.repo, "context": "agent-ready", "limit": 100}),
+                 lambda res: not res[0] or any(i.get("number") == d for i in next_action_rows(res)))
+    listed = any(i.get("number") == d for i in next_action_rows(lbl))
+    _, held, _ = c.call("issue_get", sb.args(d))
+    labels = [l if isinstance(l, str) else l.get("name") for l in (held or {}).get("labels") or []]
+    rep.check("I9", listed and not any(str(l).startswith("needs:") for l in labels),
+              f"in watch mode a decline left the item listed {listed} and needs-labelled "
+              f"{[l for l in labels if str(l).startswith('needs:')]}")
+
+
 def check_comment_edits(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """CE1 to CE4: the comment edit tools, when either is offered."""
     have = [t for t in ("comment_update", "comment_redact") if t in tools]
@@ -2553,8 +2657,48 @@ def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
     rep.check("C5", not wrong, f"Size part: {'; '.join(wrong)}", f"Size part: {len(cases)} cases")
 
 
-def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
+#: The closed set of Priority levels (knowledge/model/board-fields.md, tools.md Priority).
+PRIORITY_LEVELS = tuple(f"P{i}" for i in range(4))  # built, so no quoted level reads as a check id
+
+
+def check_priority(rep: Report, c: Client, sb: Sandbox, who: dict | None) -> None:
+    """B5 and B6: the closed Priority set, and one agent suggestion into an empty field."""
     proj = sb.project
+    ok, got, _ = c.call("project_get", {"project": proj})
+    fields = {f.get("name"): f for f in ((got or {}).get("fields") or [])}
+    options = [o.get("name") if isinstance(o, dict) else o for o in (fields.get("Priority") or {}).get("options") or []]
+    if not ok or "Priority" not in fields:
+        rep.skip("B5", "the board has no Priority field")
+        rep.skip("B6", "the board has no Priority field")
+        return
+    if not all(level in options for level in PRIORITY_LEVELS):
+        rep.fail("B5", f"the board's Priority options are {options}, not {list(PRIORITY_LEVELS)}")
+        rep.skip("B6", "needs the four Priority options")
+        return
+    base = {"repo": sb.repo, "number": sb.issue("priority"), "project": proj, "field": "Priority"}
+    ok0, _, t0 = c.call("project_set_field", {**base, "value": PRIORITY_LEVELS[0]})
+    bad, _, tb = c.call("project_set_field", {**base, "value": "P" + "4"})
+    _, found, _ = c.call("project_item_find", {k: base[k] for k in ("repo", "number", "project")})
+    kept = ((found or {}).get("fields") or {}).get("Priority")
+    rep.check("B5", ok0 and not bad and all(level in tb for level in PRIORITY_LEVELS) and kept == PRIORITY_LEVELS[0],
+              f"P0 {'set' if ok0 else t0[:60]}; P4 refused {not bad}, names the four "
+              f"{all(level in tb for level in PRIORITY_LEVELS)}; kept {kept!r}")
+    principal = (who or {}).get("principal") or ""
+    if not principal.startswith("agent:"):
+        rep.skip("B6", "needs an agent principal")
+        return
+    n2 = sb.issue("priority suggestion")
+    first, _, _ = c.call("project_set_field", {**base, "number": n2, "value": PRIORITY_LEVELS[2]})
+    again, _, ta = c.call("project_set_field", {**base, "number": n2, "value": PRIORITY_LEVELS[1]})
+    _, found2, _ = c.call("project_item_find", {"repo": sb.repo, "number": n2, "project": proj})
+    rep.check("B6", first and not again and "set" in ta.lower()
+              and ((found2 or {}).get("fields") or {}).get("Priority") == PRIORITY_LEVELS[2],
+              f"first {first}; second refused {not again} ({ta[:60]})")
+
+
+def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict, who: dict | None = None) -> None:
+    proj = sb.project
+    check_priority(rep, c, sb, who)
     check_size(rep, c, sb, profile)
     ok, out, text = c.call("project_items", {"project": proj, "limit": 2})
     pages = ok and "has_next_page" in (out or {}) and "next_cursor" in (out or {})
@@ -3240,6 +3384,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--prose-cmd", help="a command that runs the prose check on one case from stdin (R9)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
+    ap.add_argument("--intake-cmd", help="a command that answers one intake-check case from stdin (I6)")
     ap.add_argument("--page-cmd", help="a command that answers one record-page case from stdin (RP1 to RP3)")
     ap.add_argument("--record-cmd", help="a command that answers one register-record case from stdin (RR1 to RR4)")
     ap.add_argument("--github-token-env",
@@ -3258,6 +3403,7 @@ def main(argv: list[str]) -> int:
         check_prose_cases(rep, a.prose_cmd)
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
+        check_intake_check_cases(rep, a.intake_cmd)
         check_page_cases(rep, a.page_cmd)
         check_record_cases(rep, a.record_cmd)
     seen: list[str] = []
@@ -3305,12 +3451,13 @@ def main(argv: list[str]) -> int:
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
                     check_signoffs(rep, c, sb, who)
                     if a.project:
-                        check_board(rep, c, sb, profiles.get(name) or {})
+                        check_board(rep, c, sb, profiles.get(name) or {}, who)
                     check_prs(rep, c, sb, _tools, who, a.pr_head, token(a.github_token_env))
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd, a.prose_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
+                check_intake_check(rep, c, _tools, sb, a.intake_cmd)
                 check_comment_edits(rep, c, _tools, sb)
                 check_stale_done(rep, c, _tools, sb)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))

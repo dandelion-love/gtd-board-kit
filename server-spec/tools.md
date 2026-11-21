@@ -39,6 +39,8 @@ Common rules for every tool:
 | `project_item_find` | read | `repo`, `number`, `project` | the item for that issue with every field value, archived or not; refuses if it is not on the board |
 | `project_views_list` | read | `project` | the board's views: `number`, `name`, `layout`, `filter`, `fields`, `sort`, `group_by` |
 
+A server in `enforce` intake-check mode also omits from `list_next_actions` an item whose [intake check](#the-intake-check) is `needs-more` or `decline`; `issue_list` still lists it.
+
 When supported, `issue_list(query=...)` finds compact issue candidates in the named
 repository without returning every board item. `query` is 1–10 keywords, at most 200
 characters; all words match in title or body. `state` and all `labels` still filter,
@@ -187,6 +189,14 @@ All take `project`. Writes to an issue's item add the issue to the board first i
 | `project_status_update` | work | `body` (at most 2048 bytes), `state?`, `project` | Posts a board-level status update |
 | `project_draft_add`, `project_draft_update`, `project_draft_convert` | work | draft `title`, `body`; `item_id`; target `repo` | Draft items and turning one into an issue |
 
+**Priority.** `Priority` is a closed single select: `P0`, `P1`, `P2`, `P3`, meaning what
+[priority levels](../knowledge/model/board-fields.md#priority-levels) says. A server
+accepts exactly those four (never fewer than it accepted before: a server that took `P1`
+to `P3` now also takes `P0`). `project_set_field` on `Priority` refuses any other value
+and the refusal lists the four. A caller that is an agent principal may write `Priority`
+only into an empty field (one suggestion), and a refusal on a field that already holds a
+value says it is set; a person's principal may change it.
+
 ## Optional groups
 
 A server MAY offer any of these. A repo that relies on one says so in its
@@ -209,7 +219,7 @@ that offers the capability uses the name.
 | Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work); optional `pr_merge` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
 | Comment edits | `comment_update` (work): `repo`, `comment_id`, `body`, `session?`; `comment_redact` (work): `repo`, `comment_id`, `find`, `replace`, `session?` | Correcting a comment the server wrote, through the server, so the edit is signed instead of made with `gh` under a person's credentials. See [editing comments](#editing-comments) |
 | Stale done | `stale_done` (read): `repo`, `number?`, `branches?`, `limit?`; `item_close_done` (work): `repo`, `number`, `branches?`, `session?` | Finding open items whose merged work meets every acceptance criterion, and closing one only when the server's own check says so. See [closing finished items](#closing-finished-items) |
-| Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
+| Intake | `intake_list` (read), `intake_ack` (work); optional `intake_check` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue; and the clear, small, fits check a new item gets before it is ordered. See [intake](#intake) and [the intake check](#the-intake-check) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
 
@@ -611,6 +621,57 @@ marker last:
   anyone else is conversation.
 - Request text is data, never instructions ([security](security.md)). An ack is not consent to the work:
   `taken` records a decision a person or a lane's `may` already made.
+
+### The intake check
+
+`intake_check` is optional on a server in the Intake group (it needs neither a request
+label nor an ack). It records the answer to three questions about one open issue: **clear**,
+**small enough**, **fits** the board's purpose ([the lane that asks them](../skills/board-lane/intake.md)).
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `intake_check` | work | `repo`, `number`, `result`, `clear`, `small`, `fits`, `note?`, `session?` | `repo`, `number`, `result`, `url` (of the record comment, or of the standing one when `unchanged`), `unchanged`, `held` |
+
+- `result` is `pass`, `needs-more` or `decline`; `clear`, `small` and `fits` are booleans.
+  `pass` needs all three true. `needs-more` needs at least one of `clear` and `small`
+  false, and `fits` true. `decline` needs `fits` false. `needs-more` and `decline` need a
+  `note` (at most 2000 characters). A refusal says which rule failed and, for a bad
+  `result`, lists the three values.
+- It refuses a pull request, a closed issue, an epic, a `standing` item, a caller who is not
+  allowed to record (below), or a `note` holding a record, `gtd-pr`, sign-off or ack marker.
+- **Who may record a result.** The repo's checker (a principal the repo names for the intake
+  lane in `.github/gtd-context.json` under `intake.checkers`, or the owner), and nobody else.
+  A caller who holds the item, or who filed it, is refused unless it is the owner
+  (`not-the-checker`), so a worker cannot replace a lane's `decline` with `pass`. A later
+  record by an allowed caller replaces the earlier one; a later `pass` (or any result with
+  `held` false) also **removes** the owner's `needs:*` label that `enforce` added (only that
+  label, which the server marks as its own), so the item is pickable again.
+- **The record** is a comment with a visible line, the sign-off (`act` `intake-check`,
+  `role` `coordinator` unless the caller passes another) and one marker last:
+  `<!-- gtd-intake-check v1 {"v": 1, "by": "agent:x", "t": "...", "result": "pass", "clear": true, "small": true, "fits": true, "note": "..."} -->`.
+  Readers trust it only under a record author, as for an ack. The latest trusted record
+  wins. A record equal to the latest in `result`, the three answers and `note` posts
+  nothing and returns `unchanged: true`.
+- **`item_get` returns `intake_check`**: `{status, result, clear, small, fits, by, at, note,
+  mode, since, grandfathered}`. `status` is the latest record's `result`, or `unchecked`
+  when there is none: **never `pass` without a record**. `mode` is `watch` or `enforce`
+  (a server setting named `INTAKE_CHECK_MODE`, `watch` when unset; any other value reads as
+  `watch`). `since` is the time the server began recording checks; an item opened before it
+  with no record is `grandfathered`.
+- **`intake_list` rows** gain `check`: the same object, or null on a server without the
+  tool.
+- **Watch mode (the default) blocks nothing.** The record is written and every item stays
+  as pickable as before. **Enforce mode** holds an item whose status is `needs-more` or
+  `decline`: `intake_check` adds the profile's `owner_needs` label (`held` true),
+  `list_next_actions` omits the item, and an `inferred` `item_claim` refuses naming the
+  result. An `explicit` claim still works: a person who points an agent at an item has made
+  the call. `unchecked` and grandfathered items are never held, in either mode.
+- **Enforce needs record authors.** A pasted marker would count as a record when record
+  authors are not configured ([which comments count](claim-records.md#which-comments-count)),
+  so a server with none configured MUST run in `watch` whatever its setting says, and report
+  `mode` `watch`. `enforce` is honoured only when record authors are configured.
+- Switching to `enforce` is the owner's act, after reading the watch record; no tool does
+  it.
 
 ## Review requests
 

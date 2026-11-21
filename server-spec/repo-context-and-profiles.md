@@ -82,7 +82,7 @@ names (a repo can rename them in `.gtd/BOARD.local.md`):
 | Field | Type | Used for |
 | --- | --- | --- |
 | `Status` | single select | The column; set by the bridge or `project_set_status` |
-| `Priority` | single select | Pickup order |
+| `Priority` | single select (`P0`, `P1`, `P2`, `P3`: [levels](../knowledge/model/board-fields.md#priority-levels)) | Pickup order |
 | `Size` | single select (`XS`, `S`, `M`, `L`, `XL`) | Whether an unpointed pickup is allowed |
 | `Agent` | text | Mirror of the current holder's runtime, written by the claim tools |
 | `Last report` | text | Mirror of the latest report, written by the claim tools |
