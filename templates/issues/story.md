@@ -5,7 +5,7 @@ title: ""
 type: Story
 ---
 
-<!-- One or two lines: what changes, for whom, and why. Part of #<epic>. -->
+<!-- Title: a verb and one outcome, 25 to 72 characters, no prefix. Summary first, one to three sentences: When <situation>, <who> can <outcome>, so <benefit>. Today <what happens instead>. -->
 
 ## Acceptance criteria
 
@@ -17,3 +17,7 @@ type: Story
 - [ ] <!-- a step inside this story; no PR of its own -->
 
 <!-- Blocked by #<n>, only alongside a native blocked-by link -->
+
+## Context
+
+<!-- Origin, evidence links, revisions and approvals. The parent link shows the epic. -->

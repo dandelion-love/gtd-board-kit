@@ -5,11 +5,12 @@
   "M"
  ],
  "repo": "owner/repo",
+ "title": "Show the thing working for its owner",
  "cases": [
   {
    "name": "ready",
    "what": "criteria, Size S, no blockers",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -37,7 +38,7 @@
   {
    "name": "ac-empty",
    "what": "heading with no list item before the next heading",
-   "body": "## Acceptance criteria\n\nTBD\n\n## Notes\n\n- a note\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\nTBD\n\n## Notes\n\n- a note\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -65,7 +66,7 @@
   {
    "name": "ac-subheading",
    "what": "a lower-level heading between the heading and the item still counts",
-   "body": "## Acceptance criteria\n\n### Happy path\n\n1. AC1: it works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n### Happy path\n\n1. AC1: it works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -78,7 +79,7 @@
   {
    "name": "ac-in-code",
    "what": "a heading inside a fenced code block does not count",
-   "body": "```\n## Acceptance criteria\n- AC1\n```\n",
+   "body": "Make the thing work for its owner.\n\n```\n## Acceptance criteria\n- AC1\n```\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -93,7 +94,7 @@
   {
    "name": "ac-empty-box",
    "what": "an empty task box is not a criterion",
-   "body": "## Acceptance criteria\n\n- [ ]\n- [x]\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- [ ]\n- [x]\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -108,7 +109,7 @@
   {
    "name": "ac-in-long-fence",
    "what": "a three-backtick line does not close a four-backtick fence",
-   "body": "````markdown\n```\n## Acceptance criteria\n- AC1\n```\n````\n",
+   "body": "Make the thing work for its owner.\n\n````markdown\n```\n## Acceptance criteria\n- AC1\n```\n````\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -123,7 +124,7 @@
   {
    "name": "ac-after-tilde-fence",
    "what": "criteria after a closed tilde fence count",
-   "body": "~~~\nBlocked by {#B}\n~~~\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n~~~\nBlocked by {#B}\n~~~\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -136,7 +137,7 @@
   {
    "name": "question",
    "what": "a needs:* label is an open question",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [
     "needs:owner"
    ],
@@ -153,7 +154,7 @@
   {
    "name": "body-unlinked",
    "what": "a blocker named in the body but not linked",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {#B}.\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {#B}.\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -168,7 +169,7 @@
   {
    "name": "body-unlinked-full",
    "what": "the owner/repo form, and depends on",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nThis depends on {full#B} first.\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n\nThis depends on {full#B} first.\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -183,7 +184,7 @@
   {
    "name": "body-unlinked-url",
    "what": "the issue URL form",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {url#B}\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {url#B}\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -198,7 +199,7 @@
   {
    "name": "body-linked",
    "what": "a body blocker that is a native link, closed",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nDepends on {#B}.\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n\nDepends on {#B}.\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -218,7 +219,7 @@
   {
    "name": "body-other-words",
    "what": "a reference without the blocker words is not a blocker",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nSee {#B} for background.\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n\nSee {#B} for background.\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -231,7 +232,7 @@
   {
    "name": "body-self",
    "what": "a reference to the issue itself is ignored",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {#S}?\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n\nBlocked by {#S}?\n",
    "labels": [],
    "size": "S",
    "blocked_by": {},
@@ -244,7 +245,7 @@
   {
    "name": "label-unlinked",
    "what": "the blocked label with no open native blocker",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [
     "blocked"
    ],
@@ -261,7 +262,7 @@
   {
    "name": "label-linked",
    "what": "the blocked label with an open native blocker",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [
     "blocked"
    ],
@@ -282,7 +283,7 @@
   {
    "name": "blocked-open",
    "what": "an open native blocker",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -301,7 +302,7 @@
   {
    "name": "blocked-closed",
    "what": "a closed native blocker does not block",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -321,7 +322,7 @@
   {
    "name": "cycle-direct",
    "what": "the issue and its blocker block each other",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -345,7 +346,7 @@
   {
    "name": "cycle-upstream",
    "what": "a cycle upstream of the issue",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -372,7 +373,7 @@
   {
    "name": "cycle-broken",
    "what": "a closed issue breaks the cycle",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -400,7 +401,7 @@
   {
    "name": "chain",
    "what": "a chain without a cycle",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -425,7 +426,7 @@
   {
    "name": "walk-under-bound",
    "what": "49 issues in the walk (the issue and a chain of 48) is checked",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -585,7 +586,7 @@
   {
    "name": "walk-at-bound",
    "what": "a walk that reaches 50 issues fails, cycle or not",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "blocked_by": {
@@ -750,7 +751,7 @@
   {
    "name": "size-none",
    "what": "no Size",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": null,
    "blocked_by": {},
@@ -765,7 +766,7 @@
   {
    "name": "size-large",
    "what": "a Size outside pickup_sizes",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "L",
    "blocked_by": {},
@@ -780,7 +781,7 @@
   {
    "name": "no-board",
    "what": "no readable board",
-   "body": "## Acceptance criteria\n\n- AC1: the thing works\n",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
    "labels": [],
    "size": "S",
    "board": false,
@@ -817,6 +818,51 @@
     "blockers": [
      "B"
     ]
+   }
+  },
+  {
+   "name": "prose-title",
+   "what": "a prefixed title fails prose",
+   "title": "Part 3: show the thing working for its owner",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "prose"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "prose-summary",
+   "what": "a body that opens with provenance fails prose",
+   "body": "Part of the epic.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "needs-refinement",
+    "missing": [
+     "prose"
+    ],
+    "blockers": []
+   }
+  },
+  {
+   "name": "prose-warn-only",
+   "what": "a warning alone does not fail prose",
+   "title": "Policy for the thing, so its owner sees it work",
+   "body": "Make the thing work for its owner.\n\n## Acceptance criteria\n\n- AC1: the thing works\n",
+   "labels": [],
+   "size": "S",
+   "blocked_by": {},
+   "expect": {
+    "verdict": "ready",
+    "missing": [],
+    "blockers": []
    }
   }
  ]

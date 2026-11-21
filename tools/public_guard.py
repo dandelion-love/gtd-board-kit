@@ -5,6 +5,13 @@ Every agent and every person runs this before a commit or a push, through the gi
 .githooks/ and the Claude Code hooks in .claude/settings.json. It is strict on purpose: a
 false alarm costs a rewrite of one line, a leak cannot be taken back.
 
+Work-repo mode: put `--repo DIR` first (for example `--repo . --staged`) to guard a work
+repo's checkout instead of the kit. Work repos legitimately carry issue numbers and board
+numbers, so only the denylist and the gtd server's host apply there. The host is the one
+gtd_server.py resolves from the environment, the clone's git config or the user-level map
+(never one committed in the repo's own context file), so pasting it into a public repo, a
+commit message or a PR body is refused.
+
 Modes:
   --staged              scan what is staged for commit (pre-commit)
   --message FILE        scan a commit message (commit-msg)
@@ -33,7 +40,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import gtd_server  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
+WORK_REPO = False  # --repo DIR: guard a work repo's checkout, with only the denylist rules
 THIS_REPO = "gtd-board-kit"
 ALLOWED_EMAILS = re.compile(r"(noreply@anthropic\.com|@users\.noreply\.github\.com)$", re.I)
 
@@ -62,7 +73,7 @@ def denylist() -> list[re.Pattern[str]]:
     try:
         lines = Path(path).read_text(encoding="utf-8").splitlines()
     except OSError:
-        return out
+        return server_host_pattern()
     for line in lines:
         line = line.strip()
         if not line or line.startswith("#"):
@@ -71,7 +82,18 @@ def denylist() -> list[re.Pattern[str]]:
             out.append(re.compile(line[3:], re.I))
         else:
             out.append(re.compile(re.escape(line), re.I))
-    return out
+    return out + server_host_pattern()
+
+
+def server_host_pattern() -> list[re.Pattern[str]]:
+    """The gtd server's host, when it is kept out of the repo (env, git config, user map)."""
+    try:
+        res = gtd_server.resolve(ROOT)
+    except gtd_server.BadAddress:
+        return []
+    if not res.host or res.committed:
+        return []
+    return [re.compile(rf"(?<![\w.-]){re.escape(res.host)}(?![\w-])", re.I)]
 
 
 def org_of_origin() -> str | None:
@@ -89,11 +111,12 @@ def scan(text: str, where: str, *, message: bool = False) -> list[str]:
     found: list[str] = []
     org = org_of_origin()
     other_repo = re.compile(
-        rf"github\.com/{re.escape(org)}/(?!{THIS_REPO}\b)[\w.-]+", re.I) if org else None
+        rf"github\.com/{re.escape(org)}/(?!{THIS_REPO}\b)[\w.-]+", re.I
+    ) if org and not WORK_REPO else None
     deny = denylist()
     for n, line in enumerate(text.splitlines(), 1):
         hits: list[str] = []
-        for name, rx, in_msgs in RULES:
+        for name, rx, in_msgs in (() if WORK_REPO else RULES):
             if message and not in_msgs:
                 continue
             for m in rx.finditer(line):
@@ -256,11 +279,18 @@ def scan_outgoing() -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    global ROOT, WORK_REPO
+    if len(argv) >= 2 and argv[0] == "--repo":
+        ROOT, WORK_REPO = Path(argv[1]).resolve(), True
+        argv = argv[2:]
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
         return 0
     mode = argv[0]
     if mode == "--claude-hook":
+        if WORK_REPO:
+            print("--claude-hook guards this kit repo only", file=sys.stderr)
+            return 2
         return claude_hook()
     if mode == "--staged":
         findings = scan_staged()

@@ -40,7 +40,8 @@ The owner settled the nine questions that the
    and returns `ready`, `needs-refinement` (with what is missing) or `ready-blocked`
    (ready, but an open blocker remains). Its rules: acceptance criteria present, no open
    question, every blocker a native dependency link, no cycle, size within the pull
-   limit. The kit specifies it in `server-spec/` with conformance checks before any
+   limit, and a title and summary that say what the story delivers
+   ([clear titles and summaries](clear-titles-and-summaries.md)). The kit specifies it in `server-spec/` with conformance checks before any
    server builds it; skills call it rather than restate the rules.
 
 ## Agent work

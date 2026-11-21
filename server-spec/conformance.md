@@ -38,6 +38,7 @@ reports pass, fail, skip or manual for every id below.
 | P7 | `project_items` returns items in the board's manual order and pages with a cursor |
 | P8 | No profile declares a [retired Kind](repo-context-and-profiles.md#kinds): no `kind:task`, `kind:question` or `kind:decision` label, and, when `profile_get` returns `item_types`, no entry whose `name` or `issue_type` is `task`, `question` or `decision` (any case) |
 | P9 | No profile declares a view whose `filter` uses a [deprecated qualifier](repo-context-and-profiles.md#view-filters) (`last-updated:`, any case) |
+| P10 | If `issue_list` advertises `query`, a keyword search returns compact issue candidates and boolean `truncated` and `incomplete` flags plus `search_warning`; invalid or incompatible query arguments refuse. No result is required for a fresh issue because the index may lag. |
 
 ## Claims (Core)
 
@@ -50,7 +51,7 @@ reports pass, fail, skip or manual for every id below.
 | C5 | `inferred` refuses without `agent-ready`; with `agent:<other runtime>`; with `agent:human`; with `needs:*`, `blocked` or `agent-proposed`; with a board Size outside `pickup_sizes` or none; and succeeds for `agent-ready` + `agent:any` + Size `S` |
 | C6 | `item_renew`, `item_release` and a `state` report by a non-holder refuse |
 | C6b | After a person closes a held issue, the holder's `item_release` succeeds and `item_claim` by anyone refuses |
-| C7 | `item_release` needs `done`, `remaining`, `next`; afterwards `item_get` shows no holder and the `handoff_to` |
+| C7 | `item_release` in the old form (`done`, `remaining`, `next`) succeeds; afterwards `item_get` shows no holder and the `handoff_to`, and `closing_note.left` equals the `remaining` given |
 | C8 | `item_report` with `attention` and `needs=<owner_needs>` adds that `needs:*` label; without `needs` it refuses and lists the values; `state=dropped` releases. The label read retries for up to 30 seconds, as in P6 |
 | C9 | A non-record comment after the holder's last record appears in `follow_ups`, and still does after the holder's `item_renew`; a comment with two markers is not a record |
 | C10 | With record authors set, a record pasted by another login is ignored by the fold |
@@ -62,6 +63,9 @@ reports pass, fail, skip or manual for every id below.
 | C16 | `activity_since` after a claim and a plain comment on the held issue: the comment is an entry with `source` `held`, `kind` `comment` and the issue's `number`, and no entry is a record; with `since` after the comment it is absent; with a second token, the second caller sees no entry for that issue |
 | C17 | `activity_since` with `limit=1` over two new comments: the first page has one entry and `has_next_page`; `next_cursor` gives the other, with no repeat, and the same `read_at` as the first page |
 | C18 | (by hand) A review on a PR opened through `pr_open` appears for the PR's `by` principal as `source` `pr`, `kind` `review`, with its `review_state`; a comment on a channel issue appears as `source` `channel` |
+| C19 | (needs a closing-note server) `item_release` with `done`, `left`, `decided` and no `set_aside` succeeds and `item_get` shows `closing_note` with those parts and `set_aside` `none`; a release with none of the four succeeds with a `warnings` entry naming `done`, `left`, `decided` and `set_aside`; `left` and `remaining` given with different values refuse |
+| C20 | A fresh item with no earlier worker shows `interruptions` 0, `previous_holder` null and `closing_note` with all four parts `none recorded`; after one claim and release with a `handoff_to` the second caller's `item_get` shows `previous_holder` the first caller, `interruptions` 0 and the first caller's four parts |
+| C21 | (by hand) Claim with lease `1m`, wait two minutes: `item_get` shows `stale` and `interruptions` 1; a takeover by a second principal keeps `interruptions` at 1, names `previous_holder`, and shows the abandoned worker's last four parts, or `none recorded` |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
 
@@ -77,6 +81,27 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 | h | claim A to 300; report B `attention` | holder A, attention from B, `last_report` null |
 | i | claim A to 300; report A `blocked` | holder A, `last_report` blocked |
 | j | four non-record comments (plain text, two markers, `v2`, bad JSON); claim A to 300 | holder A only |
+| k | claim A to 60; A reports `progress` with parts at 30; claim B at 90 `takeover_of` A | holder B, `interruptions` 1, `previous_holder` A, parts A's |
+| l | claim A; release A with `done`, `decided`, an empty `left` and `set_aside` | parts `done`, `none`, `decided`, `none` |
+| m | claim A; release A in the old form (`done`, `remaining`, `next`) | `left` is the `remaining` |
+| n | claim A to 60; claim B at 90 `takeover_of` A, A having recorded no note | `interruptions` 1, parts all `none recorded` |
+| o | claim A to 120; A reports `progress` with `done`; now is 200 | holder A, stale, `interruptions` 1, A's parts |
+| p | claim A to 30; B takes over at 40 to 90; C takes over at 100 | holder C, `interruptions` 2, parts `none recorded` |
+| q | claim A; release A with all four parts; claim B | holder B, `interruptions` 0, A's parts |
+| r | claim A to 300; `stop` at 100 with limit 230 | holder A, `stop_state` `requested`, not overdue |
+| s | the same with limit 150 | overdue, holder A still, not stale |
+| t | claim A; `stop`; A releases with the four parts | no holder, `stop_state` `at-rest`, A's parts |
+| u | `stop`; then claim A | claim lost, no holder, `at-rest` |
+| v | `stop`; `stop_clear`; claim A | holder A, no stop |
+| w | `stop` by an account that is not the owner; claim A | the stop is ignored: holder A, no stop |
+| x | `stop` by the owner; `stop_clear` by a non-owner; claim A | the clear is ignored: claim lost, `at-rest` |
+| y | claim A to 60; A renews at 90 to 300; now is 200 | holder A, not stale, `interruptions` 0 (the count is not monotonic) |
+
+The fixtures name `owners` (the principals whose `stop` and `stop_clear` count); a fold gets them as a second input. The fold result keys the cases read besides the first five are `interruptions`,
+`previous_holder`, `closing_by`, `closing_parts` (the four parts in the order `done`,
+`left`, `decided`, `set_aside`), `stop_state` (`requested`, `at-rest` or null) and
+`overdue`. A fold that does not compute them fails these cases, so a server that has not
+implemented the closing note, interruptions or the stop signal fails C13 until it does.
 
 The same cases are machine-readable in [fold_cases.json](../conformance/fold_cases.json).
 
@@ -136,6 +161,8 @@ session or a long wait (marked *manual*) may be run by hand.
 | B2 | `project_set_field` sets and clears text, number, date and single-select fields by name |
 | B3 | `project_item_move` with no `after_*` puts the item first; with one, right after it. GitHub Projects can serve the old order for a while after a move, so the runner re-reads `project_items` for up to 30 seconds before failing, as in P6 |
 | B4 | Writes to an issue not yet on the board add it first |
+| B5 | (needs a board whose `Priority` options are `P0` to `P3`) `project_set_field` with `Priority` `P0` sets it, and with `P4` refuses and the refusal names `P0`, `P1`, `P2` and `P3`; the item keeps `P0` |
+| B6 | (agent principal) `Priority` on an item with none is set once as a suggestion; a second write by the agent refuses and says the field is set, and the value is unchanged |
 
 ## Customization (when offered)
 
@@ -170,18 +197,22 @@ open for a person to close. PR5 to PR7 use that PR and post on it.
 ## Ready check (when offered)
 
 A server that lists `item_ready` in `tools/list` must also pass these
-([ready check](ready-check.md)).
+([ready check](ready-check.md), [prose check](prose-check.md)). The Readiness group holds
+both `item_ready` and `prose_check`.
 
 | Id | Check |
 | --- | --- |
 | R1 | The golden cases below, fed to the server's own ready logic (`--ready-cmd`), give the stated `verdict`, failed rules in rule order, and open blockers |
-| R2 | `item_ready` returns `repo`, `number`, `title`, `verdict` (one of the three words), `missing` (rules from the five), `blockers`, `kind`, `size`; with a board, an issue with criteria and an allowed Size, nothing else on it, is `ready` |
+| R2 | `item_ready` returns `repo`, `number`, `title`, `verdict` (one of the three words), `missing` (rules from the six), `blockers`, `kind`, `size`; with a board, an issue with a clear title and summary, criteria and an allowed Size, nothing else on it, is `ready` |
 | R3 | It writes nothing: the issue's claim state (`item_get`) is the same after two calls, and an issue not on the board is still not on it |
 | R4 | An issue without an acceptance-criteria section fails `acceptance-criteria`; one with the section and a `needs:*` label fails `open-question` and not `acceptance-criteria` |
 | R5 | "Blocked by `#N`" in the body without a native link, and the `blocked` label with no open native blocker, each fail `unlinked-blocker`; once linked, the blocker is in `blockers` and the rule passes; linking back either refuses with a reason that names the cycle (GitHub refuses a dependency cycle itself, so `issue_blocked_by_add` passes its reason through) or, when the link lands, fails `blocker-cycle`. The cycle rule itself is covered offline by R1 |
 | R6 | With a board, no Size, and a Size outside `pickup_sizes`, each fail `size` |
 | R7 | A pull request, a closed issue, an issue of Kind `epic`, and an issue labelled `standing` are refused |
 | R8 | `item_claim` returns `ready` whose `verdict`, failed rules and open blockers equal what `item_ready` returns for the issue; an explicit claim on an issue without criteria succeeds (the verdict never refuses) and a `warnings` line names `needs-refinement`; a claim on a `ready` issue has no "not ready" warning ([the ready verdict on a claim](tools.md#claims-and-reports)) |
+| R9 | `prose_check` is offered, and the [prose golden cases](../conformance/prose_cases.json), fed to the server's own prose logic (`--prose-cmd`), give the stated `verdict`, fail rules and warn rules, each in rule order |
+| R10 | `prose_check` on a sandbox issue whose title has a prefix and whose body opens with a heading is `unclear` with `title-prefix` and `summary-first`, and `item_ready` on it fails `prose`; on draft text (`title`, `body`, `kind` `epic`) with no Outcome check it returns exactly the fail rule `epic-sections` |
+| R11 | (needs a closing-note server) `item_ready` on a story whose last worker released with four parts returns `interruptions`, `previous_holder` and the same `closing_note` as `item_get` |
 
 R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,
 `pickup_sizes` is `XS`, `S`, `M`, and it is on the board unless the case says otherwise):
@@ -218,6 +249,12 @@ R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Siz
 | `size-large` | a Size outside pickup_sizes | needs-refinement: `size` |
 | `no-board` | no readable board | needs-refinement: `size` |
 | `several` | every failure is listed, in rule order, with the open blocker | needs-refinement: `acceptance-criteria`, `open-question`, `unlinked-blocker`, `size`; blockers B |
+| `prose-title` | a prefixed title fails prose | needs-refinement: `prose` |
+| `prose-summary` | a body that opens with provenance fails prose | needs-refinement: `prose` |
+| `prose-warn-only` | a warning alone does not fail prose | ready |
+
+Every R1 case has the title `Show the thing working for its owner` unless it names its
+own, and a body that opens with a summary unless the case is about the summary.
 
 ## Kind and parent rules (when offered)
 
@@ -310,6 +347,86 @@ second files one request issue, the first acks it (a project never acks its own 
 | I4 | `intake_ack` refuses and says why: an issue without the label; `state` `done` (the refusal lists the four); a `note` holding a record marker |
 | I5 | (by hand) An ack marker pasted in a comment by a login that is not a record author is ignored: `intake_list` still shows the trusted ack, or null |
 
+A server that lists `intake_check` ([the intake check](tools.md#the-intake-check)) also passes
+these. I7 to I9 need a sandbox repo, and I9 runs only while the server is in `watch` mode. I7 to I9 also need a second token (`--token-b-env`): that principal files the item and the first token, an accepted checker, checks it, because a check by the item's filer is refused.
+
+| Id | Check |
+| --- | --- |
+| I6 | The golden cases below, fed to the server's own status and write rules (`--intake-cmd`), give the stated answer |
+| I7 | `intake_check` is class `work`; a `result` outside `pass`, `needs-more`, `decline` refuses and lists the three; `needs-more` with no `note`, and `pass` with a no, refuse; a valid `needs-more` writes a record and `item_get` shows `intake_check` with that `status`, the three answers and `by`; the same call again returns `unchanged` true |
+| I8 | An item with no record reads `intake_check.status` `unchecked`, never `pass` |
+| I9 | In `watch` mode, an item with a `decline` record is still in `list_next_actions` and carries no `needs:*` label |
+| I10 | (by hand) With record authors configured and `INTAKE_CHECK_MODE=enforce`, a `needs-more` or `decline` item gets the owner's `needs:*` label, is absent from `list_next_actions` and refuses an `inferred` claim; an `unchecked` item and a grandfathered one (opened before `since`) stay pickable; a later `pass` by the checker removes the label the server added; with no record authors configured, `item_get` reports `mode` `watch` whatever the setting; a call by the item's holder is refused `not-the-checker` |
+
+I6 cases ([intake_check_cases.json](../conformance/intake_check_cases.json); times in the file
+are minutes, and a status case gives the records in comment order, the item's age against
+`since` and the mode):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `pass-watch` | a pass in watch mode | status `pass`, pickable |
+| `needs-more-watch` | needs-more in watch mode blocks nothing | status `needs-more`, pickable |
+| `decline-watch` | decline in watch mode blocks nothing | status `decline`, pickable |
+| `needs-more-enforce` | needs-more in enforce mode is held | status `needs-more`, held |
+| `decline-enforce` | decline in enforce mode is held | status `decline`, held |
+| `pass-enforce` | a pass in enforce mode is pickable | status `pass`, pickable |
+| `unchecked-watch` | no record reads unchecked, never pass | status `unchecked`, pickable |
+| `unchecked-enforce` | no record in enforce mode reads unchecked and is not held | status `unchecked`, pickable |
+| `grandfathered-enforce` | an item older than since with no record is grandfathered and never held | status `unchecked`, grandfathered, pickable |
+| `grandfathered-watch` | the same in watch mode | status `unchecked`, grandfathered, pickable |
+| `recheck-supersedes` | the latest record wins: needs-more then pass is a pass | status `pass`, pickable |
+| `recheck-holds` | the latest record wins: pass then decline is held in enforce | status `decline`, held |
+| `mode-default` | an unset or unknown mode reads as watch | status `decline`, pickable |
+| `old-recorded` | an old item with a record is not grandfathered | status `needs-more`, held |
+| `write-pass` | all three yes is a pass | written |
+| `write-pass-no` | a pass with one no is refused | refused: `pass-needs-all-three` |
+| `write-needs-more` | small is no, fits yes, with a note | written |
+| `write-needs-more-bare` | needs-more with no note is refused | refused: `note-required` |
+| `write-needs-more-all-yes` | needs-more with every answer yes is refused | refused: `needs-more-shape` |
+| `write-needs-more-no-fit` | needs-more when it does not fit is refused | refused: `needs-more-shape` |
+| `write-decline` | decline when it does not fit, with a note | written |
+| `write-decline-fits` | decline when it fits is refused | refused: `decline-needs-no-fit` |
+| `write-bad-result` | a result outside the three is refused | refused: `result` |
+
+## Comment edits (when offered)
+
+A server that lists `comment_update` or `comment_redact` in `tools/list` must also pass
+these ([editing comments](tools.md#editing-comments)). CE2 to CE4 need a sandbox repo.
+
+| Id | Check |
+| --- | --- |
+| CE1 | `tools/list` has both `comment_update` and `comment_redact`, each of class `work` |
+| CE2 | `comment_update` on a comment the caller posted with `issue_comment` returns `url`, `body` and `signoff`; the body holds the new text and exactly one `gtd-sign v1` marker; that marker keeps the original `by`, `act`, `role` and `t`, and gains one `edits` entry with `by` the caller and a `t`; a second update adds a second entry after the first; the visible text holds `Edited by` |
+| CE3 | `comment_update` refuses, with a reason: a body holding a sign-off marker (the refusal names `gtd-sign`); a body holding a record marker; a comment that holds a claim record (the refusal names `comment_redact`) |
+| CE4 | `comment_redact` on a claim record's `note` text replaces it and returns `replaced` 1, and the record still folds to the same state; it refuses, naming the field, a `find` that sits in the record's `by` or `lease_until`; it refuses a `find` with no match and a `replace` holding `<!--` |
+| CE5 | (by hand) Either tool refuses, with a reason, a comment by a login that is not a record author; and, given the id of a review comment on a pull request's diff, refuses and names `pr_review` |
+
+## Stale done (when offered)
+
+A server that lists `stale_done` or `item_close_done` in `tools/list` must also pass
+these ([closing finished items](tools.md#closing-finished-items)). SD2 needs a sandbox repo.
+
+| Id | Check |
+| --- | --- |
+| SD1 | `tools/list` has both `stale_done` (class `read`) and `item_close_done` (class `work`) |
+| SD2 | For a fresh open story with criteria and no merged PR, `stale_done(number)` returns `verdict` `keep` with `no-merged-pr`, and `item_close_done` refuses naming it and leaves the issue open; with a `needs:*` label added, `reasons` also holds `needs` |
+| SD3 | (by hand) A story whose merged PR carries an Evidence row for every criterion gets `close`, and `item_close_done` ticks the boxes, posts one signed comment and closes it `completed`; a story whose only merged PR mentions it, one with an unmet criterion, an epic, and a `standing` item each get `keep` with the matching reason |
+
+## Stop (when offered)
+
+A server that lists `item_stop` or `item_stop_clear` ([stopping an item](tools.md#stopping-an-item))
+must also pass these, and must have record authors configured. ST2 needs a sandbox repo and a caller who is not the item's owner.
+
+| Id | Check |
+| --- | --- |
+| ST1 | `tools/list` has both `item_stop` and `item_stop_clear`, class `work` |
+| ST2 | A caller who is not the item's owner is refused by `item_stop` and by `item_stop_clear`, the refusal says the owner is required, and afterwards `item_get` shows `stop` null, there is no `stop` record comment and no `stop-requested` label |
+| ST3 | (by hand, owner) The owner's `item_stop` on a held item records one signed `stop` and sets the `stop-requested` label; the holder's `item_get`, `item_renew` and `item_report` each return `stop` with `state` `requested`; a second `item_stop` returns `unchanged`; the holder's `item_release` removes the label and `stop.state` is `at-rest` |
+| ST4 | (by hand, owner) With `wind_down` `5m`, `item_renew` succeeds before the limit; after it `item_get` shows `overdue` true and `item_renew` refuses naming the stop; the holder is unchanged |
+| ST5 | (by hand, owner) A stop on an item nobody holds is recorded `at-rest`, `item_claim` refuses naming the stop, and after `item_stop_clear` a claim succeeds and the label is gone |
+| ST6 | (by hand) The `stop-requested` label added by a person who is not the owner is removed and nothing is recorded; added by the owner it becomes a recorded stop and stays |
+| ST7 | (by hand) A `stop` marker pasted in a comment by an account that is not the owner is ignored: `item_get` shows no stop and `item_claim` still works; a `stop_clear` pasted the same way does not clear a real stop |
+
 ## Notifications (when offered)
 
 A server that lists `notify_get` in `tools/list` must also pass these
@@ -366,6 +483,230 @@ L1 cases ([link_cases.json](../conformance/link_cases.json); the items are `EXP-
 | `unlink-depends-on` | unlinking depends-on drops the blocked-by too | no edge |
 | `chain` | a follow-up chain lists each step on both sides | 2 edges |
 | `every-kind` | each kind's inverse name | 11 edges; blocked-by |
+
+## Record pages (when offered)
+
+A server that reads or writes a register kept as record pages ([record pages](record-pages.md))
+must pass these. The runner runs them against the reference implementation offline, and against
+the server's own page code with `--page-cmd`, which reads one case as JSON on stdin (`op` is
+`render`, `check` or `merge`) and writes the result as JSON on stdout.
+
+| Id | Check |
+| --- | --- |
+| RP1 | The render cases below give the stated page byte for byte (`{"page": ...}`), and parsing that page gives back exactly the case's records, in order |
+| RP2 | The rule cases below give the stated refusals (`{"refused": [...]}`, empty for a pass) |
+| RP3 | The merge cases below give the stated page, or `null` for a refused merge (`{"page": ...}`) |
+
+Cases ([page_cases.json](../conformance/page_cases.json)):
+
+| Case | Check | What |
+| --- | --- | --- |
+| `experiment` | RP1 | a registration, a result, two readings, an item link, an artifact link, an attempt with no time, on an item-folder page |
+| `no-folders` | RP1 | without a link map, a link target is a plain id |
+| `fact` | RP1 | a flat page citing an item-folder page, and an id the link map does not name |
+| `listening` | RP1 | a listening-test registration |
+| `new-page`, `append`, `no-change` | RP2 | pass |
+| `edit-record`, `edit-text`, `delete-entry` | RP2 | `edits-existing-content` |
+| `delete-page` | RP2 | `page-removed` |
+| `loose-prose`, `text-disagrees` | RP2 | `added-text-is-not-rendered-entries` |
+| `hand-page` | RP2 | `page-is-not-rendered` |
+| `other-item` | RP2 | `record-for-another-item:EXP-2` |
+| `markers` | RP2 | `conflict-markers` |
+| `wrong-id` | RP2 | `front-matter-id-is-not-the-file-name` |
+| `two-appends` | RP3 | base, ours, then theirs |
+| `same-append` | RP3 | the same entry on both sides is kept once |
+| `one-edited` | RP3 | refused (`null`) |
+
+## Register records (when offered)
+
+A server that writes, reads or mirrors register records ([register records](register-records.md))
+must pass these. The runner runs RR1 to RR4 against the reference implementation offline, and
+against the server's own record code with `--record-cmd`, which reads one case as JSON on stdin
+(`op` is `validate`, `upgrade` or `fold`) and writes the result as JSON on stdout.
+
+| Id | Check |
+| --- | --- |
+| RR1 | The validate cases below give the stated refusals (`{"refused": [...]}`, empty for a pass) |
+| RR2 | The upgrade cases give the stated record (`{"record": ...}`) |
+| RR3 | The fold cases give the stated state and verdict (`{"state": {"state", "verdict", ...}}`) |
+| RR4 | The same fold cases, shown through the case's source, give the stated labels, managed labels, Status, closed and fields (`{"shown": ...}`) |
+| RR5 | By hand, on a scratch repo: `record_append` writes a valid record as one entry on the item's page with the envelope filled; an invalid one is refused and nothing is written; the same call with the same `eid` writes nothing and succeeds; an experiment `result` is refused `written-on-the-host` |
+| RR6 | By hand: a sync of a scratch repo whose register holds a blocked experiment, a waiting benchmark and a record that fails its schema gives each issue the profile's issue type, kind label, state labels, invalid-record label, Status and fields, and a body with a Record link to the item's page; a second sync plans no edit |
+
+Cases ([record_cases.json](../conformance/record_cases.json)):
+
+| Check | Cases | What they cover |
+| --- | --- | --- |
+| RR1 | 35 | a complete registration and a version 0 line pass; bad JSON, an unknown event, a version ahead, a missing envelope field, a time without offset, a `by` that is no principal, a missing spec field, an enum miss, a missing stopping rule, a verdict outside the rule, a differing rule hash, an event before registration, a second registration, a reused `eid`, a link kind outside the list, an artifact with no pointer, a citation that is no hash |
+| RR2 | 13 | a current record unchanged; a naive time read in the source's zone; no time; a free-text `by`; a link with a URL becoming an artifact; an observation headline moving to `title`; prereg from a tag, from a plain registered-before, and left empty when qualified; a reading with no kind; `from` with no `id`; a benchmark result's status from its counts |
+| RR3, RR4 | 20 | an experiment registered, running, blocked, unblocked, closed by a verdict, unvalidated, retired void, a verdict standing over a later retire, unretired, holding an invalid record, and a version 0 one; a benchmark waiting, partial, complete and withdrawn; a finding current, stale after a reading, unchanged by a planning link, stale after another item's contradicts link, and retired |
+
+## Milestone handoff (when offered)
+
+A server that lists any `handoff_*` tool, or names `milestone-handoff:1` in its
+`capabilities`, must also pass these ([milestone handoff](milestone-handoff.md)). MH1 to MH6
+run offline against the reference ([handoff.py](../conformance/handoff.py)) or against a
+server's own code through `--handoff-cmd`.
+
+| Id | Check |
+| --- | --- |
+| MH1 | Each `records` case below, validated against [the schema](schemas/milestone-handoff/handoff.schema.json), is valid or refused with the stated problem |
+| MH2 | Each `head` case below, replayed in order, gives the stated outcomes (a handoff accepted or refused with its rule, a verdict effective or refused with its rule) and the stated heads, including a supersession racing an old verdict, a verdict by a non-recipient or without a review claim, and a findings handoff on its own milestone |
+| MH3 | Each `routing` case resolves a recipient role to the stated binding or is refused with the stated rule: unauthorized role, self-review, ambiguity, expired and revoked bindings |
+| MH4 | Each `bindings` case allows or refuses who may create, replace and revoke a binding, each `authority` case shows that a claim is still required, that a comment or role name grants nothing, and that self-review is refused, and each `claims` case folds claims to show a review claim coexisting with a live work claim only under the head review handoff |
+| MH5 | Each `delivery` case, replayed in order, gives the stated outcomes and final state: duplicate delivery, lost acknowledgement, failed delivery with escalation, acknowledgement by another principal or on a revoked binding, and a delayed acknowledgement after supersession |
+| MH6 | Each `retry` case gives the stated attempt offsets or deduplication key |
+| MH7 | Each `negotiation` case gives the stated mode from the capabilities and tools; and a server whose `capabilities` names `milestone-handoff:1` or the push name lists every tool the name needs |
+| MH8 | The handoff files name no runtime-specific endpoint (a host other than `example.com`, a port, a loopback address), and [notifications](notifications.md) names no handoff tool; the public guard and a reviewer's reading cover the rest |
+
+MH1 cases ([handoff_cases.json](../conformance/handoff_cases.json), group `records`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `worker-to-reviewer` | a worker asks a reviewer to review a milestone revision | valid |
+| `reviewer-to-worker` | a reviewer hands findings back to the worker | valid |
+| `supersedes-set` | a successor handoff names the one it supersedes | valid |
+| `sha256-revision` | an artifact digest is an immutable revision too | valid |
+| `no-revision` | a handoff must name its evidence revision | refused: required (`$.revision`) |
+| `branch-name-revision` | a branch name is not immutable | refused: does not match (`$.revision`) |
+| `short-sha` | an abbreviated commit is refused | refused: does not match (`$.revision`) |
+| `no-supersedes-key` | supersedes is always present, null for the first | refused: required (`$.supersedes`) |
+| `unknown-action` | one concrete action from the fixed set | refused: must be one of (`$.action`) |
+| `runtime-endpoint` | no runtime-specific field is allowed in the record | refused: not allowed (`$.endpoint`) |
+| `bad-id` | the identifier has the fixed shape | refused: does not match (`$.handoff_id`) |
+| `bad-role` | a recipient role is one of the four roles | refused: must be one of (`$.recipient.role`) |
+| `no-sender-session` | the sender session is required | refused: required (`$.sender.session`) |
+| `too-much-evidence` | at most ten evidence links | refused: too many items (`$.evidence`) |
+
+MH2 cases (group `head`; events are replayed in comment order):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `head-first` | the first handoff on a milestone becomes its head | H1 accepted |
+| `head-supersede` | a successor naming the head and a new revision replaces it | H1 accepted; H2 accepted |
+| `head-stale-base` | a second handoff that does not name the head is refused | H1 accepted; H2 refused `stale-base` |
+| `head-same-revision` | a successor must change the revision | H1 accepted; H2 refused `same-revision` |
+| `head-unknown-base` | a first handoff cannot name a successor target | H1 refused `unknown-supersedes` |
+| `head-milestones-apart` | milestones have separate heads | H1 accepted; H2 accepted |
+| `verdict-current` | a verdict naming the head's handoff and revision is effective | H1 accepted; verdict V1 effective |
+| `verdict-old-revision` | accepting an old revision cannot authorize a newer one | H1 accepted; H2 accepted; verdict V1 refused `stale-revision` |
+| `verdict-race-supersede` | a supersession that lands before the check wins over an old verdict; one that lands after leaves the earlier authorization standing for its own revision only | H1 accepted; verdict V1 effective; H2 accepted; verdict V1 refused `stale-revision` |
+| `verdict-no-milestone` | a verdict that names no milestone is refused | H1 accepted; verdict V1 refused `missing-milestone` |
+| `verdict-no-revision` | a verdict that names no revision is refused | H1 accepted; verdict V1 refused `missing-revision` |
+| `verdict-no-handoff` | a verdict on a milestone with no handoff is refused | verdict V1 refused `no-handoff` |
+| `verdict-other-milestone` | a verdict is effective for its own milestone only | H1 accepted; H2 accepted; verdict V1 refused `stale-revision` |
+| `verdict-wrong-author` | a verdict by a principal that is not the handoff's recipient is never effective | H1 accepted; verdict V1 refused `unauthorized-author` |
+| `verdict-no-review-claim` | a verdict written without a live review claim is never effective | H1 accepted; verdict V1 refused `no-review-claim` |
+| `findings-own-head` | a findings handoff sits on its own milestone head and does not disturb the evidence head | H1, F1, H2 accepted; heads `m1` H2 and `m1-findings` F1 |
+| `findings-on-evidence-milestone` | a findings handoff cannot take the evidence milestone | H1 accepted; F1 refused `findings-milestone` |
+| `findings-suffix-reserved` | only a findings handoff may use the findings milestone | H1 refused `reserved-suffix` |
+| `findings-round-trip` | review, findings back, a new revision and a second review: the second verdict is effective and the findings head stays | H1 accepted; V1 effective; F1, H2 accepted; V2 effective |
+
+MH3 cases (group `routing`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `route-ok` | a reviewer role resolves to the one active binding | binding `bd_1` |
+| `route-named` | a named principal resolves to its own binding | binding `bd_2` |
+| `route-expired` | an expired binding is not a route | refused `no-binding` |
+| `route-revoked` | a revoked binding is not a route | refused `no-binding` |
+| `route-none` | no binding for the role | refused `no-binding` |
+| `route-ambiguous` | two principals bound to the role and none named | refused `ambiguous-recipient` |
+| `route-unauthorized-role` | a binding for a role the principal is no longer authorized for is not a route | refused `no-binding` |
+| `route-named-unbound` | the named principal has no binding | refused `no-binding` |
+| `route-self-review` | a review is never routed to the sender's own session | refused `self-review` |
+| `route-worker` | a worker binding counts when the principal already took part in the item | binding `bd_1` |
+| `route-worker-stranger` | a worker role is not open to a principal with no grant and no part in the item | refused `no-binding` |
+
+MH4 cases (group `bindings`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `bind-own` | a principal binds its own session for an authorized role | allowed |
+| `bind-replace` | a principal replaces its own binding | allowed |
+| `bind-worker` | a principal that took part in the item binds the worker role | allowed |
+| `bind-worker-stranger` | a worker role is refused to a principal with no grant and no part in the item | refused `role-not-authorized` |
+| `bind-for-other` | no principal binds another's session | refused `others-binding` |
+| `bind-owner-by-agent` | an agent never binds the owner role | refused `owner-role` |
+| `bind-unauthorized` | a role the owner has not granted the principal | refused `role-not-authorized` |
+| `bind-ttl-long` | a binding lasts at most 24 hours | refused `ttl-out-of-range` |
+| `revoke-self` | the bound principal may revoke | allowed |
+| `revoke-owner` | the owner may revoke any binding | allowed |
+| `revoke-other` | another agent may not revoke | refused `not-allowed` |
+
+MH4 cases (group `authority`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `work-claim-review` | a review claim for the handoff's item lets a reviewer work | allowed |
+| `work-no-claim` | a delivered, acknowledged handoff without a claim grants nothing | refused `claim-required` |
+| `work-comment-only` | a comment naming the reviewer is not authority | refused `no-authority` |
+| `work-role-name` | a role name alone is not authority | refused `no-authority` |
+| `work-wrong-purpose` | a work claim does not meet a review scope | refused `scope-mismatch` |
+| `work-self-review` | a review by the session that did the work is forbidden | refused `self-review` |
+
+MH5 cases (group `delivery`; events are replayed in order):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `deliver-ack` | delivered, then acknowledged | deliver; ack; state `acknowledged` |
+| `deliver-twice` | a duplicate delivery changes nothing | deliver; deliver unchanged; state `delivered` |
+| `ack-twice` | a repeated acknowledgement is idempotent | deliver; ack; ack unchanged; state `acknowledged` |
+| `lost-ack` | an acknowledgement the sender never saw is safely repeated | deliver; ack; ack unchanged; state `acknowledged` |
+| `ack-before-deliver` | a recipient that polled can acknowledge a handoff whose delivery record was lost | ack; state `acknowledged` |
+| `failed-exhausted` | delivery that never succeeds fails after its attempts and escalates | fail; state `failed`; escalated |
+| `fail-early` | failure before the attempts are used is refused | fail refused `not-exhausted`; state `pending` |
+| `fail-after-delivery` | a delivered handoff cannot fail | deliver; fail refused `delivered`; state `delivered` |
+| `ack-other-principal` | another principal cannot acknowledge | deliver; ack refused `wrong-recipient`; state `delivered` |
+| `ack-revoked-binding` | a revoked binding cannot acknowledge | deliver; ack refused `revoked-binding`; state `delivered` |
+| `ack-wrong-revision` | an acknowledgement names the revision it received | deliver; ack refused `revision-mismatch`; state `delivered` |
+| `ack-wrong-delivery` | an acknowledgement names the delivery id | deliver; ack refused `delivery-mismatch`; state `delivered` |
+| `ack-after-supersede` | a delayed acknowledgement after supersession is recorded as stale | deliver; ack stale; state `acknowledged` |
+| `ack-after-cancel` | an acknowledgement of a cancelled handoff is refused | cancel; ack refused `cancelled`; state `cancelled` |
+| `cancel-pending` | a pending handoff may be cancelled | cancel; state `cancelled` |
+| `cancel-acknowledged` | an acknowledged handoff cannot be cancelled | deliver; ack; cancel refused `acknowledged`; state `acknowledged` |
+| `deliver-after-cancel` | an in-flight delivery after a cancel changes nothing | cancel; deliver refused `terminal`; state `cancelled` |
+| `poll-ack` | in poll mode a granted recipient acknowledges with no binding | deliver; ack; state `acknowledged` |
+| `poll-ack-ungranted` | in poll mode a principal the role is not granted to cannot acknowledge | deliver; ack refused `role-not-granted`; state `delivered` |
+
+MH6 cases (group `retry`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `retry-default` | five attempts at 0, 1, 3, 7 and 15 minutes | offsets 0, 1, 3, 7, 15 |
+| `retry-capped` | the delay doubles from one minute and stops at thirty | offsets 0, 1, 3, 7, 15, 31, 61, 91 |
+| `dedupe-stable` | the deduplication key is fixed by handoff, revision and recipient | `dl_5b6fb2d2bffe465e` |
+| `dedupe-new-revision` | a new revision is a new key | `dl_85f04884eccf6162` |
+| `dedupe-other-recipient` | another recipient is a new key | `dl_632663f9bc2481ef` |
+
+MH7 cases (group `negotiation`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `negotiate-none` | a legacy server offers nothing: the sender posts the packet as a comment and says delivery is manual | mode `manual` |
+| `negotiate-tools-only` | tools without the capability name are not trusted | mode `manual` |
+| `negotiate-poll` | the capability and the core tools without push: the recipient polls | mode `poll` |
+| `negotiate-push` | push claimed and backed by the binding tools: the server delivers to bound sessions | mode `push` |
+| `negotiate-push-no-bind` | push claimed but the binding tools are missing: poll | mode `poll` |
+| `negotiate-no-ack` | the capability claimed with the acknowledgement tool missing: manual | mode `manual` |
+| `negotiate-future-version` | only a later version named: manual | mode `manual` |
+
+MH4 cases (group `claims`; events are replayed in order, `now` is 100):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `review-beside-work` | a reviewer named by the head review handoff claims review while the worker holds the item | both accepted; holder the worker; reviewers the reviewer |
+| `review-self` | the holder cannot take the review claim | refused `self-review` |
+| `review-same-session` | a reviewer on the holder's own session is refused | refused `self-review` |
+| `review-same-principal` | a fresh session of the holder's own principal, named by the head review handoff, takes the review claim (sessions are compared, not principals) | accepted; reviewers the principal |
+| `review-no-handoff` | a review claim naming no handoff stays refused while the item is held | refused `held` |
+| `review-stale-handoff` | a review claim naming a superseded handoff is refused | refused `stale-handoff` |
+| `review-not-recipient` | only the handoff's recipient takes the review claim | refused `not-recipient` |
+| `work-while-held` | a second work claim stays refused | refused `held` |
+| `review-release` | a reviewer releases its own review claim and the worker keeps the item | holder the worker; no reviewers |
+| `review-send` | a reviewer with a live review claim for the handoff may send; one without may not | second send refused `no-claim` |
+| `review-expired-send` | a reviewer whose review lease has lapsed may not send | refused `no-claim` |
+| `holder-lapsed` | a lapsed work claim leaves the item open to the review claim as an ordinary claim | holder the reviewer |
 
 ## Security (all levels)
 

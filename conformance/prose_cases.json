@@ -1,0 +1,714 @@
+{
+ "note": "A {#} in a title or body stands for an issue reference; the runner writes it as # and a number.",
+ "words": {
+  "verbs": [
+   "accept",
+   "add",
+   "adopt",
+   "align",
+   "allow",
+   "answer",
+   "apply",
+   "archive",
+   "ask",
+   "assign",
+   "attach",
+   "audit",
+   "automate",
+   "avoid",
+   "back",
+   "block",
+   "bring",
+   "build",
+   "bump",
+   "cache",
+   "cancel",
+   "cap",
+   "capture",
+   "carry",
+   "catch",
+   "change",
+   "check",
+   "claim",
+   "clarify",
+   "clean",
+   "clear",
+   "close",
+   "collect",
+   "combine",
+   "compare",
+   "complete",
+   "connect",
+   "copy",
+   "count",
+   "cover",
+   "create",
+   "cut",
+   "decide",
+   "define",
+   "delete",
+   "deliver",
+   "deploy",
+   "describe",
+   "detect",
+   "document",
+   "drop",
+   "edit",
+   "enable",
+   "end",
+   "ensure",
+   "explain",
+   "export",
+   "expose",
+   "extract",
+   "fail",
+   "fetch",
+   "file",
+   "fill",
+   "filter",
+   "find",
+   "finish",
+   "fix",
+   "flag",
+   "follow",
+   "forbid",
+   "gate",
+   "get",
+   "give",
+   "group",
+   "guard",
+   "handle",
+   "have",
+   "help",
+   "hide",
+   "hold",
+   "import",
+   "improve",
+   "include",
+   "keep",
+   "label",
+   "let",
+   "limit",
+   "link",
+   "list",
+   "load",
+   "lock",
+   "log",
+   "make",
+   "map",
+   "mark",
+   "measure",
+   "merge",
+   "migrate",
+   "move",
+   "name",
+   "notify",
+   "offer",
+   "open",
+   "order",
+   "pause",
+   "pick",
+   "pin",
+   "plan",
+   "post",
+   "prefer",
+   "prepare",
+   "prevent",
+   "promote",
+   "propose",
+   "protect",
+   "prove",
+   "publish",
+   "pull",
+   "push",
+   "put",
+   "query",
+   "raise",
+   "read",
+   "rebuild",
+   "record",
+   "reduce",
+   "refresh",
+   "refuse",
+   "register",
+   "reject",
+   "release",
+   "remove",
+   "rename",
+   "render",
+   "reopen",
+   "repin",
+   "replace",
+   "report",
+   "request",
+   "require",
+   "reset",
+   "resolve",
+   "restore",
+   "restrict",
+   "retire",
+   "retry",
+   "return",
+   "reuse",
+   "review",
+   "revoke",
+   "rewrite",
+   "run",
+   "save",
+   "say",
+   "scan",
+   "schedule",
+   "send",
+   "separate",
+   "set",
+   "share",
+   "shorten",
+   "show",
+   "sign",
+   "simplify",
+   "skip",
+   "sort",
+   "specify",
+   "speed",
+   "split",
+   "start",
+   "stop",
+   "store",
+   "support",
+   "surface",
+   "switch",
+   "sync",
+   "take",
+   "teach",
+   "tell",
+   "test",
+   "tick",
+   "track",
+   "trim",
+   "turn",
+   "unblock",
+   "undo",
+   "update",
+   "upgrade",
+   "use",
+   "validate",
+   "verify",
+   "warn",
+   "watch",
+   "write"
+  ],
+  "jargon": [
+   "fold",
+   "hand-back",
+   "handback",
+   "holder",
+   "lease",
+   "leases",
+   "mandate",
+   "preset",
+   "presets",
+   "principal",
+   "stall",
+   "stalls"
+  ],
+  "provenance_starts": [
+   "part of",
+   "from ",
+   "revised",
+   "approved",
+   "see ",
+   "follow-up",
+   "follows ",
+   "context",
+   "split from",
+   "moved from",
+   "per ",
+   "as discussed",
+   "note:",
+   "todo"
+  ],
+  "code_extensions": [
+   "py",
+   "md",
+   "json",
+   "yml",
+   "yaml",
+   "ps1",
+   "sh",
+   "js",
+   "ts",
+   "toml",
+   "txt",
+   "html",
+   "cfg",
+   "ini"
+  ]
+ },
+ "cases": [
+  {
+   "name": "clear",
+   "what": "verb first, one outcome, summary first",
+   "title": "Show reviewers what each board item delivers",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": []
+   }
+  },
+  {
+   "name": "prefix-kind",
+   "what": "a Kind prefix",
+   "title": "Epic: show reviewers what each item delivers",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-prefix"
+    ],
+    "warn": [
+     "title-verb"
+    ]
+   }
+  },
+  {
+   "name": "prefix-part",
+   "what": "a numbered part prefix",
+   "title": "Part 3: retry the export when the store is busy",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-prefix"
+    ],
+    "warn": [
+     "title-verb"
+    ]
+   }
+  },
+  {
+   "name": "prefix-two-words",
+   "what": "a two-word layer prefix",
+   "title": "Server spec: refuse a claim on a closed issue",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-prefix"
+    ],
+    "warn": [
+     "title-verb"
+    ]
+   }
+  },
+  {
+   "name": "prefix-bracket",
+   "what": "a bracket tag",
+   "title": "[docs] Explain how a claim expires to new agents",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-prefix"
+    ],
+    "warn": [
+     "title-verb"
+    ]
+   }
+  },
+  {
+   "name": "colon-late",
+   "what": "a colon after the fourth word is a subtitle, not a prefix",
+   "title": "Retry the export job when the store says: try later",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-subtitle"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "subtitle-dash",
+   "what": "a spaced dash subtitle",
+   "title": "Retry the export job — the store is sometimes busy",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-subtitle"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "hyphen-ok",
+   "what": "a hyphen inside a word is fine",
+   "title": "Let a re-opened item keep its earlier Size value",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": []
+   }
+  },
+  {
+   "name": "arrow",
+   "what": "an arrow",
+   "title": "Move reviewed specs → ready for a builder to take",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-subtitle"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "list",
+   "what": "two commas make a list",
+   "title": "Add slots, intake rules, and a tick to every lane",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-list"
+    ],
+    "warn": [
+     "title-and"
+    ]
+   }
+  },
+  {
+   "name": "one-comma",
+   "what": "one comma is fine",
+   "title": "Warn the owner once, before a claim runs out",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": []
+   }
+  },
+  {
+   "name": "code-backtick",
+   "what": "a backtick",
+   "title": "Add `slots` to lanes so several agents run at once",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-code"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "code-snake",
+   "what": "a snake_case name",
+   "title": "Let pr_close close a pull request without a merge",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-code"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "code-file",
+   "what": "a file name",
+   "title": "Check merge grants in lanes.py before every merge",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-code"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "code-ref",
+   "what": "an issue number",
+   "title": "Finish the export retry work started in {#} today",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-code"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "code-date",
+   "what": "a date",
+   "title": "Stop the stalls seen on 2026-01-05 from coming back",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-code"
+    ],
+    "warn": [
+     "title-jargon"
+    ]
+   }
+  },
+  {
+   "name": "short",
+   "what": "under 25 characters",
+   "title": "Fix the export",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-length"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "long",
+   "what": "over 72 characters",
+   "title": "Let the agent that opened a pull request close it without merging when its work is dropped",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-length"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "not-verb",
+   "what": "starts with a noun",
+   "title": "Policy for chosen code paths, off by default",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": [
+     "title-verb"
+    ]
+   }
+  },
+  {
+   "name": "and",
+   "what": "an and is a hint",
+   "title": "Record wait reasons and report the cycle time per item",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": [
+     "title-and"
+    ]
+   }
+  },
+  {
+   "name": "jargon",
+   "what": "a spec-only word",
+   "title": "Show each principal the items handed to it at start",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": [
+     "title-jargon"
+    ]
+   }
+  },
+  {
+   "name": "summary-heading",
+   "what": "the body opens with a heading",
+   "title": "Show reviewers what each board item delivers",
+   "body": "## Acceptance criteria\n\n- AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "summary-first"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "summary-provenance",
+   "what": "the body opens with where it came from",
+   "title": "Show reviewers what each board item delivers",
+   "body": "Part of the board epic (gap 1).\n\n## Acceptance criteria\n\n- AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "summary-first"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "summary-ref",
+   "what": "the body opens with a reference",
+   "title": "Show reviewers what each board item delivers",
+   "body": "{#} asked for this.\n\n## Acceptance criteria\n\n- AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "summary-first"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "summary-empty",
+   "what": "an empty body",
+   "title": "Show reviewers what each board item delivers",
+   "body": "",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "summary-first"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "summary-comment-skipped",
+   "what": "an HTML comment line is skipped",
+   "title": "Show reviewers what each board item delivers",
+   "body": "<!-- work-item: E-001 -->\nWhen a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": []
+   }
+  },
+  {
+   "name": "summary-in-fence",
+   "what": "a summary inside a code fence does not count",
+   "title": "Show reviewers what each board item delivers",
+   "body": "```\nWhen it works, people can tell.\n```\n\n## Acceptance criteria\n\n- AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "summary-first"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "summary-long",
+   "what": "a first paragraph over 400 characters",
+   "title": "Show reviewers what each board item delivers",
+   "body": "Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. Reviewers cannot tell what an item delivers. \n\n## Acceptance criteria\n\n- AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "summary-length"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "summary-two-lines",
+   "what": "a two-line summary joins under the limit",
+   "title": "Show reviewers what each board item delivers",
+   "body": "When a reviewer opens the board,\nthey can tell what each item delivers.\n\n## Acceptance criteria\n\n- AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": []
+   }
+  },
+  {
+   "name": "epic-clear",
+   "what": "an epic with summary, Problem and Outcome check",
+   "title": "Notify the owner only when they must act",
+   "body": "For owners, every epic says what it delivers. Today titles are labels.\n\n## Problem\n\nTitles hide the outcome.\n\n## Outcome check\n\n- [ ] A reader names each epic's outcome from its title.\n",
+   "kind": "epic",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": []
+   }
+  },
+  {
+   "name": "epic-sections",
+   "what": "an epic missing Outcome check",
+   "title": "Notify the owner only when they must act",
+   "body": "For owners, fewer pings. Today every write pings.\n\n## Problem\n\nToo many pings.\n",
+   "kind": "epic",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "epic-sections"
+    ],
+    "warn": []
+   }
+  },
+  {
+   "name": "story-no-sections",
+   "what": "a story needs no epic sections",
+   "title": "Notify the owner only when they must act",
+   "body": "When a reviewer opens the board, they can tell what each item delivers, so nobody has to open it to find out.\n\n## Acceptance criteria\n\n- [ ] AC1: it works\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "clear",
+    "fail": [],
+    "warn": []
+   }
+  },
+  {
+   "name": "several",
+   "what": "every failure, in rule order",
+   "title": "Kit: pr_edit, pr_close, pr_ready",
+   "body": "Part of the epic.\n",
+   "kind": "story",
+   "expect": {
+    "verdict": "unclear",
+    "fail": [
+     "title-prefix",
+     "title-list",
+     "title-code",
+     "summary-first"
+    ],
+    "warn": [
+     "title-verb"
+    ]
+   }
+  }
+ ]
+}

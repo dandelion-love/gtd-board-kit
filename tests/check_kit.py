@@ -265,6 +265,11 @@ link_json = [c["name"] for c in json.loads((ROOT / "conformance" / "link_cases.j
 if link_table != link_json:
     fail(f"L1 case table {link_table} differs from link_cases.json {link_json}")
 
+intake_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Intake"), re.M)
+intake_json = [c["name"] for c in json.loads((ROOT / "conformance" / "intake_check_cases.json").read_text())["cases"]]
+if intake_table != intake_json:
+    fail(f"I6 case table {intake_table} differs from intake_check_cases.json {intake_json}")
+
 # Every check id in the table belongs to a Family, and the report sorts by family order.
 for cid in spec_ids:
     try:
@@ -278,6 +283,12 @@ for fam in Family:
 if sorted(["X1", "JC2", "T10", "O1", "T2", "J1", "RUN"], key=report_order) != \
         ["T2", "T10", "O1", "J1", "JC2", "X1", "RUN"]:
     fail("conformance/runner.py report_order does not follow Family order")
+
+handoff_cases = json.loads((ROOT / "conformance" / "handoff_cases.json").read_text())
+handoff_table = re.findall(r"^\| `([a-z][a-z0-9-]+)` \|", section("Milestone handoff"), re.M)
+handoff_json = [c["name"] for g in ("records", "head", "routing", "bindings", "authority", "delivery", "retry", "negotiation", "claims") for c in handoff_cases[g]]
+if handoff_table != handoff_json:
+    fail(f"MH case tables {handoff_table} differ from handoff_cases.json {handoff_json}")
 
 # The runner's fingerprint gives the golden values server-spec states.
 spec_md = (ROOT / "server-spec" / "repo-context-and-profiles.md").read_text()
@@ -302,6 +313,16 @@ views = {"board": {"views": [
 if [x.split("'")[1] for x in deprecated_filters_in(views)] != ["Old", "Caps", "Negated"]:
     fail(f"deprecated_filters_in got {deprecated_filters_in(views)}")
 
+# Priority: the board-fields page, the profile spec and the runner name the same four levels.
+from runner import PRIORITY_LEVELS  # noqa: E402
+fields_md = (ROOT / "knowledge" / "model" / "board-fields.md").read_text()
+levels_md = re.findall(r"^\| `(P\d)` \|", fields_md.split("# Priority levels", 1)[-1].split("# A card waiting", 1)[0], re.M)
+if tuple(levels_md) != PRIORITY_LEVELS:
+    fail(f"board-fields.md Priority levels {levels_md} differ from the runner's {list(PRIORITY_LEVELS)}")
+profile_md = (ROOT / "server-spec" / "repo-context-and-profiles.md").read_text()
+if not all(f"`{level}`" in profile_md.split("| `Priority` |", 1)[-1].split("\n", 1)[0] for level in PRIORITY_LEVELS):
+    fail("repo-context-and-profiles.md does not list the Priority levels the runner accepts")
+
 # tools/spec_pair.py: a spec change needs a conformance change or a Conformance-unchanged trailer.
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "tools"))
@@ -324,11 +345,23 @@ prc = subprocess.run([sys.executable, str(ROOT / "tests" / "test_pr_check.py")],
 if prc.returncode != 0:
     fail("tests/test_pr_check.py failed:\n" + prc.stderr.strip()[-2000:])
 
+# tools/lanes.py: register-form merge grants (tests/test_lanes_register.py).
+r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_lanes_register.py")],
+                   capture_output=True, text=True)
+if r.returncode != 0:
+    fail("tests/test_lanes_register.py failed:\n" + r.stderr.strip()[-2000:])
+
 # tools/agent_guard.py: the Claude and Codex hook rules (tests/test_agent_guard.py).
 r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_agent_guard.py")],
                    capture_output=True, text=True)
 if r.returncode != 0:
     fail("tests/test_agent_guard.py failed:\n" + r.stderr.strip()[-2000:])
+
+# tools/gtd_server.py, init_checkout.py and the guard's work-repo mode (tests/test_gtd_server.py).
+r = subprocess.run([sys.executable, str(ROOT / "tests" / "test_gtd_server.py")],
+                   capture_output=True, text=True)
+if r.returncode != 0:
+    fail("tests/test_gtd_server.py failed:\n" + r.stderr.strip()[-2000:])
 
 if errors:
     print("\n".join(f"FAIL {e}" for e in errors))

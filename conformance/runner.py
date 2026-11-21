@@ -18,18 +18,20 @@ What it needs, and which checks each unlocks:
     + --project (a board)   P7, C5 (Size), C12, B1 to B4
     + --preset-token P=ENV  T6 and X2 in full, one token per preset
     profile_updates offered O1 (with a token), O2 (with --repo); O3 is manual
-    item_ready offered      R1 (with --ready-cmd), R2 to R8 (with --repo; R2 and R6 in full
-                            with --project)
+    item_ready offered      R1 (with --ready-cmd), R9 (with --prose-cmd), R2 to R8 and R10
+                            (with --repo; R2 and R6 in full with --project)
     sub_issue_add offered   K1 (with --kind-cmd), K2 to K4 (with --repo whose owner has the
                             Issue Types Epic, Story, Chore, Spike and Finding)
     issue_artifact_* offered  A1 (with a token), A2 to A4 (with --repo where GitHub's issue
                             artifacts are available; it creates two artifacts, deletes none)
     intake_* offered        I1 (with a token), I2 to I4 (with --repo and a second token: the
                             second files one labelled request, the first acks it); I5 is manual
+    intake_check offered    I7 to I9 (with --repo and a second token: the second files the item,
+                            the first, which must be an accepted checker, checks it)
     work_items_plan/_sync   L1 (with --link-cmd, which runs it whatever the token sees);
     offered                 L2 is manual
-    no --server             C13, R1, K1 and L1, against the reference fold, ready check, Kind
-                            rules and link fold
+    no --server             C13, R1, R9, K1 and L1, against the reference fold, ready check,
+                            prose check, Kind rules and link fold
 
 Tokens are read from environment variables, never from the command line, and are never
 printed. Checks that need a person (J4 to J9, C4, C10, T4) are listed as manual with what
@@ -76,7 +78,13 @@ class Family(Enum):
     ARTIFACTS = "A"         # Issue artifacts (when the issue_artifact_* tools are offered)
     INTAKE = "I"            # Intake (when intake_list or intake_ack is offered)
     NOTIFY = "N"            # Notifications (when notify_get is offered)
+    EDITS = "CE"            # Comment edits (when comment_update or comment_redact is offered)
+    STALE = "SD"            # Stale done (when stale_done or item_close_done is offered)
+    STOP = "ST"             # Stop (when item_stop or item_stop_clear is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
+    PAGES = "RP"            # Record pages (when a register is kept as pages)
+    HANDOFF = "MH"          # Milestone handoff (when a handoff_* tool or the capability is offered)
+    RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
     SECURITY = "X"          # Security (all levels)
@@ -89,7 +97,10 @@ HEADINGS = {
     Family.CLAIMS: "Claims", Family.SIGNOFFS: "Sign-offs", Family.BOARD: "Board", Family.CUSTOMIZATION: "Customization",
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
-    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.LINKS: "Typed links",
+    Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.STALE: "Stale done", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
+    Family.STOP: "Stop",
+    Family.RECORDS: "Register records",
+    Family.HANDOFF: "Milestone handoff",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -113,7 +124,10 @@ LEVEL_OF = {
     Family.BOARD: Level.BOARD, Family.CUSTOMIZATION: Level.EXTENDED,
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
-    Family.NOTIFY: Level.EXTENDED, Family.LINKS: Level.EXTENDED,
+    Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.STALE: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
+    Family.STOP: Level.EXTENDED,
+    Family.RECORDS: Level.EXTENDED,
+    Family.HANDOFF: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -160,13 +174,14 @@ PRESETS = ("desk", "read", "work", "full")
 
 # The preset class of every tool the spec classes (transport-and-identity.md, tools.md).
 CLASS = {"whoami": "desk"}
+CLASS.update(dict.fromkeys(("item_stop", "item_stop_clear"), "work"))
 CLASS.update(dict.fromkeys((
     "profile_list", "profile_get", "project_get", "project_items", "project_item_find",
     "project_views_list", "list_next_actions", "issue_list", "issue_blocked_by_list",
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
-    "issue_artifact_get", "activity_since", "intake_list", "notify_get"), "read"))
+    "issue_artifact_get", "activity_since", "intake_list", "notify_get", "stale_done"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -175,7 +190,8 @@ CLASS.update(dict.fromkeys((
     "issue_close", "issue_reopen", "issue_assign", "issue_milestone", "issue_type_set",
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
-    "issue_artifact_update", "intake_ack"), "work"))
+    "issue_artifact_update", "intake_ack", "comment_update", "comment_redact", "item_close_done"), "work"))
+CLASS["intake_check"] = "work"
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -186,6 +202,8 @@ SPEC_FULL = frozenset((
     "org_issue_types", "org_issue_type_set", "repo_variables", "repo_variable_set",
     "repo_variable_delete"))
 SPEC_FULL_PREFIXES = ("webhook_",)
+CLASS.update(dict.fromkeys(("handoff_send", "handoff_ack", "handoff_cancel", "handoff_bind", "handoff_unbind"), "work"))
+CLASS.update(dict.fromkeys(("handoff_get", "handoff_list", "handoff_bindings"), "read"))
 
 
 def spec_class(name: str) -> str | None:
@@ -641,7 +659,7 @@ def parse_record(body: str) -> dict | None:
         rec = json.loads(found[0][1])
     except json.JSONDecodeError:
         return None
-    if not isinstance(rec, dict) or rec.get("event") not in ("claim", "renew", "release", "report"):
+    if not isinstance(rec, dict) or rec.get("event") not in ("claim", "renew", "release", "report", "stop", "stop_clear"):
         return None
     return rec
 
@@ -663,37 +681,76 @@ def _ts(value: str | None) -> datetime | None:
     return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) if value else None
 
 
-def reference_fold(comments: list[dict], now: str) -> dict:
-    """The fold in server-spec/claim-records.md, over ``[{id, body}]`` in any order."""
+CLOSING_PARTS = ("done", "left", "decided", "set_aside")
+
+
+def closing_parts(rec: dict) -> dict | None:
+    """The four closing-note parts of a release or report record, or None when it carries
+    none. The old release field ``remaining`` is read as ``left``."""
+    parts = {}
+    for key in CLOSING_PARTS:
+        raw = rec.get(key)
+        if key == "left" and not str(raw or "").strip():
+            raw = rec.get("remaining")
+        parts[key] = str(raw or "").strip()
+    return parts if any(parts.values()) else None
+
+
+def reference_fold(comments: list[dict], now: str, owners: list[str] | None = None) -> dict:
+    """The fold in server-spec/claim-records.md, over ``[{id, body}]`` in any order. ``owners`` are the
+    principals whose ``stop`` and ``stop_clear`` records count; a record by anyone else is conversation."""
     holder = lease = handoff = last_report = attention_by = None
-    lost = 0
+    lost = taken = 0
+    previous = stop = cur = ended = None  # cur: this lease's latest parts; ended: the last ended lease
     for c in sorted(comments, key=lambda c: c["id"]):
         rec = parse_record(c["body"])
         if rec is None:
             continue
         ev, by, at = rec["event"], rec.get("by"), _ts(rec.get("t"))
-        if ev == "claim":
-            if holder is None or (rec.get("takeover_of") == holder and lease and at and lease < at):
-                holder, lease = by, _ts(rec.get("lease_until"))
+        if ev in ("stop", "stop_clear") and owners is not None and by not in owners:
+            continue
+        if ev == "stop":
+            stop = stop or {"by": by, "wind_down_until": _ts(rec.get("wind_down_until"))}
+        elif ev == "stop_clear":
+            stop = None
+        elif ev == "claim":
+            takeover = holder is not None and rec.get("takeover_of") == holder and lease and at and lease < at
+            if stop is None and (holder is None or takeover):
+                if takeover:
+                    taken += 1
+                    previous, ended = holder, {"by": holder, "parts": cur}
+                holder, lease, cur = by, _ts(rec.get("lease_until")), None
                 handoff = last_report = None
             else:
                 lost += 1
         elif ev == "renew" and by == holder:
             lease = _ts(rec.get("lease_until")) or lease
         elif ev == "release" and by == holder:
-            holder = lease = last_report = None
+            previous, ended = holder, {"by": holder, "parts": closing_parts(rec) or cur}
+            holder = lease = last_report = cur = None
             handoff = rec.get("handoff_to")
         elif ev == "report":
             attention_by = by if rec.get("attention") else None
+            if by == holder and closing_parts(rec):
+                cur = closing_parts(rec)
             if by == holder and rec.get("state"):
                 last_report = rec["state"]
                 if last_report == "dropped":
-                    holder = lease = last_report = None
+                    previous, ended = holder, {"by": holder, "parts": closing_parts(rec) or cur}
+                    holder = lease = last_report = cur = None
                     handoff = rec.get("handoff_to")
+    stale = bool(holder and lease and lease < _ts(now))
+    note = {"by": holder, "parts": cur} if stale else ended
+    parts = (note or {}).get("parts")
     stamp = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ") if d else None
     return {"holder": holder, "lease_until": stamp(lease),
-            "stale": bool(holder and lease and lease < _ts(now)), "last_report": last_report,
-            "handoff_to": handoff, "lost_claims": lost, "attention_by": attention_by}
+            "stale": stale, "last_report": last_report,
+            "handoff_to": handoff, "lost_claims": lost, "attention_by": attention_by,
+            "interruptions": taken + (1 if stale else 0), "previous_holder": previous,
+            "closing_by": (note or {}).get("by"),
+            "closing_parts": [parts[k] or "none" for k in CLOSING_PARTS] if parts else ["none recorded"] * 4,
+            "stop_state": None if stop is None else ("requested" if holder else "at-rest"),
+            "overdue": bool(stop and holder and stop["wind_down_until"] and _ts(now) > stop["wind_down_until"])}
 
 
 def render_record(rec: dict) -> str:
@@ -709,8 +766,9 @@ def fold_inputs(fixtures: dict) -> list[tuple[dict, list[dict], str]]:
         bodies = list(case.get("raw_comments") or [])
         for r in case["records"]:
             rec = {"v": 1, **r, "t": at(r["t"])}
-            if "lease_until" in rec:
-                rec["lease_until"] = at(r["lease_until"])
+            for key in ("lease_until", "wind_down_until"):
+                if key in rec:
+                    rec[key] = at(r[key])
             bodies.append(render_record(rec))
         comments = [{"id": i + 1, "body": b} for i, b in enumerate(bodies)]
         expect = dict(case["expect"])
@@ -733,7 +791,7 @@ def check_fold(rep: Report, fold_cmd: str | None) -> None:
                 bad.append(f"{case['name']}: no JSON from --fold-cmd")
                 continue
         else:
-            got = reference_fold(comments, now)
+            got = reference_fold(comments, now, fixtures.get("owners"))
         diff = [k for k, v in expect.items() if got.get(k) != v]
         if diff:
             bad.append(f"{case['name']} ({case['says']}): {', '.join(f'{k}={got.get(k)!r}' for k in diff)}")
@@ -746,7 +804,7 @@ def check_fold(rep: Report, fold_cmd: str | None) -> None:
 # ---------------------------------------------------------------------------
 
 #: The ready rules, in the order `missing` lists them.
-READY_RULES = ("acceptance-criteria", "open-question", "unlinked-blocker", "blocker-cycle", "size")
+READY_RULES = ("acceptance-criteria", "open-question", "unlinked-blocker", "blocker-cycle", "size", "prose")
 READY_VERDICTS = ("ready", "ready-blocked", "needs-refinement")
 READY_WALK_LIMIT = 50
 _FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
@@ -815,7 +873,7 @@ def body_blockers(body: str, repo: str) -> list[str]:
 def reference_ready(issue: dict) -> dict:
     """The ready check over a plain description of an issue and its blocker graph.
 
-    ``issue``: ``repo``, ``number``, ``body``, ``labels``, ``board`` (bool), ``size``,
+    ``issue``: ``repo``, ``number``, ``title``, ``body``, ``labels``, ``board`` (bool), ``size``,
     ``pickup_sizes``, ``blocked_by`` (``owner/repo#N`` of each native blocker) and
     ``issues`` (``owner/repo#N`` to ``{state, blocked_by}`` for every other issue).
     Returns ``verdict``, ``missing`` (rule names) and ``blockers`` (open ones)."""
@@ -861,8 +919,121 @@ def reference_ready(issue: dict) -> dict:
         missing.append("blocker-cycle")
     if not issue.get("board", True) or issue.get("size") not in (issue.get("pickup_sizes") or []):
         missing.append("size")
+    if "title" in issue and reference_prose(issue["title"], issue.get("body") or "",
+                                            issue.get("kind") or "story")["verdict"] != "clear":
+        missing.append("prose")
     verdict = "needs-refinement" if missing else "ready-blocked" if open_blockers else "ready"
     return {"verdict": verdict, "missing": missing, "blockers": open_blockers}
+
+
+# ---------------------------------------------------------------------------
+# Prose check (server-spec/prose-check.md)
+# ---------------------------------------------------------------------------
+
+#: The prose rules, in the order `findings` lists them.
+PROSE_RULES = ("title-prefix", "title-subtitle", "title-list", "title-code", "title-length",
+               "title-verb", "title-and", "title-jargon", "summary-first", "summary-length",
+               "epic-sections")
+PROSE_WORDS = json.loads((HERE / "prose_cases.json").read_text())["words"]
+TITLE_MIN, TITLE_MAX, SUMMARY_MAX = 25, 72, 400
+PROSE_REF_NUMBER = 12  # what a case's {#} becomes
+_SUBTITLE = re.compile(r"[:;→]|->|\s[-–—]\s")
+_HTML_COMMENT = re.compile(r"^\s*<!--.*-->\s*$")
+_REF_START = re.compile(r"^(?:[\w.-]+/[\w.-]+)?#\d|^https?://", re.IGNORECASE)
+
+
+def _word(w: str) -> str:
+    return w.strip(".,;:!?()[]{}\"'`").lower()
+
+
+def reference_prose(title: str, body: str, kind: str = "story") -> dict:
+    """The prose check over a title, a body and a Kind: `verdict` and `findings`."""
+    t = " ".join((title or "").split())
+    found: list[tuple[str, str, str]] = []
+    rest = t
+    if t.startswith("["):
+        found.append(("title-prefix", "fail", "starts with ["))
+    else:
+        m = re.match(r"^((?:\S+\s+){0,3}?\S*?:)(?:\s|$)", t)
+        if m:
+            found.append(("title-prefix", "fail", f"prefix {m.group(1)!r}"))
+            rest = t[m.end():]
+    sub = _SUBTITLE.search(rest)
+    if sub:
+        found.append(("title-subtitle", "fail", f"holds {sub.group(0).strip()!r}"))
+    if t.count(",") >= 2:
+        found.append(("title-list", "fail", f"{t.count(',')} commas"))
+    exts = "|".join(map(re.escape, PROSE_WORDS["code_extensions"]))
+    code = re.search(r"`|\w*[A-Za-z0-9]_[A-Za-z0-9]\w*|\w\.(?:%s)\b|#\d|\b\d{4}-\d{2}-\d{2}\b" % exts, t)
+    if code:
+        found.append(("title-code", "fail", f"holds {code.group(0)!r}"))
+    if not TITLE_MIN <= len(t) <= TITLE_MAX:
+        found.append(("title-length", "fail", f"{len(t)} characters, not {TITLE_MIN} to {TITLE_MAX}"))
+    words = [_word(w) for w in t.split()]
+    if not words or words[0] not in PROSE_WORDS["verbs"]:
+        found.append(("title-verb", "warn", f"first word {words[0] if words else ''!r} is not a listed verb"))
+    if "and" in words:
+        found.append(("title-and", "warn", "holds 'and': one outcome or two?"))
+    jargon = [w for w in words if w in PROSE_WORDS["jargon"]]
+    if jargon:
+        found.append(("title-jargon", "warn", f"spec-only words: {', '.join(jargon)}"))
+    lines = [ln for ln in _prose_lines(body or "") if not _HTML_COMMENT.match(ln)]
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    first = lines[0].strip() if lines else ""
+    low = first.lower()
+    if not first:
+        found.append(("summary-first", "fail", "the body is empty"))
+    elif _HEADING.match(first) or _LIST_MARKER.match(first) or first.startswith(("|", ">")) \
+            or _REF_START.match(first):
+        found.append(("summary-first", "fail", f"opens with {first[:40]!r}, not a summary"))
+    elif any(low.startswith(p) for p in PROSE_WORDS["provenance_starts"]):
+        found.append(("summary-first", "fail", f"opens with provenance {first[:40]!r}"))
+    summary = []
+    for ln in lines:
+        if not ln.strip() or _HEADING.match(ln):
+            break
+        summary.append(ln.strip())
+    joined = " ".join(summary)
+    if len(joined) > SUMMARY_MAX:
+        found.append(("summary-length", "fail", f"{len(joined)} characters, over {SUMMARY_MAX}"))
+    if (kind or "").lower() == "epic":
+        heads = [_HEADING.match(ln).group(2).strip().lower() for ln in lines if _HEADING.match(ln)]
+        lacks = [h for h in ("problem", "outcome check") if not any(x.startswith(h) for x in heads)]
+        if lacks:
+            found.append(("epic-sections", "fail", f"no {' or '.join(lacks)} heading"))
+    found.sort(key=lambda f: PROSE_RULES.index(f[0]))
+    findings = [{"rule": r, "level": lv, "detail": d} for r, lv, d in found]
+    verdict = "unclear" if any(f["level"] == "fail" for f in findings) else "clear"
+    return {"verdict": verdict, "findings": findings}
+
+
+def check_prose_cases(rep: Report, prose_cmd: str | None) -> None:
+    """R9: the golden prose cases, against the reference or a server's own logic (--prose-cmd)."""
+    fixtures = json.loads((HERE / "prose_cases.json").read_text())
+    bad = []
+    for case in fixtures["cases"]:
+        ref = f"#{PROSE_REF_NUMBER}"
+        inp = {"title": case["title"].replace("{#}", ref), "body": case["body"].replace("{#}", ref),
+               "kind": case.get("kind", "story")}
+        if prose_cmd:
+            proc = subprocess.run(prose_cmd, shell=True, input=json.dumps(inp),
+                                  capture_output=True, text=True, timeout=60, check=False)
+            try:
+                got = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                bad.append(f"{case['name']}: no JSON from --prose-cmd")
+                continue
+        else:
+            got = reference_prose(**inp)
+        fs = got.get("findings") or []
+        fails = [f.get("rule") for f in fs if f.get("level") == "fail"]
+        warns = [f.get("rule") for f in fs if f.get("level") == "warn"]
+        exp = case["expect"]
+        if got.get("verdict") != exp["verdict"] or fails != exp["fail"] or warns != exp["warn"]:
+            bad.append(f"{case['name']} ({case['what']}): {got.get('verdict')} fail {fails} warn {warns}")
+    who = "--prose-cmd" if prose_cmd else "the reference prose check"
+    rep.check("R9", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
 
 
 def ready_inputs(fixtures: dict) -> list[tuple[dict, dict, dict]]:
@@ -882,7 +1053,8 @@ def ready_inputs(fixtures: dict) -> list[tuple[dict, dict, dict]]:
         issues = {ref(x): {"state": "closed" if x in closed else "open",
                            "blocked_by": [ref(y) for y in case["blocked_by"].get(x, [])]}
                   for x in letters if x != "S"}
-        inp = {"repo": repo, "number": num["S"], "body": body, "labels": case["labels"],
+        inp = {"repo": repo, "number": num["S"], "title": case.get("title", fixtures["title"]),
+               "body": body, "labels": case["labels"],
                "board": case.get("board", True), "size": case["size"],
                "pickup_sizes": fixtures["pickup_sizes"],
                "blocked_by": [ref(y) for y in case["blocked_by"].get("S", [])], "issues": issues}
@@ -1212,8 +1384,13 @@ class Sandbox:
         self.c, self.repo, self.project, self.run = c, repo, project, run
         self.made: list[int] = []
 
-    def issue(self, what: str, labels: list[str] | None = None, body: str = "") -> int:
-        args = {"title": f"[conformance {self.run}] {what}", "repo": self.repo,
+    def clear_title(self, what: str) -> str:
+        """A title that passes the prose check and still names the run."""
+        return f"Show conformance run {self.run} passing {what}"[:72]
+
+    def issue(self, what: str, labels: list[str] | None = None, body: str = "",
+              title: str | None = None) -> int:
+        args = {"title": title or f"[conformance {self.run}] {what}", "repo": self.repo,
                 "note": (body + "\n" if body else "")
                 + "Created by the gtd-board-kit conformance runner. Safe to close."}
         if labels:
@@ -1277,6 +1454,15 @@ def check_activity(rep: Report, c: Client, c2: Client | None, sb: Sandbox, n: in
               f"page 1 {t1[:60] if not ok1 else len(first)} next {bool(cur)}; page 2 {len(second)}")
 
 
+def next_action_rows(res: tuple) -> list[dict]:
+    """The rows of a ``list_next_actions`` result ``(ok, out, text)``, whichever envelope the
+    server uses: a bare list, or ``result``, ``items`` or ``issues``."""
+    out = res[1]
+    if isinstance(out, list):
+        return out
+    return (out or {}).get("result") or (out or {}).get("items") or (out or {}).get("issues") or []
+
+
 def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: dict,
                who: dict | None = None) -> None:
     repo = sb.repo
@@ -1302,9 +1488,7 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     # P6 next actions
     tag = sb.issue("next action", labels=["agent-ready"])
 
-    def next_rows(res):
-        out = res[1]
-        return out if isinstance(out, list) else (out or {}).get("result") or (out or {}).get("items") or []
+    next_rows = next_action_rows
 
     ok, out, text = settle(
         lambda: c.call("list_next_actions", {"repo": repo, "context": "agent-ready", "limit": 100}),
@@ -1313,6 +1497,24 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     rep.check("P6", ok and any(r.get("number") == tag for r in rows) and
               all("agent-ready" in (r.get("labels") or []) for r in rows),
               f"list_next_actions: {text[:120] if not ok else 'missing or unlabelled rows'}")
+
+    # P10 is optional until the server advertises the query argument. Do not
+    # assert that the just-created issue is indexed yet.
+    issue_tool = next((t for t in c.tools() if t.get("name") == "issue_list"), {})
+    properties = (issue_tool.get("inputSchema") or {}).get("properties") or {}
+    if "query" not in properties:
+        rep.na("P10", "issue_list does not advertise keyword search")
+    else:
+        ok, out, text = c.call("issue_list", {"repo": repo, "query": "conformance", "limit": 1})
+        refused, _, _ = c.call("issue_list", {"repo": repo, "query": "!!!"})
+        conflict, _, _ = c.call("issue_list", {"repo": repo, "query": "conformance", "marker": "x"})
+        data = out or {}
+        rows = data.get("items") or []
+        rep.check("P10", ok and not refused and not conflict and
+                  isinstance(data.get("truncated"), bool) and
+                  isinstance(data.get("incomplete"), bool) and bool(data.get("search_warning")) and
+                  all("number" in row and "title" in row and "url" in row and "body" not in row
+                      for row in rows), f"keyword search: {text[:120] if not ok else 'invalid response'}")
 
     # C1 claim
     n = sb.issue("claim")
@@ -1364,13 +1566,15 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     ok, _, _ = c.call("item_report", sb.args(n, note="x" * 5000))
     rep.check("X3", not ok, "a 5000-character note was accepted")
 
-    # C7 release
-    ok_m, _, _ = c.call("item_release", sb.args(n, done="checked"))
-    ok, out, text = c.call("item_release", sb.args(n, done="checked", remaining="none", next="close",
+    # C7 release in the old form: done, remaining, next
+    ok, out, text = c.call("item_release", sb.args(n, done="checked", remaining="the rest", next="close",
                                                    handoff_to="any"))
     item = (out or {}).get("item") or {}
-    rep.check("C7", not ok_m and ok and item.get("holder") is None and item.get("handoff_to") == "any",
-              f"missing fields refused {not ok_m}; release {ok} {text[:80]}")
+    left = (item.get("closing_note") or {}).get("left")
+    rep.check("C7", ok and item.get("holder") is None and item.get("handoff_to") == "any"
+              and left in (None, "the rest"),
+              f"release in the old form {ok} {text[:80]}; closing_note.left {left!r}, not the remaining given")
+    check_closing_note(rep, c, sb)
 
     # C14 several items, one branch: one claim per item, each with its own lease
     branch = f"rc/conformance-{sb.run}"
@@ -1466,12 +1670,14 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
 
 READY_FIELDS = ("repo", "number", "title", "verdict", "missing", "blockers", "kind", "size")
 READY_AC = "## Acceptance criteria\n\n- AC1: the conformance runner sees this criterion\n"
+READY_SUMMARY = "When the conformance runner reads this story, it finds it clear, so the ready check is shown.\n\n"
 
 
 def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
-                    ready_cmd: str | None) -> None:
-    """R1 to R7: item_ready, when the server offers it (server-spec/ready-check.md)."""
-    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8")
+                    ready_cmd: str | None, prose_cmd: str | None = None) -> None:
+    """R1 to R10: item_ready and prose_check, when the server offers them
+    (server-spec/ready-check.md, server-spec/prose-check.md)."""
+    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11")
     if "item_ready" not in tools:
         for cid in ids:
             rep.na(cid, "item_ready is not offered")
@@ -1480,9 +1686,18 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         check_ready_cases(rep, ready_cmd)
     else:
         rep.manual("R1", "run the golden cases against the server's own rules: --ready-cmd CMD")
+    rep.manual("R11", "item_ready on a story whose last worker released with four parts returns "
+                      "interruptions, previous_holder and the same closing_note as item_get")
+    if "prose_check" not in tools:
+        rep.fail("R9", "item_ready is offered but prose_check is not (the Readiness group has both)")
+    elif prose_cmd:
+        check_prose_cases(rep, prose_cmd)
+    else:
+        rep.manual("R9", "run the golden prose cases against the server's own rules: --prose-cmd CMD")
     if sb is None:
         for cid in ids[1:]:
-            rep.skip(cid, "needs --repo")
+            if cid not in ("R9", "R11"):
+                rep.skip(cid, "needs --repo")
         return
     owner_needs = profile.get("owner_needs") or "triage"
     sizes = profile.get("pickup_sizes") or []
@@ -1498,8 +1713,8 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         if sb.project:
             c.call("project_set_field", sb.args(n, field="Size", **({"value": size} if size else {"clear": True})))
 
-    # R2: shape, and a story with criteria and an allowed Size is ready.
-    n = sb.issue("ready", body=READY_AC)
+    # R2: shape, and a story with criteria, an allowed Size and clear prose is ready.
+    n = sb.issue("ready", body=READY_SUMMARY + READY_AC, title=sb.clear_title("ready"))
     sized(n, sizes[0] if sizes else None)
     ok, out, text = ready(n)
     shape = [f for f in READY_FIELDS if f not in out]
@@ -1619,10 +1834,29 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         return probs
 
     n1 = sb.issue("claim not ready", body="Make the thing work.\n")
-    n2 = sb.issue("claim ready", body=READY_AC)
+    n2 = sb.issue("claim ready", body=READY_SUMMARY + READY_AC, title=sb.clear_title("claim ready"))
     sized(n2, sizes[0] if sizes else None)
     probs = claim_ready(n1) + claim_ready(n2)
     rep.check("R8", not probs, "; ".join(probs[:3]), "verdict matches item_ready; not ready warns, never refuses")
+
+    # R10: prose_check on an issue and on draft text; the ready check's prose rule.
+    if "prose_check" not in tools:
+        rep.fail("R10", "prose_check is not offered")
+        return
+    probs = []
+    n1 = sb.issue("prose", body=READY_AC)  # the runner's own prefixed title, no summary
+    ok, out, text = c.call("prose_check", {"repo": sb.repo, "number": n1})
+    got = [f.get("rule") for f in (out or {}).get("findings") or [] if f.get("level") == "fail"]
+    if not ok or (out or {}).get("verdict") != "unclear" or "title-prefix" not in got or "summary-first" not in got:
+        probs.append(f"issue: {text[:60] if not ok else ''} {(out or {}).get('verdict')} {got}")
+    if "prose" not in rules(ready(n1)[1]):
+        probs.append("item_ready on the same issue does not fail prose")
+    ok, out, text = c.call("prose_check", {"title": "Notify the owner only when they must act", "kind": "epic",
+                                           "body": "For owners, fewer pings.\n\n## Problem\n\nToo many.\n"})
+    got = [f.get("rule") for f in (out or {}).get("findings") or [] if f.get("level") == "fail"]
+    if not ok or got != ["epic-sections"]:
+        probs.append(f"draft epic: {text[:60] if not ok else ''} {got}")
+    rep.check("R10", not probs, "; ".join(probs), "an issue, the ready rule and a draft epic")
 
 
 LINK_CASE_KEYS = ("items", "prefixes", "records")
@@ -1653,6 +1887,112 @@ def check_link_cases(rep: Report, link_cmd: str | None) -> None:
             bad.append(f"{case['name']} ({case['what']}): {json.dumps(got)[:160]}")
     who = "--link-cmd" if link_cmd else "the reference link fold"
     rep.check("L1", not bad, "; ".join(bad[:4]), f"{len(fixtures['cases'])} cases, {who}")
+
+
+def _page_case_result(case: dict, op: str, page_cmd: str | None):
+    """One record-page case through the reference implementation or --page-cmd."""
+    inp = {k: v for k, v in case.items() if k not in ("name", "what", "expect")}
+    inp["op"] = op
+    if page_cmd:
+        proc = subprocess.run(page_cmd, shell=True, input=json.dumps(inp), capture_output=True,
+                              text=True, timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --page-cmd"}
+    sys.path.insert(0, str(HERE))
+    import record_pages as rp
+    f = inp.get("folders")
+    if op == "render":
+        return {"page": rp.render_page(inp["item"], inp["kind"], inp["records"], f)}
+    if op == "check":
+        return {"refused": rp.check_page(inp["old"], inp["new"], item=inp["item"], kind=inp["kind"], folders=f)}
+    return {"page": rp.merge_pages(inp["base"], inp["ours"], inp["theirs"], item=inp["item"],
+                                   kind=inp["kind"], folders=f)}
+
+
+def check_page_cases(rep: Report, page_cmd: str | None) -> None:
+    """RP1 to RP3: the golden record-page cases, against the reference or a server's own
+    page code (--page-cmd)."""
+    sys.path.insert(0, str(HERE))
+    import record_pages as rp
+    cases = json.loads((HERE / "page_cases.json").read_text(encoding="utf-8"))["cases"]
+    who = "--page-cmd" if page_cmd else "the reference record pages"
+    bad = []
+    for c in cases["render"]:
+        got = _page_case_result(c, "render", page_cmd)
+        if got.get("page") != c["expect"]["page"]:
+            bad.append(f"{c['name']}: page differs")
+        elif rp.parse_page(c["expect"]["page"]) != c["records"]:
+            bad.append(f"{c['name']}: does not parse back to its records")
+    rep.check("RP1", not bad, "; ".join(bad[:4]), f"{len(cases['render'])} cases, {who}")
+    bad = [f"{c['name']}: {got.get('refused')}" for c in cases["check"]
+           if (got := _page_case_result(c, "check", page_cmd)).get("refused") != c["expect"]["refused"]]
+    rep.check("RP2", not bad, "; ".join(bad[:4]), f"{len(cases['check'])} cases, {who}")
+    bad = [c["name"] for c in cases["merge"]
+           if _page_case_result(c, "merge", page_cmd).get("page", "absent") != c["expect"]["page"]]
+    rep.check("RP3", not bad, "; ".join(bad[:4]), f"{len(cases['merge'])} cases, {who}")
+
+
+def _record_case_result(case: dict, op: str, record_cmd: str | None) -> dict:
+    """One register-record case through the reference implementation or --record-cmd."""
+    inp = {k: v for k, v in case.items() if k not in ("name", "what", "expect")}
+    inp["op"] = op
+    if record_cmd:
+        proc = subprocess.run(record_cmd, shell=True, input=json.dumps(inp), capture_output=True,
+                              text=True, timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --record-cmd"}
+    sys.path.insert(0, str(HERE))
+    import register_records as rr
+    return rr.answer(inp)
+
+
+def check_record_cases(rep: Report, record_cmd: str | None) -> None:
+    """RR1 to RR4: the golden register-record cases, against the reference or a server's own
+    record code (--record-cmd)."""
+    cases = json.loads((HERE / "record_cases.json").read_text(encoding="utf-8"))["cases"]
+    who = "--record-cmd" if record_cmd else "the reference register records"
+    bad = [f"{c['name']}: {got.get('refused')}" for c in cases["validate"]
+           if (got := _record_case_result(c, "validate", record_cmd)).get("refused") != c["expect"]["refused"]]
+    rep.check("RR1", not bad, "; ".join(bad[:4]), f"{len(cases['validate'])} cases, {who}")
+    bad = [c["name"] for c in cases["upgrade"]
+           if _record_case_result(c, "upgrade", record_cmd).get("record") != c["expect"]["record"]]
+    rep.check("RR2", not bad, "; ".join(bad[:4]), f"{len(cases['upgrade'])} cases, {who}")
+    folded = [(c, _record_case_result(c, "fold", record_cmd)) for c in cases["fold"]]
+    bad = [c["name"] for c, got in folded
+           if [(got.get("state") or {}).get(k) for k in ("state", "verdict")]
+           != [c["expect"]["state"], c["expect"]["verdict"]]]
+    rep.check("RR3", not bad, "; ".join(bad[:4]), f"{len(cases['fold'])} cases, {who}")
+    bad = [c["name"] for c, got in folded if got.get("shown") != c["expect"]["shown"]]
+    rep.check("RR4", not bad, "; ".join(bad[:4]), f"{len(cases['fold'])} cases, {who}")
+
+
+def check_registers(rep: Report, tools: dict, record_cmd: str | None) -> None:
+    """RR1 to RR6 against a server: the cases through --record-cmd, and the two by hand when
+    the Registers group or a sync is offered."""
+    offered = "record_append" in tools or "record_get" in tools
+    syncs = "work_items_sync" in tools or "work_items_plan" in tools
+    if record_cmd:
+        check_record_cases(rep, record_cmd)
+    elif offered or syncs:
+        for cid in ("RR1", "RR2", "RR3", "RR4"):
+            rep.manual(cid, "run the golden register-record cases against the server's own code: --record-cmd CMD")
+    else:
+        for cid in ("RR1", "RR2", "RR3", "RR4"):
+            rep.na(cid, "the Registers group and the Repo setup group are not offered")
+    if offered:
+        rep.manual("RR5", "record_append on a scratch repo: a valid record lands with its envelope, an invalid "
+                          "one writes nothing, a retry with the same eid writes nothing, a result is refused")
+    else:
+        rep.na("RR5", "the Registers group (record_get, record_append) is not offered")
+    if syncs:
+        rep.manual("RR6", "sync a scratch repo's register: issue type, kind and state labels, invalid-record "
+                          "label, Status, fields and a Record link to the page; a second sync plans no edit")
+    else:
+        rep.na("RR6", "the Repo setup group (work_items_plan, work_items_sync) is not offered")
 
 
 def check_links(rep: Report, tools: dict, link_cmd: str | None) -> None:
@@ -1856,6 +2196,431 @@ def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
             refused.append(what)
     rep.check("I4", not refused, f"accepted or gave no reason: {', '.join(refused)}",
               "no label, bad state and a record marker refused with a reason")
+
+
+EDIT_IDS = ("CE1", "CE2", "CE3", "CE4")
+
+
+# ---------------------------------------------------------------------------
+# Intake check (server-spec/tools.md, The intake check)
+# ---------------------------------------------------------------------------
+
+def _intake_check_case_result(case: dict, cmd: str | None) -> dict:
+    if cmd:
+        proc = subprocess.run(cmd, shell=True, input=json.dumps(case), capture_output=True, text=True,
+                              timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --intake-cmd"}
+    sys.path.insert(0, str(HERE))
+    import intake_check as ic
+    if case["op"] == "write":
+        return {"refused": ic.valid(case["result"], case["clear"], case["small"], case["fits"], case.get("note"))}
+    return ic.derive(case["records"], case["created"], case["since"], case["mode"])
+
+
+def check_intake_check_cases(rep: Report, cmd: str | None) -> None:
+    """I6: the golden status and write cases, against the reference or a server's own rules."""
+    cases = json.loads((HERE / "intake_check_cases.json").read_text())["cases"]
+    bad = []
+    for case in cases:
+        got = _intake_check_case_result(case, cmd)
+        want = case["expect"]
+        if any(got.get(k) != v for k, v in want.items()):
+            bad.append(f"{case['name']}: {got}")
+    who = "--intake-cmd" if cmd else "the reference intake check"
+    rep.check("I6", not bad, "; ".join(bad[:4]), f"{len(cases)} cases, {who}")
+
+
+INTAKE_CHECK_MANUAL = {
+    "I10": "with record authors configured and INTAKE_CHECK_MODE=enforce on a scratch repo: a needs-more or decline item gets the "
+           "owner's needs label (held true), is absent from list_next_actions, and an inferred "
+           "claim of it refuses; an unchecked item and a grandfathered one stay pickable; a later pass by "
+           "the checker removes the label the server added; with no record authors configured the mode "
+           "reads watch whatever the setting; a call by the item's holder is refused not-the-checker",
+}
+
+
+def check_intake_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None, cmd: str | None,
+                       c2: Client | None = None) -> None:
+    """I6 to I10: the intake check, when ``intake_check`` is offered.
+
+    The contract refuses a check by the item's filer, so the fixtures are filed by the second
+    principal (``c2``, --token-b-env) and checked by the first (``c``). What the certifier
+    needs: the first token must be a principal the server accepts as a checker, and must not
+    be the filer; the second token only files. Without a second token I7 to I9 are skipped,
+    not failed, because a check by the filer would be refused by a conforming server."""
+    if "intake_check" not in tools:
+        for cid in ("I6", "I7", "I8", "I9", "I10"):
+            rep.na(cid, "intake_check is not offered")
+        return
+    if cmd:
+        check_intake_check_cases(rep, cmd)
+    else:
+        rep.manual("I6", "run the golden intake-check cases against the server's own rules: --intake-cmd CMD")
+    for cid, how in INTAKE_CHECK_MANUAL.items():
+        rep.manual(cid, how)
+    cls = tool_class(tools["intake_check"])[0]
+    if sb is None or c2 is None:
+        for cid in ("I7", "I8", "I9"):
+            rep.skip(cid, "needs --repo and --token-b-env (a second principal files the item; "
+                          "the filer's own check is refused)")
+        return
+
+    def filed(what: str, labels: list[str] | None = None) -> int:
+        args = {"title": f"[conformance {sb.run}] {what}", "repo": sb.repo,
+                "note": "Created by the gtd-board-kit conformance runner. Safe to close."}
+        if labels:
+            args["labels"] = labels
+        ok_f, out_f, t_f = c2.call("capture", args)
+        if not ok_f:
+            raise CheckError(f"capture (second principal): {t_f[:160]}")
+        sb.made.append(int(out_f["number"]))
+        return int(out_f["number"])
+
+    n = filed("intake check")
+    ok_u, out_u, _ = c.call("item_get", sb.args(n))
+    fresh = ((out_u or {}).get("item") or {}).get("intake_check") or {}
+    rep.check("I8", ok_u and fresh.get("status") == "unchecked",
+              f"a new item with no record read {fresh.get('status')!r}, not 'unchecked'")
+    base = sb.args(n, clear=True, small=False, fits=True)
+    bad, _, t_bad = c.call("intake_check", {**base, "result": "maybe", "note": "x"})
+    no_note, _, _ = c.call("intake_check", {**base, "result": "needs-more"})
+    all_no, _, _ = c.call("intake_check", {**base, "result": "pass"})
+    ok1, out1, t1 = c.call("intake_check", {**base, "result": "needs-more", "note": "Conformance run: split it."})
+    ok2, out2, t2 = c.call("intake_check", {**base, "result": "needs-more", "note": "Conformance run: split it."})
+    _, got, _ = c.call("item_get", sb.args(n))
+    chk = ((got or {}).get("item") or {}).get("intake_check") or {}
+    rep.check("I7", cls == "work" and not bad and all(w in t_bad for w in ("pass", "needs-more", "decline"))
+              and not no_note and not all_no and ok1 and (out1 or {}).get("url")
+              and ok2 and (out2 or {}).get("unchanged") is True
+              and chk.get("status") == "needs-more" and chk.get("small") is False
+              and chk.get("clear") is True and chk.get("fits") is True and chk.get("by"),
+              f"class {cls}; bad result refused {not bad}; no note refused {not no_note}; "
+              f"pass with a no refused {not all_no}; write {ok1}; repeat unchanged "
+              f"{(out2 or {}).get('unchanged') if ok2 else t2[:40]}; read {chk.get('status')!r}")
+    mode = chk.get("mode")
+    if mode != "watch":
+        rep.skip("I9", f"the server is in mode {mode!r}; I9 runs in watch mode")
+        return
+    d = filed("intake decline", labels=["agent-ready"])
+    c.call("intake_check", sb.args(d, clear=True, small=True, fits=False, result="decline",
+                                   note="Conformance run: not this board's work."))
+    lbl = settle(lambda: c.call("list_next_actions", {"repo": sb.repo, "context": "agent-ready", "limit": 100}),
+                 lambda res: not res[0] or any(i.get("number") == d for i in next_action_rows(res)))
+    listed = any(i.get("number") == d for i in next_action_rows(lbl))
+    _, held, _ = c.call("issue_get", sb.args(d))
+    labels = [l if isinstance(l, str) else l.get("name") for l in (held or {}).get("labels") or []]
+    rep.check("I9", listed and not any(str(l).startswith("needs:") for l in labels),
+              f"in watch mode a decline left the item listed {listed} and needs-labelled "
+              f"{[l for l in labels if str(l).startswith('needs:')]}")
+
+
+def check_comment_edits(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """CE1 to CE4: the comment edit tools, when either is offered."""
+    have = [t for t in ("comment_update", "comment_redact") if t in tools]
+    if not have:
+        for cid in EDIT_IDS:
+            rep.na(cid, "the comment edit tools are not offered")
+        rep.na("CE5", "the comment edit tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("CE1", classes == {"comment_update": "work", "comment_redact": "work"},
+              f"offered {classes}", "comment_update and comment_redact, both work")
+    rep.manual("CE5", "a comment by a login that is not a record author, and a review comment "
+                      "on a pull request's diff: each refused with a reason; the second names pr_review")
+    if sb is None or len(have) < 2:
+        for cid in EDIT_IDS[1:]:
+            rep.skip(cid, "needs --repo and both tools")
+        return
+    n = sb.issue("comment edits")
+    ok0, posted, t0 = c.call("issue_comment", sb.args(n, body="First draft."))
+    cid0 = (posted or {}).get("comment_id")
+    if not ok0 or not cid0:
+        raise CheckError(f"issue_comment: {t0[:160]}")
+    original = parse_signoff(str((posted or {}).get("body") or "")) or {}
+
+    ok1, out1, t1 = c.call("comment_update", sb.args(n, comment_id=cid0, body="Second draft."))
+    ok2, out2, t2 = c.call("comment_update", sb.args(n, comment_id=cid0, body="Third draft."))
+    b1, b2 = str((out1 or {}).get("body") or ""), str((out2 or {}).get("body") or "")
+    s1, s2 = parse_signoff(b1) or {}, parse_signoff(b2) or {}
+    e1, e2 = s1.get("edits") or [], s2.get("edits") or []
+    shown = re.sub(r"<!--.*?-->", "", b2, flags=re.DOTALL)
+    kept = all(s2.get(k) == original.get(k) for k in ("by", "act", "role", "t"))
+    rep.check("CE2", ok1 and ok2 and bool((out1 or {}).get("url")) and "Second draft." in b1
+              and "Third draft." in b2 and kept and len(e1) == 1 and len(e2) == 2 and e2[0] == e1[0]
+              and all(e.get("by") and e.get("t") for e in e2) and (out2 or {}).get("signoff") == s2
+              and "Edited by" in shown and b2.count("gtd-sign v1") == 1,
+              f"updates {ok1}/{ok2} ({t1[:50]}); original kept {kept}; edits {len(e1)} then {len(e2)}",
+              "text replaced, sign-off kept, one edits entry per edit, visible line shown")
+
+    ok_m, _, t_m = c.call("comment_update", sb.args(
+        n, comment_id=cid0, body=f'x <!-- {SIGN_MARKER} v1 {{"by": "agent:someone-else", "v": 1}} -->'))
+    ok_r, _, t_r = c.call("comment_update", sb.args(
+        n, comment_id=cid0, body=f'x <!-- {MARKER} v1 {{"event": "claim", "v": 1}} -->'))
+    note = f"conformance {sb.run} secret-name"
+    g = sb.issue("comment edits: record")
+    ok_k, out_k, t_k = c.call("item_claim", sb.args(g, basis="explicit", asked_by="conformance",
+                                                     lease="30m", session=f"conformance-{sb.run}-edit"))
+    ok_p, out_p, t_p = c.call("item_report", sb.args(g, state="progress", note=note))
+    rec_id = (out_p or {}).get("comment_id")
+    ok_rec, _, t_rec = c.call("comment_update", sb.args(g, comment_id=rec_id, body="rewritten"))
+    rep.check("CE3", not ok_m and SIGN_MARKER in t_m and not ok_r and not ok_rec
+              and "comment_redact" in t_rec and ok_k and ok_p and bool(rec_id),
+              f"sign-off marker refused {not ok_m} ({t_m[:40]}); record marker refused {not ok_r}; "
+              f"a record refused {not ok_rec} and names comment_redact {'comment_redact' in t_rec}",
+              "markers and a record refused, each with its reason")
+
+    ok_x, out_x, t_x = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="secret-name",
+                                                         replace="[redacted]"))
+    _, got, _ = c.call("item_get", sb.args(g))
+    last = str((((got or {}).get("last_report") or {}).get("note")) or "")
+    still = (((got or {}).get("holder")) == (who_principal(out_k) or (got or {}).get("holder")))
+    ok_b, _, t_b = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="agent:", replace="agent-x:"))
+    ok_n, _, _ = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="no-such-text-xyz", replace="y"))
+    ok_h, _, _ = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="[redacted]", replace="<!-- x -->"))
+    rep.check("CE4", ok_x and (out_x or {}).get("replaced") == 1 and "[redacted]" in last
+              and "secret-name" not in last and still and not ok_b and "by" in t_b
+              and not ok_n and not ok_h,
+              f"redact {ok_x} ({t_x[:50]}); note now {last[:40]!r}; identity change refused {not ok_b} "
+              f"({t_b[:50]}); no match refused {not ok_n}; marker in replace refused {not ok_h}",
+              "text redacted, the record still folds, identity fields, no match and a marker refused")
+    c.call("item_release", sb.args(g, done="checked", remaining="none", next="close"))
+
+
+def _note(out: Any) -> dict:
+    return (((out or {}).get("item") or {}).get("closing_note")) or {}
+
+
+def check_closing_note(rep: Report, c: Client, sb: Sandbox) -> None:
+    """C19 and C20: the four-part closing note and a first-claim read (claim-records.md)."""
+    a = sb.issue("closing note")
+    c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance", lease="30m", session="cn-a"))
+    _, probe, _ = c.call("item_get", sb.args(a))
+    if "closing_note" not in ((probe or {}).get("item") or {}):
+        c.call("item_release", sb.args(a, done="x", remaining="y", next="z"))
+        rep.na("C19", "the server does not return closing_note from item_get")
+        rep.na("C20", "the server does not return closing_note from item_get")
+        return
+    bad, _, _ = c.call("item_release", sb.args(a, left="one", remaining="two"))
+    ok_none, out_none, t_none = c.call("item_release", sb.args(a))
+    c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance", lease="30m", session="cn-a"))
+    ok, out, text = c.call("item_release", sb.args(a, done="parser", left="tests", decided="old format"))
+    note = _note(out)
+    warned = " ".join(str(w) for w in (out_none or {}).get("warnings") or [])
+    rep.check("C19", not bad and ok_none and ok and "closing_note" in ((out or {}).get("item") or {})
+              and all(k in warned for k in ("done", "left", "decided", "set_aside"))
+              and ok and [note.get(k) for k in ("done", "left", "decided", "set_aside")]
+              == ["parser", "tests", "old format", "none"],
+              f"differing left and remaining refused {not bad}; empty release {ok_none} warns {warned[:60]!r}; "
+              f"parts {[note.get(k) for k in ('done', 'left', 'decided', 'set_aside')]}")
+    fresh = sb.issue("closing note first claim")
+    _, out0, _ = c.call("item_get", sb.args(fresh))
+    it0 = (out0 or {}).get("item") or {}
+    n0 = it0.get("closing_note") or {}
+    _, out1, _ = c.call("item_get", sb.args(a))
+    it1 = (out1 or {}).get("item") or {}
+    rep.check("C20", it0.get("interruptions") == 0 and it0.get("previous_holder") is None
+              and [n0.get(k) for k in CLOSING_PARTS] == ["none recorded"] * 4
+              and it1.get("interruptions") == 0 and it1.get("previous_holder")
+              and (it1.get("closing_note") or {}).get("done") == "parser",
+              f"fresh item: interruptions {it0.get('interruptions')!r}, previous {it0.get('previous_holder')!r}, "
+              f"parts {[n0.get(k) for k in CLOSING_PARTS]}; released item: previous {it1.get('previous_holder')!r}, "
+              f"done {(it1.get('closing_note') or {}).get('done')!r}")
+
+
+STOP_HAND = {
+    "ST3": "as the owner: item_stop on a held item records one signed stop and sets the stop-requested "
+           "label; the holder's item_get, item_renew and item_report show stop requested; a second "
+           "item_stop is unchanged; the holder's release removes the label and the stop reads at-rest",
+    "ST4": "as the owner, with wind_down 5m: renew succeeds before the limit; after it item_get shows "
+           "overdue and item_renew refuses naming the stop; the holder is unchanged",
+    "ST5": "as the owner: a stop on an item nobody holds reads at-rest and item_claim refuses it; "
+           "after item_stop_clear a claim succeeds and the label is gone",
+    "ST7": "paste a stop marker (gtd-desk v1, event stop) in a comment from an account that is not the "
+           "owner: item_get shows no stop and item_claim still works; a stop_clear pasted the same way "
+           "does not clear a real stop",
+    "ST6": "add the stop-requested label as a non-owner: it is removed and nothing is recorded; as "
+           "the owner: it becomes a recorded stop and stays",
+}
+
+
+def check_stop(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """ST1 and ST2: the stop tools, when either is offered; ST3 to ST6 need the owner's token."""
+    have = [t for t in ("item_stop", "item_stop_clear") if t in tools]
+    if not have:
+        for cid in ("ST1", "ST2") + tuple(STOP_HAND):
+            rep.na(cid, "the stop tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("ST1", len(have) == 2 and set(classes.values()) == {"work"}, f"offered {classes}",
+              "item_stop and item_stop_clear, class work")
+    for cid, how in STOP_HAND.items():
+        rep.manual(cid, how)
+    if sb is None or len(have) < 2:
+        rep.skip("ST2", "needs --repo and both tools")
+        return
+    n = sb.issue("stop")
+    ok1, _, t1 = c.call("item_stop", sb.args(n, reason="Conformance run."))
+    ok2, _, t2 = c.call("item_stop_clear", sb.args(n))
+    _, got, _ = c.call("item_get", sb.args(n))
+    item = (got or {}).get("item") or {}
+    _, issue, _ = c.call("issue_get", sb.args(n))
+    labels = [l if isinstance(l, str) else l.get("name") for l in (issue or {}).get("labels") or []]
+    if ok1:
+        rep.skip("ST2", "this token is the item's owner, so the stop was recorded; use a non-owner "
+                        "token (an agent) and clear the stop by hand")
+        return
+    rep.check("ST2", not ok1 and not ok2 and "owner" in (t1 + t2).lower() and not item.get("stop")
+              and "stop-requested" not in labels,
+              f"item_stop refused {not ok1} ({t1[:50]}); item_stop_clear refused {not ok2}; "
+              f"stop {item.get('stop')!r}; labels {labels}")
+
+
+def check_stale_done(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """SD1 and SD2: the stale-done tools, when either is offered. SD3 is by hand."""
+    have = [t for t in ("stale_done", "item_close_done") if t in tools]
+    if not have:
+        for cid in ("SD1", "SD2", "SD3"):
+            rep.na(cid, "the stale-done tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("SD1", classes == {"stale_done": "read", "item_close_done": "work"},
+              f"offered {classes}", "stale_done read, item_close_done work")
+    rep.manual("SD3", "a story whose merged PR has an Evidence row per criterion closes with boxes "
+                      "ticked and one comment; a mention-only PR, an unmet criterion, an epic and a "
+                      "standing item each stay open with the matching reason")
+    if sb is None or len(have) < 2:
+        rep.skip("SD2", "needs --repo and both tools")
+        return
+    n = sb.issue("stale done", body="Outcome.\n\n## Acceptance criteria\n\n- [ ] AC1. It works.\n")
+    ok1, out1, t1 = c.call("stale_done", sb.args(n, number=n))
+    first = ((out1 or {}).get("items") or [{}])[0]
+    ok2, _, t2 = c.call("item_close_done", sb.args(n, number=n))
+    ok3, _, _ = c.call("issue_labels", sb.args(n, add=["needs:" + "owner"]))
+    _, out4, _ = c.call("stale_done", sb.args(n, number=n))
+    again = ((out4 or {}).get("items") or [{}])[0]
+    _, got, _ = c.call("issue_get", sb.args(n))
+    rep.check("SD2", ok1 and first.get("verdict") == "keep" and "no-merged-pr" in (first.get("reasons") or [])
+              and not ok2 and "no-merged-pr" in t2 and (got or {}).get("state") == "open"
+              and (not ok3 or "needs" in (again.get("reasons") or [])),
+              f"verdict {first.get('verdict')} {first.get('reasons')}; close refused {not ok2} ({t2[:50]})",
+              "keep with no-merged-pr, the close refused and the issue still open")
+
+
+def who_principal(out: Any) -> str | None:
+    """The holder an ``item_claim`` result names, if any."""
+    return ((out or {}).get("item") or {}).get("holder")
+
+
+# ---------------------------------------------------------------------------
+# Milestone handoff (server-spec/milestone-handoff.md)
+# ---------------------------------------------------------------------------
+
+def _handoff_case_result(case: dict, group: str, cmd: str | None) -> dict:
+    if cmd:
+        proc = subprocess.run(cmd, shell=True, input=json.dumps({"group": group, **case}),
+                              capture_output=True, text=True, timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --handoff-cmd"}
+    sys.path.insert(0, str(HERE))
+    import handoff as ho
+    if group == "records":
+        return {"problems": ho.validate(case["record"])}
+    if group == "head":
+        return ho.run_head(case["events"], case.get("roles"))
+    if group == "routing":
+        return ho.route(case)
+    if group == "bindings":
+        return ho.bind_op(case)
+    if group == "authority":
+        return ho.may_work(case)
+    if group == "delivery":
+        return ho.run_delivery(case)
+    if group == "negotiation":
+        return ho.negotiate(case)
+    if group == "claims":
+        return ho.fold_claims(case)
+    if case["op"] == "offsets":
+        return {"offsets": ho.attempt_offsets(case["max_attempts"])}
+    return {"delivery_id": ho.delivery_id(case["handoff_id"], case["revision"], case["recipient"])}
+
+
+#: The check each group of handoff_cases.json belongs to.
+HANDOFF_GROUPS = {"MH2": ("head",), "MH3": ("routing",), "MH4": ("bindings", "authority", "claims"),
+                  "MH5": ("delivery",), "MH6": ("retry",), "MH7": ("negotiation",)}
+
+
+def check_handoff_cases(rep: Report, cmd: str | None) -> None:
+    """MH1 to MH7: the golden handoff cases, against the reference or a server's own code."""
+    cases = json.loads((HERE / "handoff_cases.json").read_text(encoding="utf-8"))
+    who = "--handoff-cmd" if cmd else "the reference handoff rules"
+    bad = []
+    for c in cases["records"]:
+        problems = _handoff_case_result(c, "records", cmd).get("problems")
+        want = c["expect"]
+        if problems is None or (not problems) != want["valid"] or \
+                (not want["valid"] and not any(want["problem"] in p for p in problems)):
+            bad.append(f"{c['name']}: {problems}")
+    rep.check("MH1", not bad, "; ".join(bad[:4]), f"{len(cases['records'])} cases, {who}")
+    for cid, groups in HANDOFF_GROUPS.items():
+        total = [(g, c) for g in groups for c in cases[g]]
+        bad = [c["name"] for g, c in total
+               if any(_handoff_case_result(c, g, cmd).get(k) != v for k, v in c["expect"].items())]
+        rep.check(cid, not bad, "; ".join(bad[:4]), f"{len(total)} cases, {who}")
+
+
+#: The files a handoff change adds. MH8 reads them: no runtime-specific endpoint, no private detail.
+HANDOFF_FILES = ("server-spec/milestone-handoff.md", "server-spec/schemas/milestone-handoff/handoff.schema.json",
+                 "conformance/handoff_cases.json", "conformance/handoff.py",
+                 "knowledge/model/milestone-handoff.md", "skills/board-report/handoff.md",
+                 "skills/board-review/handoff.md")
+_ENDPOINT = re.compile(r"https?://(?!example\.com\b)[a-z0-9]\S*|\blocalhost\b|\b127\.0\.0\.1\b|"
+                       r"\bwss?://[a-z0-9]|:\d{4,5}\b", re.IGNORECASE)
+
+
+def check_handoff_public(rep: Report) -> None:
+    """MH8: no runtime-specific endpoint or lab detail in the handoff files, and the human
+    notification contract names no handoff tool. The public guard covers the rest."""
+    root = HERE.parent
+    present = [root / f for f in HANDOFF_FILES if (root / f).exists()]
+    if not present:
+        rep.na("MH8", "the handoff files are not beside this runner")
+        return
+    bad = [f"{p.name}: {m.group(0)[:40]}" for p in present for m in [_ENDPOINT.search(p.read_text(encoding='utf-8'))] if m]
+    notes = root / "server-spec" / "notifications.md"
+    if notes.exists() and "handoff_" in notes.read_text(encoding="utf-8"):
+        bad.append("notifications.md names a handoff tool")
+    rep.check("MH8", not bad, "; ".join(bad[:4]), f"{len(present)} files scanned; inspect the rest by hand")
+
+
+HANDOFF_IDS = ("MH1", "MH2", "MH3", "MH4", "MH5", "MH6", "MH7", "MH8")
+
+
+def check_handoff(rep: Report, tools: dict, cmd: str | None, who: dict | None = None) -> None:
+    """The handoff checks against a server: n/a unless a handoff_* tool is offered. MH7 also
+    holds a server to its `capabilities`: a name it lists must be backed by every tool it needs."""
+    caps = (who or {}).get("capabilities") or []
+    sys.path.insert(0, str(HERE))
+    import handoff as ho
+    need = {ho.CAPABILITY: ho.CORE_TOOLS, ho.PUSH_CAPABILITY: ho.CORE_TOOLS + ho.PUSH_TOOLS}
+    missing = [f"{name}: {t}" for name, req in need.items() if name in caps for t in req if t not in tools]
+    if missing:
+        rep.fail("MH7", f"capability named without its tools: {'; '.join(missing[:4])}")
+    if not any(name.startswith("handoff_") for name in tools):
+        for cid in HANDOFF_IDS[:-1]:
+            rep.na(cid, "the milestone handoff capability is not offered")
+        check_handoff_public(rep)
+        return
+    check_handoff_public(rep)
+    if cmd:
+        check_handoff_cases(rep, cmd)
+    else:
+        for cid in HANDOFF_IDS[:-1]:
+            rep.manual(cid, "run the golden handoff cases against the server's own code: --handoff-cmd CMD")
 
 
 NOTIFY_IDS = ("N1", "N2", "N3", "N4", "N5")
@@ -2165,8 +2930,48 @@ def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
     rep.check("C5", not wrong, f"Size part: {'; '.join(wrong)}", f"Size part: {len(cases)} cases")
 
 
-def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
+#: The closed set of Priority levels (knowledge/model/board-fields.md, tools.md Priority).
+PRIORITY_LEVELS = tuple(f"P{i}" for i in range(4))  # built, so no quoted level reads as a check id
+
+
+def check_priority(rep: Report, c: Client, sb: Sandbox, who: dict | None) -> None:
+    """B5 and B6: the closed Priority set, and one agent suggestion into an empty field."""
     proj = sb.project
+    ok, got, _ = c.call("project_get", {"project": proj})
+    fields = {f.get("name"): f for f in ((got or {}).get("fields") or [])}
+    options = [o.get("name") if isinstance(o, dict) else o for o in (fields.get("Priority") or {}).get("options") or []]
+    if not ok or "Priority" not in fields:
+        rep.skip("B5", "the board has no Priority field")
+        rep.skip("B6", "the board has no Priority field")
+        return
+    if not all(level in options for level in PRIORITY_LEVELS):
+        rep.fail("B5", f"the board's Priority options are {options}, not {list(PRIORITY_LEVELS)}")
+        rep.skip("B6", "needs the four Priority options")
+        return
+    base = {"repo": sb.repo, "number": sb.issue("priority"), "project": proj, "field": "Priority"}
+    ok0, _, t0 = c.call("project_set_field", {**base, "value": PRIORITY_LEVELS[0]})
+    bad, _, tb = c.call("project_set_field", {**base, "value": "P" + "4"})
+    _, found, _ = c.call("project_item_find", {k: base[k] for k in ("repo", "number", "project")})
+    kept = ((found or {}).get("fields") or {}).get("Priority")
+    rep.check("B5", ok0 and not bad and all(level in tb for level in PRIORITY_LEVELS) and kept == PRIORITY_LEVELS[0],
+              f"P0 {'set' if ok0 else t0[:60]}; P4 refused {not bad}, names the four "
+              f"{all(level in tb for level in PRIORITY_LEVELS)}; kept {kept!r}")
+    principal = (who or {}).get("principal") or ""
+    if not principal.startswith("agent:"):
+        rep.skip("B6", "needs an agent principal")
+        return
+    n2 = sb.issue("priority suggestion")
+    first, _, _ = c.call("project_set_field", {**base, "number": n2, "value": PRIORITY_LEVELS[2]})
+    again, _, ta = c.call("project_set_field", {**base, "number": n2, "value": PRIORITY_LEVELS[1]})
+    _, found2, _ = c.call("project_item_find", {"repo": sb.repo, "number": n2, "project": proj})
+    rep.check("B6", first and not again and "set" in ta.lower()
+              and ((found2 or {}).get("fields") or {}).get("Priority") == PRIORITY_LEVELS[2],
+              f"first {first}; second refused {not again} ({ta[:60]})")
+
+
+def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict, who: dict | None = None) -> None:
+    proj = sb.project
+    check_priority(rep, c, sb, who)
     check_size(rep, c, sb, profile)
     ok, out, text = c.call("project_items", {"project": proj, "limit": 2})
     pages = ok and "has_next_page" in (out or {}) and "next_cursor" in (out or {})
@@ -2811,6 +3616,9 @@ MANUAL = {
     "T4": "sign in through the connector as an identity not on the allowlist; every call must be refused",
     "C4": "claim with lease 1m, wait two minutes, claim as a second principal: the record names takeover_of",
     "C10": "with record authors configured, paste a claim record from another account: item_get ignores it",
+    "C21": "claim with lease 1m, wait two minutes: item_get shows stale and interruptions 1; a takeover by a "
+           "second principal keeps interruptions at 1, names previous_holder and shows the abandoned "
+           "worker's last four parts, or none recorded",
     "C18": "review a PR opened through pr_open, and comment on a channel issue: activity_since for the "
            "PR's by principal lists a pr review with its review_state, and a channel comment",
     "J1": "remove every approver: /join/start and joined tokens are refused",
@@ -2853,8 +3661,13 @@ def main(argv: list[str]) -> int:
                     help="seconds to wait for that approval (default 600)")
     ap.add_argument("--fold-cmd", help="a command that folds {now, comments} from stdin to JSON on stdout")
     ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
+    ap.add_argument("--prose-cmd", help="a command that runs the prose check on one case from stdin (R9)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
+    ap.add_argument("--intake-cmd", help="a command that answers one intake-check case from stdin (I6)")
+    ap.add_argument("--page-cmd", help="a command that answers one record-page case from stdin (RP1 to RP3)")
+    ap.add_argument("--record-cmd", help="a command that answers one register-record case from stdin (RR1 to RR4)")
+    ap.add_argument("--handoff-cmd", help="a command that answers one milestone-handoff case from stdin (MH1 to MH7)")
     ap.add_argument("--github-token-env",
                     help="a read-only GitHub token for the sandbox repo, so N2 reads the ping's author from GitHub")
     ap.add_argument("--artifact-source-url",
@@ -2868,8 +3681,14 @@ def main(argv: list[str]) -> int:
     check_fold(rep, a.fold_cmd)
     if not a.server:
         check_ready_cases(rep, a.ready_cmd)
+        check_prose_cases(rep, a.prose_cmd)
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
+        check_intake_check_cases(rep, a.intake_cmd)
+        check_page_cases(rep, a.page_cmd)
+        check_record_cases(rep, a.record_cmd)
+        check_handoff_cases(rep, a.handoff_cmd)
+        check_handoff_public(rep)
     seen: list[str] = []
     secrets: list[str] = []
 
@@ -2915,14 +3734,20 @@ def main(argv: list[str]) -> int:
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
                     check_signoffs(rep, c, sb, who)
                     if a.project:
-                        check_board(rep, c, sb, profiles.get(name) or {})
+                        check_board(rep, c, sb, profiles.get(name) or {}, who)
                     check_prs(rep, c, sb, _tools, who, a.pr_head, token(a.github_token_env))
-                check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd)
+                check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd, a.prose_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
+                check_intake_check(rep, c, _tools, sb, a.intake_cmd, c2)
+                check_comment_edits(rep, c, _tools, sb)
+                check_stale_done(rep, c, _tools, sb)
+                check_stop(rep, c, _tools, sb)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
+                check_registers(rep, _tools, a.record_cmd)
+                check_handoff(rep, _tools, a.handoff_cmd, who)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)

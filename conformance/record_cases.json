@@ -1,0 +1,1873 @@
+{
+ "about": "Golden cases for register records (server-spec/register-records.md, checks RR1 to RR4). RR1: validate gives the stated refusals. RR2: upgrade gives the stated record. RR3: fold gives the stated state and verdict. RR4: represent gives the stated labels, Status, closed and fields. --record-cmd reads one case with an added 'op' (validate, upgrade or fold) and answers {refused}, {record} or {state, shown}.",
+ "cases": {
+  "validate": [
+   {
+    "name": "register-ok",
+    "what": "a complete registration",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "legacy-ok",
+    "what": "a version 0 line is checked only for json, event and id",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-9\", \"t\": \"2026-01-01 00:00:00\", \"title\": \"old\", \"spec\": {}}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "bad-json",
+    "what": "not JSON",
+    "register": "experiment",
+    "line": "{not json",
+    "expect": {
+     "refused": [
+      "bad-json"
+     ]
+    }
+   },
+   {
+    "name": "unknown-event",
+    "what": "an event the register does not have",
+    "register": "experiment",
+    "line": "{\"event\": \"cheer\", \"id\": \"EXP-1\", \"v\": 1, \"eid\": \"01JC0000000000000000000004\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "unknown-event"
+     ]
+    }
+   },
+   {
+    "name": "version-ahead",
+    "what": "a version this code does not know",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 2, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "version-ahead"
+     ]
+    }
+   },
+   {
+    "name": "missing-envelope",
+    "what": "no eid, no via",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\"}",
+    "expect": {
+     "refused": [
+      "missing:eid",
+      "missing:via"
+     ]
+    }
+   },
+   {
+    "name": "bad-time",
+    "what": "a time with no offset",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:t"
+     ]
+    }
+   },
+   {
+    "name": "bad-by",
+    "what": "by is not a principal",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"the owner\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:by"
+     ]
+    }
+   },
+   {
+    "name": "missing-spec-field",
+    "what": "a registration without resolves",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "missing:spec.resolves"
+     ]
+    }
+   },
+   {
+    "name": "prereg-enum",
+    "what": "prereg outside its list",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"MOSTLY\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:spec.prereg"
+     ]
+    }
+   },
+   {
+    "name": "stopping-rule",
+    "what": "two arms and no stopping rule",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "missing:spec.stopping_rule"
+     ]
+    }
+   },
+   {
+    "name": "one-arm",
+    "what": "one arm needs no stopping rule",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "baseline-none",
+    "what": "baseline answered with none:",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"none: a mechanical check\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "result-ok",
+    "what": "a result whose verdict is a rule key",
+    "register": "experiment",
+    "line": "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r1\", \"note\": \"A won\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    },
+    "prior": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ]
+   },
+   {
+    "name": "verdict-not-in-rule",
+    "what": "a verdict the rule does not name",
+    "register": "experiment",
+    "line": "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"MAYBE\", \"rule_hash\": \"r1\", \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "verdict-not-in-rule"
+     ]
+    },
+    "prior": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ]
+   },
+   {
+    "name": "void-verdict",
+    "what": "VOID is always allowed",
+    "register": "experiment",
+    "line": "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"VOID\", \"rule_hash\": \"r1\", \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    },
+    "prior": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ]
+   },
+   {
+    "name": "rule-hash-differs",
+    "what": "a result under another rule",
+    "register": "experiment",
+    "line": "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r2\", \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "rule-hash-differs"
+     ]
+    },
+    "prior": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ]
+   },
+   {
+    "name": "not-registered",
+    "what": "an event before any registration",
+    "register": "experiment",
+    "line": "{\"event\": \"start\", \"id\": \"EXP-1\", \"resource\": \"gpu\", \"v\": 1, \"eid\": \"01JC0000000000000000000005\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "not-registered"
+     ]
+    },
+    "prior": []
+   },
+   {
+    "name": "registered-twice",
+    "what": "a second registration",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000099\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "registered-twice"
+     ]
+    },
+    "prior": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ]
+   },
+   {
+    "name": "eid-reused",
+    "what": "the same eid on another line",
+    "register": "experiment",
+    "line": "{\"event\": \"block\", \"id\": \"EXP-1\", \"note\": \"waits\", \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "eid-reused"
+     ]
+    },
+    "prior": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ]
+   },
+   {
+    "name": "attempt-outcome",
+    "what": "an attempt outcome outside its list",
+    "register": "experiment",
+    "line": "{\"event\": \"attempt\", \"id\": \"EXP-1\", \"instance\": \"i\", \"outcome\": \"meh\", \"hours\": 1.0, \"cost_estimated\": 2.0, \"cost_is_estimate\": true, \"v\": 1, \"eid\": \"01JC0000000000000000000006\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:outcome"
+     ]
+    }
+   },
+   {
+    "name": "observation-kind",
+    "what": "an observation kind outside its list",
+    "register": "experiment",
+    "line": "{\"event\": \"observation\", \"id\": \"EXP-1\", \"kind\": \"A HEADLINE\", \"title\": \"t\", \"v\": 1, \"eid\": \"01JC0000000000000000000007\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:kind"
+     ]
+    }
+   },
+   {
+    "name": "deviation-ok",
+    "what": "a deviation",
+    "register": "experiment",
+    "line": "{\"event\": \"deviation\", \"id\": \"EXP-1\", \"what\": \"n 20 to 16\", \"original\": \"n 20\", \"reason\": \"four renders failed\", \"timing\": \"after-data-access\", \"impact\": \"power drops\", \"v\": 1, \"eid\": \"01JC0000000000000000000008\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "reading-of",
+    "what": "a reading of a result hash",
+    "register": "experiment",
+    "line": "{\"event\": \"reading\", \"id\": \"EXP-1\", \"of\": \"34708588e4ce5ef26fef28682235efbbdc51b6385ac1249c58ea615c79142a8a\", \"kind\": \"reading\", \"says\": \"s\", \"because\": \"b\", \"v\": 1, \"eid\": \"01JC0000000000000000000009\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "reading-of-null",
+    "what": "a reading of the whole item",
+    "register": "experiment",
+    "line": "{\"event\": \"reading\", \"id\": \"EXP-1\", \"of\": null, \"kind\": \"interim\", \"says\": \"s\", \"because\": \"b\", \"v\": 1, \"eid\": \"01JC0000000000000000000009\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "link-kind",
+    "what": "a free-text link kind",
+    "register": "experiment",
+    "line": "{\"event\": \"link\", \"id\": \"EXP-1\", \"to\": \"EXP-2\", \"kind\": \"inspired-by\", \"why\": \"w\", \"v\": 1, \"eid\": \"01JC0000000000000000000010\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:kind"
+     ]
+    }
+   },
+   {
+    "name": "artifact-pointer",
+    "what": "an artifact needs url or local",
+    "register": "experiment",
+    "line": "{\"event\": \"artifact\", \"id\": \"EXP-1\", \"kind\": \"pr\", \"why\": \"w\", \"v\": 1, \"eid\": \"01JC0000000000000000000011\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "missing:url"
+     ]
+    }
+   },
+   {
+    "name": "retire-kind",
+    "what": "a retire kind outside its list",
+    "register": "experiment",
+    "line": "{\"event\": \"retire\", \"id\": \"EXP-1\", \"kind\": \"bored\", \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000012\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:kind"
+     ]
+    }
+   },
+   {
+    "name": "benchmark-ok",
+    "what": "a listening-test registration",
+    "register": "benchmark",
+    "line": "{\"event\": \"register\", \"id\": \"BM-1\", \"title\": \"X or Y\", \"spec_hash\": \"s1\", \"spec\": {\"question\": \"q\", \"arms\": [\"X\", \"Y\"], \"material\": \"ten lines\", \"metric\": \"preference\", \"resolves\": \"gross preference\", \"cannot_answer\": \"prosody\", \"decision_rule\": \"DESCRIPTIVE\", \"instrument\": {\"profile\": \"preference\", \"version\": 1}, \"listener\": \"one\", \"positive_control\": \"none: no control exists yet\", \"reference_anchor\": \"none: same model\"}, \"experiments\": [\"EXP-1\"], \"v\": 1, \"eid\": \"01JC0000000000000000000002\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "benchmark-anchor",
+    "what": "no reference anchor",
+    "register": "benchmark",
+    "line": "{\"event\": \"register\", \"id\": \"BM-1\", \"title\": \"X or Y\", \"spec_hash\": \"s1\", \"spec\": {\"question\": \"q\", \"arms\": [\"X\", \"Y\"], \"material\": \"ten lines\", \"metric\": \"preference\", \"resolves\": \"gross preference\", \"cannot_answer\": \"prosody\", \"decision_rule\": \"DESCRIPTIVE\", \"instrument\": {\"profile\": \"preference\", \"version\": 1}, \"listener\": \"one\", \"positive_control\": \"none: no control exists yet\"}, \"experiments\": [\"EXP-1\"], \"v\": 1, \"eid\": \"01JC0000000000000000000002\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "missing:spec.reference_anchor"
+     ]
+    }
+   },
+   {
+    "name": "benchmark-instrument",
+    "what": "an instrument with no version",
+    "register": "benchmark",
+    "line": "{\"event\": \"register\", \"id\": \"BM-1\", \"title\": \"X or Y\", \"spec_hash\": \"s1\", \"spec\": {\"question\": \"q\", \"arms\": [\"X\", \"Y\"], \"material\": \"ten lines\", \"metric\": \"preference\", \"resolves\": \"gross preference\", \"cannot_answer\": \"prosody\", \"decision_rule\": \"DESCRIPTIVE\", \"instrument\": {\"profile\": \"preference\"}, \"listener\": \"one\", \"positive_control\": \"none: no control exists yet\", \"reference_anchor\": \"none: same model\"}, \"experiments\": [\"EXP-1\"], \"v\": 1, \"eid\": \"01JC0000000000000000000002\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "missing:spec.instrument.version"
+     ]
+    }
+   },
+   {
+    "name": "benchmark-status",
+    "what": "a result status outside its list",
+    "register": "benchmark",
+    "line": "{\"event\": \"result\", \"id\": \"BM-1\", \"status\": \"done\", \"measured\": {\"tally\": 1}, \"judged\": 1, \"available\": 2, \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000013\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:status"
+     ]
+    }
+   },
+   {
+    "name": "fact-ok",
+    "what": "a fact citing a result hash",
+    "register": "finding",
+    "line": "{\"event\": \"fact\", \"id\": \"F1\", \"section\": \"s\", \"statement\": \"A beats B\", \"rests_on\": [{\"id\": \"EXP-1\", \"of\": \"34708588e4ce5ef26fef28682235efbbdc51b6385ac1249c58ea615c79142a8a\", \"verdict\": \"YES\"}], \"caveat\": \"one seed\", \"v\": 1, \"eid\": \"01JC0000000000000000000014\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": []
+    }
+   },
+   {
+    "name": "fact-cite",
+    "what": "a citation that is not a hash",
+    "register": "finding",
+    "line": "{\"event\": \"fact\", \"id\": \"F1\", \"section\": \"s\", \"statement\": \"st\", \"rests_on\": [{\"id\": \"EXP-1\", \"of\": \"EXP-1@t\"}], \"caveat\": \"c\", \"v\": 1, \"eid\": \"01JC0000000000000000000014\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "bad-value:rests_on[0].of"
+     ]
+    }
+   },
+   {
+    "name": "finding-retire-first",
+    "what": "a retire before any fact",
+    "register": "finding",
+    "line": "{\"event\": \"retire\", \"id\": \"F1\", \"because\": \"b\", \"v\": 1, \"eid\": \"01JC0000000000000000000015\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "refused": [
+      "not-registered"
+     ]
+    },
+    "prior": []
+   }
+  ],
+  "upgrade": [
+   {
+    "name": "current",
+    "what": "a version 1 record is returned as it is",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+    "expect": {
+     "record": {
+      "event": "register",
+      "id": "EXP-1",
+      "title": "A beats B",
+      "rule_hash": "r1",
+      "spec": {
+       "hypothesis": "h",
+       "arms": {
+        "A": "a",
+        "B": "b"
+       },
+       "n_planned": 20,
+       "metric": "m",
+       "decision_rule": {
+        "YES": "a beats b",
+        "NO": "it does not"
+       },
+       "falsified_by": "NO",
+       "void_if": "the control moves",
+       "cannot_answer": "quality",
+       "resolves": "a against b",
+       "prereg": "CLEAN",
+       "preregistered_by": "github:owner",
+       "baseline": "B",
+       "stopping_rule": "stop after A fails twice"
+      },
+      "v": 1,
+      "eid": "01JC0000000000000000000001",
+      "t": "2026-01-02 10:00:00+00:00",
+      "by": "agent:a",
+      "via": "tool@1"
+     }
+    }
+   },
+   {
+    "name": "naive-time",
+    "what": "a time with no offset is read in the source's zone",
+    "register": "experiment",
+    "line": "{\"event\": \"block\", \"id\": \"EXP-1\", \"t\": \"2026-07-01 09:00:00\", \"note\": \"n\", \"by\": \"agent:a\"}",
+    "timezone": "America/New_York",
+    "expect": {
+     "record": {
+      "event": "block",
+      "id": "EXP-1",
+      "t": "2026-07-01 13:00:00+00:00",
+      "note": "n",
+      "by": "agent:a",
+      "eid": "h:8cf4d4c74b5c16323889287b",
+      "v": 1,
+      "_upgraded": [
+       "t",
+       "eid"
+      ]
+     }
+    }
+   },
+   {
+    "name": "no-time",
+    "what": "no time",
+    "register": "experiment",
+    "line": "{\"event\": \"launch\", \"id\": \"EXP-1\", \"note\": \"n\"}",
+    "expect": {
+     "record": {
+      "event": "launch",
+      "id": "EXP-1",
+      "note": "n",
+      "t": null,
+      "eid": "h:0a919e276a667552067ebe91",
+      "by": "unknown",
+      "v": 1,
+      "_upgraded": [
+       "t",
+       "eid",
+       "by"
+      ]
+     }
+    }
+   },
+   {
+    "name": "free-by",
+    "what": "a by that is not a principal",
+    "register": "experiment",
+    "line": "{\"event\": \"block\", \"id\": \"EXP-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"note\": \"n\", \"by\": \"the owner, recorded by an agent\"}",
+    "expect": {
+     "record": {
+      "event": "block",
+      "id": "EXP-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "note": "n",
+      "by": "unknown",
+      "eid": "h:ebfe24058444a8601b243ac2",
+      "by_text": "the owner, recorded by an agent",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "by"
+      ]
+     }
+    }
+   },
+   {
+    "name": "artifact-link",
+    "what": "a link with a url becomes an artifact",
+    "register": "experiment",
+    "line": "{\"event\": \"link\", \"id\": \"EXP-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"kind\": \"pr\", \"url\": \"https://example.com/change-one\", \"note\": \"the fix\"}",
+    "expect": {
+     "record": {
+      "event": "artifact",
+      "id": "EXP-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "kind": "pr",
+      "url": "https://example.com/change-one",
+      "note": "the fix",
+      "eid": "h:2ccf4c8545fd413d10db3f65",
+      "by": "unknown",
+      "why": "the fix",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "by",
+       "event"
+      ]
+     }
+    }
+   },
+   {
+    "name": "headline-kind",
+    "what": "an observation headline moves to title",
+    "register": "experiment",
+    "line": "{\"event\": \"observation\", \"id\": \"EXP-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"kind\": \"A SURPRISE IN THE RENDERS\", \"fact\": \"f\"}",
+    "expect": {
+     "record": {
+      "event": "observation",
+      "id": "EXP-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "kind": "note",
+      "fact": "f",
+      "eid": "h:6004970f6d60c5b9929c546c",
+      "by": "unknown",
+      "title": "A SURPRISE IN THE RENDERS",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "by",
+       "kind"
+      ]
+     }
+    }
+   },
+   {
+    "name": "prereg-tag",
+    "what": "prereg from its leading tag",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"title\": \"t\", \"spec\": {\"preregistration_status\": \"PARTIAL. Two arms seen first.\"}}",
+    "expect": {
+     "record": {
+      "event": "register",
+      "id": "EXP-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "title": "t",
+      "spec": {
+       "preregistration_status": "PARTIAL. Two arms seen first.",
+       "prereg": "PARTIAL",
+       "prereg_note": "PARTIAL. Two arms seen first."
+      },
+      "eid": "h:465d1b0c5437eee7da0548e6",
+      "by": "unknown",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "by",
+       "spec.prereg"
+      ]
+     }
+    }
+   },
+   {
+    "name": "prereg-before",
+    "what": "prereg CLEAN from a plain registered-before",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"title\": \"t\", \"spec\": {\"preregistration_status\": \"Registered 2026-01-01 before any training.\"}}",
+    "expect": {
+     "record": {
+      "event": "register",
+      "id": "EXP-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "title": "t",
+      "spec": {
+       "preregistration_status": "Registered 2026-01-01 before any training.",
+       "prereg": "CLEAN",
+       "prereg_note": "Registered 2026-01-01 before any training."
+      },
+      "eid": "h:b490cba9bcfe85ba403d7312",
+      "by": "unknown",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "by",
+       "spec.prereg"
+      ]
+     }
+    }
+   },
+   {
+    "name": "prereg-qualified",
+    "what": "a qualified registered-before is left empty",
+    "register": "experiment",
+    "line": "{\"event\": \"register\", \"id\": \"EXP-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"title\": \"t\", \"spec\": {\"preregistration_status\": \"Registered before the run, after the pilot was seen.\"}}",
+    "expect": {
+     "record": {
+      "event": "register",
+      "id": "EXP-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "title": "t",
+      "spec": {
+       "preregistration_status": "Registered before the run, after the pilot was seen.",
+       "prereg": null,
+       "prereg_note": "Registered before the run, after the pilot was seen."
+      },
+      "eid": "h:bb2694f82e6692dd98e32c7b",
+      "by": "unknown",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "by",
+       "spec.prereg"
+      ]
+     }
+    }
+   },
+   {
+    "name": "reading-kind",
+    "what": "a reading with no kind",
+    "register": "benchmark",
+    "line": "{\"event\": \"reading\", \"id\": \"BM-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"by\": \"agent:a\", \"says\": \"s\", \"because\": \"b\", \"changes\": \"c\"}",
+    "expect": {
+     "record": {
+      "event": "reading",
+      "id": "BM-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "by": "agent:a",
+      "says": "s",
+      "because": "b",
+      "changes": "c",
+      "eid": "h:277d7bbde6acd3c6eeea85e8",
+      "kind": "reading",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "kind"
+      ]
+     }
+    }
+   },
+   {
+    "name": "from-id",
+    "what": "a link with from and no id",
+    "register": "benchmark",
+    "line": "{\"event\": \"link\", \"t\": \"2026-01-01 00:00:00+00:00\", \"from\": \"BM-2\", \"to\": \"BM-1\", \"kind\": \"refines\", \"why\": \"w\"}",
+    "expect": {
+     "record": {
+      "event": "link",
+      "t": "2026-01-01 00:00:00+00:00",
+      "from": "BM-2",
+      "to": "BM-1",
+      "kind": "refines",
+      "why": "w",
+      "id": "BM-2",
+      "eid": "h:1ddfe940167681796ff834d8",
+      "by": "unknown",
+      "v": 1,
+      "_upgraded": [
+       "id",
+       "eid",
+       "by"
+      ]
+     }
+    }
+   },
+   {
+    "name": "bench-status-complete",
+    "what": "a benchmark result with every trial judged",
+    "register": "benchmark",
+    "line": "{\"event\": \"result\", \"id\": \"BM-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"measured\": {\"tally\": 1}, \"judged\": 10, \"available\": 10, \"note\": \"n\"}",
+    "expect": {
+     "record": {
+      "event": "result",
+      "id": "BM-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "measured": {
+       "tally": 1
+      },
+      "judged": 10,
+      "available": 10,
+      "note": "n",
+      "eid": "h:d2e87bce3dc90273e9d17928",
+      "by": "unknown",
+      "status": "complete",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "by",
+       "status"
+      ]
+     }
+    }
+   },
+   {
+    "name": "bench-status-partial",
+    "what": "a benchmark result with trials left",
+    "register": "benchmark",
+    "line": "{\"event\": \"result\", \"id\": \"BM-1\", \"t\": \"2026-01-01 00:00:00+00:00\", \"measured\": {\"tally\": 1}, \"judged\": 3, \"available\": 10, \"note\": \"n\"}",
+    "expect": {
+     "record": {
+      "event": "result",
+      "id": "BM-1",
+      "t": "2026-01-01 00:00:00+00:00",
+      "measured": {
+       "tally": 1
+      },
+      "judged": 3,
+      "available": 10,
+      "note": "n",
+      "eid": "h:8ab37c7d6ded81ed499053ee",
+      "by": "unknown",
+      "status": "partial",
+      "v": 1,
+      "_upgraded": [
+       "eid",
+       "by",
+       "status"
+      ]
+     }
+    }
+   }
+  ],
+  "fold": [
+   {
+    "name": "registered",
+    "what": "a registration alone",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "registered",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Pre-registered",
+      "closed": false,
+      "fields": {
+       "Pre-reg": "CLEAN"
+      }
+     }
+    }
+   },
+   {
+    "name": "running",
+    "what": "started, one attempt",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"start\", \"id\": \"EXP-1\", \"resource\": \"gpu-1\", \"v\": 1, \"eid\": \"01JC0000000000000000000020\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"attempt\", \"id\": \"EXP-1\", \"instance\": \"i\", \"outcome\": \"completed\", \"hours\": 1.5, \"cost_estimated\": 3.25, \"cost_is_estimate\": true, \"v\": 1, \"eid\": \"01JC0000000000000000000021\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "started",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Running",
+      "closed": false,
+      "fields": {
+       "Pre-reg": "CLEAN",
+       "GPU hours": 1.5,
+       "Spend": 3.25,
+       "Start date": "2026-01-02",
+       "Agent": "agent:a · gpu-1"
+      }
+     }
+    }
+   },
+   {
+    "name": "blocked",
+    "what": "a standing block",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"start\", \"id\": \"EXP-1\", \"resource\": \"gpu-1\", \"v\": 1, \"eid\": \"01JC0000000000000000000020\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"block\", \"id\": \"EXP-1\", \"note\": \"waits on data\", \"v\": 1, \"eid\": \"01JC0000000000000000000022\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "blocked",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "blocked",
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Blocked",
+      "closed": false,
+      "fields": {
+       "Pre-reg": "CLEAN",
+       "Start date": "2026-01-02",
+       "Agent": "agent:a · gpu-1",
+       "Last report": "2026-01-02 block: waits on data"
+      }
+     }
+    }
+   },
+   {
+    "name": "unblocked",
+    "what": "a block lifted",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"start\", \"id\": \"EXP-1\", \"resource\": \"gpu-1\", \"v\": 1, \"eid\": \"01JC0000000000000000000020\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"block\", \"id\": \"EXP-1\", \"note\": \"waits on data\", \"v\": 1, \"eid\": \"01JC0000000000000000000022\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"unblock\", \"id\": \"EXP-1\", \"note\": \"data came\", \"v\": 1, \"eid\": \"01JC0000000000000000000023\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "started",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Running",
+      "closed": false,
+      "fields": {
+       "Pre-reg": "CLEAN",
+       "Start date": "2026-01-02",
+       "Agent": "agent:a · gpu-1",
+       "Last report": "2026-01-02 unblock: data came"
+      }
+     }
+    }
+   },
+   {
+    "name": "verdict",
+    "what": "a valid result closes it",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"start\", \"id\": \"EXP-1\", \"resource\": \"gpu-1\", \"v\": 1, \"eid\": \"01JC0000000000000000000020\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"attempt\", \"id\": \"EXP-1\", \"instance\": \"i\", \"outcome\": \"completed\", \"hours\": 1.5, \"cost_estimated\": 3.25, \"cost_is_estimate\": true, \"v\": 1, \"eid\": \"01JC0000000000000000000021\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r1\", \"note\": \"A won\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "verdict",
+     "verdict": "YES",
+     "shown": {
+      "labels": [
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Verdict",
+      "closed": true,
+      "fields": {
+       "Verdict": "YES",
+       "Pre-reg": "CLEAN",
+       "GPU hours": 1.5,
+       "Spend": 3.25,
+       "Start date": "2026-01-02",
+       "Agent": "agent:a · gpu-1",
+       "Last report": "2026-01-02 result: A won"
+      }
+     }
+    }
+   },
+   {
+    "name": "unvalidated",
+    "what": "a result under another rule",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r2\", \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "unvalidated",
+     "verdict": "YES",
+     "shown": {
+      "labels": [
+       "experiment",
+       "needs:ruling"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Analyzing",
+      "closed": false,
+      "fields": {
+       "Verdict": "YES",
+       "Pre-reg": "CLEAN",
+       "Last report": "2026-01-02 result: n"
+      }
+     }
+    }
+   },
+   {
+    "name": "retired-void",
+    "what": "retired as void before a result",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"retire\", \"id\": \"EXP-1\", \"kind\": \"void\", \"note\": \"broken\", \"v\": 1, \"eid\": \"01JC0000000000000000000024\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "void",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Void",
+      "closed": true,
+      "fields": {
+       "Pre-reg": "CLEAN",
+       "Last report": "2026-01-02 retire: broken"
+      }
+     }
+    }
+   },
+   {
+    "name": "retire-after-verdict",
+    "what": "a valid verdict stands over a later retire",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r1\", \"note\": \"A won\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"retire\", \"id\": \"EXP-1\", \"kind\": \"superseded\", \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000024\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "verdict",
+     "verdict": "YES",
+     "shown": {
+      "labels": [
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Verdict",
+      "closed": true,
+      "fields": {
+       "Verdict": "YES",
+       "Pre-reg": "CLEAN",
+       "Last report": "2026-01-02 retire: n"
+      }
+     }
+    }
+   },
+   {
+    "name": "unretired",
+    "what": "unretire folds as if never retired",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"block\", \"id\": \"EXP-1\", \"note\": \"waits on data\", \"v\": 1, \"eid\": \"01JC0000000000000000000022\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"retire\", \"id\": \"EXP-1\", \"kind\": \"abandoned\", \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000024\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"unretire\", \"id\": \"EXP-1\", \"note\": \"back\", \"v\": 1, \"eid\": \"01JC0000000000000000000025\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "blocked",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "blocked",
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Blocked",
+      "closed": false,
+      "fields": {
+       "Pre-reg": "CLEAN",
+       "Last report": "2026-01-02 unretire: back"
+      }
+     }
+    }
+   },
+   {
+    "name": "invalid-record",
+    "what": "a version 1 line that fails its schema is flagged",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"observation\", \"id\": \"EXP-1\", \"kind\": \"A HEADLINE\", \"title\": \"t\", \"v\": 1, \"eid\": \"01JC0000000000000000000026\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     }
+    },
+    "expect": {
+     "state": "registered",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "experiment",
+       "invalid-record"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Pre-registered",
+      "closed": false,
+      "fields": {
+       "Pre-reg": "CLEAN"
+      }
+     }
+    }
+   },
+   {
+    "name": "legacy-prereg",
+    "what": "a version 0 registration's prereg and naive time",
+    "register": "experiment",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"EXP-2\", \"t\": \"2026-07-01 23:30:00\", \"title\": \"old\", \"rule_hash\": \"r\", \"spec\": {\"preregistration_status\": \"CLEAN. Written before any run.\", \"decision_rule\": {\"Y\": \"y\"}}}",
+     "{\"event\": \"start\", \"id\": \"EXP-2\", \"t\": \"2026-07-01 23:45:00\", \"note\": \"go\"}"
+    ],
+    "source": {
+     "kind_label": "experiment",
+     "state_labels": {
+      "blocked": "blocked",
+      "unvalidated": "needs:ruling"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Pre-registered",
+      "queued": "Queued",
+      "started": "Running",
+      "blocked": "Blocked",
+      "verdict": "Verdict",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Verdict",
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict",
+      "prereg": "Pre-reg",
+      "gpu_hours": "GPU hours",
+      "spend": "Spend",
+      "started": "Start date",
+      "agent": "Agent",
+      "last_report": "Last report"
+     },
+     "timezone": "America/New_York"
+    },
+    "timezone": "America/New_York",
+    "expect": {
+     "state": "started",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "experiment"
+      ],
+      "managed_labels": [
+       "blocked",
+       "experiment",
+       "invalid-record",
+       "needs:ruling"
+      ],
+      "status": "Running",
+      "closed": false,
+      "fields": {
+       "Pre-reg": "CLEAN",
+       "Start date": "2026-07-01",
+       "Last report": "2026-07-01 start: go"
+      }
+     }
+    }
+   },
+   {
+    "name": "bench-waiting",
+    "what": "a test waiting on a judge",
+    "register": "benchmark",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"BM-1\", \"title\": \"X or Y\", \"spec_hash\": \"s1\", \"spec\": {\"question\": \"q\", \"arms\": [\"X\", \"Y\"], \"material\": \"ten lines\", \"metric\": \"preference\", \"resolves\": \"gross preference\", \"cannot_answer\": \"prosody\", \"decision_rule\": \"DESCRIPTIVE\", \"instrument\": {\"profile\": \"preference\", \"version\": 1}, \"listener\": \"one\", \"positive_control\": \"none: no control exists yet\", \"reference_anchor\": \"none: same model\"}, \"experiments\": [\"EXP-1\"], \"v\": 1, \"eid\": \"01JC0000000000000000000002\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "listening-test",
+     "state_labels": {
+      "registered": "needs:ears",
+      "partial": "needs:ears"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Queued",
+      "partial": "Awaiting ears",
+      "complete": "Done",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict"
+     }
+    },
+    "expect": {
+     "state": "registered",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "listening-test",
+       "needs:ears"
+      ],
+      "managed_labels": [
+       "invalid-record",
+       "listening-test",
+       "needs:ears"
+      ],
+      "status": "Queued",
+      "closed": false,
+      "fields": {}
+     }
+    }
+   },
+   {
+    "name": "bench-partial",
+    "what": "a partial result",
+    "register": "benchmark",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"BM-1\", \"title\": \"X or Y\", \"spec_hash\": \"s1\", \"spec\": {\"question\": \"q\", \"arms\": [\"X\", \"Y\"], \"material\": \"ten lines\", \"metric\": \"preference\", \"resolves\": \"gross preference\", \"cannot_answer\": \"prosody\", \"decision_rule\": \"DESCRIPTIVE\", \"instrument\": {\"profile\": \"preference\", \"version\": 1}, \"listener\": \"one\", \"positive_control\": \"none: no control exists yet\", \"reference_anchor\": \"none: same model\"}, \"experiments\": [\"EXP-1\"], \"v\": 1, \"eid\": \"01JC0000000000000000000002\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"BM-1\", \"status\": \"partial\", \"measured\": {\"tally\": 1}, \"judged\": 3, \"available\": 10, \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000030\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "listening-test",
+     "state_labels": {
+      "registered": "needs:ears",
+      "partial": "needs:ears"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Queued",
+      "partial": "Awaiting ears",
+      "complete": "Done",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict"
+     }
+    },
+    "expect": {
+     "state": "partial",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "listening-test",
+       "needs:ears"
+      ],
+      "managed_labels": [
+       "invalid-record",
+       "listening-test",
+       "needs:ears"
+      ],
+      "status": "Awaiting ears",
+      "closed": false,
+      "fields": {}
+     }
+    }
+   },
+   {
+    "name": "bench-complete",
+    "what": "a complete result",
+    "register": "benchmark",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"BM-1\", \"title\": \"X or Y\", \"spec_hash\": \"s1\", \"spec\": {\"question\": \"q\", \"arms\": [\"X\", \"Y\"], \"material\": \"ten lines\", \"metric\": \"preference\", \"resolves\": \"gross preference\", \"cannot_answer\": \"prosody\", \"decision_rule\": \"DESCRIPTIVE\", \"instrument\": {\"profile\": \"preference\", \"version\": 1}, \"listener\": \"one\", \"positive_control\": \"none: no control exists yet\", \"reference_anchor\": \"none: same model\"}, \"experiments\": [\"EXP-1\"], \"v\": 1, \"eid\": \"01JC0000000000000000000002\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"BM-1\", \"status\": \"partial\", \"measured\": {\"tally\": 1}, \"judged\": 3, \"available\": 10, \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000030\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"BM-1\", \"status\": \"complete\", \"measured\": {\"tally\": 1}, \"judged\": 10, \"available\": 10, \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000031\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "listening-test",
+     "state_labels": {
+      "registered": "needs:ears",
+      "partial": "needs:ears"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Queued",
+      "partial": "Awaiting ears",
+      "complete": "Done",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict"
+     }
+    },
+    "expect": {
+     "state": "complete",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "listening-test"
+      ],
+      "managed_labels": [
+       "invalid-record",
+       "listening-test",
+       "needs:ears"
+      ],
+      "status": "Done",
+      "closed": true,
+      "fields": {}
+     }
+    }
+   },
+   {
+    "name": "bench-withdrawn",
+    "what": "a withdrawn result folds back to waiting",
+    "register": "benchmark",
+    "lines": [
+     "{\"event\": \"register\", \"id\": \"BM-1\", \"title\": \"X or Y\", \"spec_hash\": \"s1\", \"spec\": {\"question\": \"q\", \"arms\": [\"X\", \"Y\"], \"material\": \"ten lines\", \"metric\": \"preference\", \"resolves\": \"gross preference\", \"cannot_answer\": \"prosody\", \"decision_rule\": \"DESCRIPTIVE\", \"instrument\": {\"profile\": \"preference\", \"version\": 1}, \"listener\": \"one\", \"positive_control\": \"none: no control exists yet\", \"reference_anchor\": \"none: same model\"}, \"experiments\": [\"EXP-1\"], \"v\": 1, \"eid\": \"01JC0000000000000000000002\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"BM-1\", \"status\": \"withdrawn\", \"measured\": {\"tally\": 1}, \"judged\": 2, \"available\": 10, \"note\": \"n\", \"v\": 1, \"eid\": \"01JC0000000000000000000032\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "kind_label": "listening-test",
+     "state_labels": {
+      "registered": "needs:ears",
+      "partial": "needs:ears"
+     },
+     "invalid_label": "invalid-record",
+     "status_map": {
+      "registered": "Queued",
+      "partial": "Awaiting ears",
+      "complete": "Done",
+      "void": "Void",
+      "abandoned": "Abandoned",
+      "retired": "Done",
+      "unvalidated": "Analyzing"
+     },
+     "closed": [
+      "Void",
+      "Abandoned",
+      "Done"
+     ],
+     "fields": {
+      "verdict": "Verdict"
+     }
+    },
+    "expect": {
+     "state": "registered",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "listening-test",
+       "needs:ears"
+      ],
+      "managed_labels": [
+       "invalid-record",
+       "listening-test",
+       "needs:ears"
+      ],
+      "status": "Queued",
+      "closed": false,
+      "fields": {}
+     }
+    }
+   },
+   {
+    "name": "fact",
+    "what": "a current fact",
+    "register": "finding",
+    "lines": [
+     "{\"event\": \"fact\", \"id\": \"F1\", \"section\": \"s\", \"statement\": \"A beats B\", \"rests_on\": [{\"id\": \"EXP-1\", \"of\": \"34708588e4ce5ef26fef28682235efbbdc51b6385ac1249c58ea615c79142a8a\", \"verdict\": \"YES\"}], \"caveat\": \"one seed\", \"v\": 1, \"eid\": \"01JC0000000000000000000040\", \"t\": \"2026-01-03 00:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "state_labels": {
+      "stale": "needs:ruling"
+     },
+     "status_map": {
+      "fact": "Done",
+      "open": "Proposed",
+      "stale": "Analyzing",
+      "retired": "Done"
+     },
+     "closed": [
+      "Done"
+     ]
+    },
+    "evidence": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r1\", \"note\": \"A won\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "expect": {
+     "state": "fact",
+     "verdict": null,
+     "shown": {
+      "labels": [],
+      "managed_labels": [
+       "needs:ruling"
+      ],
+      "status": "Done",
+      "closed": true,
+      "fields": {}
+     }
+    }
+   },
+   {
+    "name": "fact-stale",
+    "what": "a reading after the fact makes it stale",
+    "register": "finding",
+    "lines": [
+     "{\"event\": \"fact\", \"id\": \"F1\", \"section\": \"s\", \"statement\": \"A beats B\", \"rests_on\": [{\"id\": \"EXP-1\", \"of\": \"34708588e4ce5ef26fef28682235efbbdc51b6385ac1249c58ea615c79142a8a\", \"verdict\": \"YES\"}], \"caveat\": \"one seed\", \"v\": 1, \"eid\": \"01JC0000000000000000000040\", \"t\": \"2026-01-03 00:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "state_labels": {
+      "stale": "needs:ruling"
+     },
+     "status_map": {
+      "fact": "Done",
+      "open": "Proposed",
+      "stale": "Analyzing",
+      "retired": "Done"
+     },
+     "closed": [
+      "Done"
+     ]
+    },
+    "evidence": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r1\", \"note\": \"A won\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"reading\", \"id\": \"EXP-1\", \"of\": \"34708588e4ce5ef26fef28682235efbbdc51b6385ac1249c58ea615c79142a8a\", \"kind\": \"reading\", \"says\": \"s\", \"because\": \"b\", \"v\": 1, \"eid\": \"01JC0000000000000000000041\", \"t\": \"2026-01-04 00:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "expect": {
+     "state": "stale",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "needs:ruling"
+      ],
+      "managed_labels": [
+       "needs:ruling"
+      ],
+      "status": "Analyzing",
+      "closed": false,
+      "fields": {}
+     }
+    }
+   },
+   {
+    "name": "fact-planning-link",
+    "what": "a follow-up link after the fact changes nothing",
+    "register": "finding",
+    "lines": [
+     "{\"event\": \"fact\", \"id\": \"F1\", \"section\": \"s\", \"statement\": \"A beats B\", \"rests_on\": [{\"id\": \"EXP-1\", \"of\": \"34708588e4ce5ef26fef28682235efbbdc51b6385ac1249c58ea615c79142a8a\", \"verdict\": \"YES\"}], \"caveat\": \"one seed\", \"v\": 1, \"eid\": \"01JC0000000000000000000040\", \"t\": \"2026-01-03 00:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "state_labels": {
+      "stale": "needs:ruling"
+     },
+     "status_map": {
+      "fact": "Done",
+      "open": "Proposed",
+      "stale": "Analyzing",
+      "retired": "Done"
+     },
+     "closed": [
+      "Done"
+     ]
+    },
+    "evidence": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r1\", \"note\": \"A won\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"link\", \"id\": \"EXP-2\", \"to\": \"EXP-1\", \"kind\": \"follows-up\", \"why\": \"w\", \"v\": 1, \"eid\": \"01JC0000000000000000000043\", \"t\": \"2026-01-04 00:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "expect": {
+     "state": "fact",
+     "verdict": null,
+     "shown": {
+      "labels": [],
+      "managed_labels": [
+       "needs:ruling"
+      ],
+      "status": "Done",
+      "closed": true,
+      "fields": {}
+     }
+    }
+   },
+   {
+    "name": "fact-far-contradicts",
+    "what": "a contradicts link from another item makes it stale",
+    "register": "finding",
+    "lines": [
+     "{\"event\": \"fact\", \"id\": \"F1\", \"section\": \"s\", \"statement\": \"A beats B\", \"rests_on\": [{\"id\": \"EXP-1\", \"of\": \"34708588e4ce5ef26fef28682235efbbdc51b6385ac1249c58ea615c79142a8a\", \"verdict\": \"YES\"}], \"caveat\": \"one seed\", \"v\": 1, \"eid\": \"01JC0000000000000000000040\", \"t\": \"2026-01-03 00:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "state_labels": {
+      "stale": "needs:ruling"
+     },
+     "status_map": {
+      "fact": "Done",
+      "open": "Proposed",
+      "stale": "Analyzing",
+      "retired": "Done"
+     },
+     "closed": [
+      "Done"
+     ]
+    },
+    "evidence": [
+     "{\"event\": \"register\", \"id\": \"EXP-1\", \"title\": \"A beats B\", \"rule_hash\": \"r1\", \"spec\": {\"hypothesis\": \"h\", \"arms\": {\"A\": \"a\", \"B\": \"b\"}, \"n_planned\": 20, \"metric\": \"m\", \"decision_rule\": {\"YES\": \"a beats b\", \"NO\": \"it does not\"}, \"falsified_by\": \"NO\", \"void_if\": \"the control moves\", \"cannot_answer\": \"quality\", \"resolves\": \"a against b\", \"prereg\": \"CLEAN\", \"preregistered_by\": \"github:owner\", \"baseline\": \"B\", \"stopping_rule\": \"stop after A fails twice\"}, \"v\": 1, \"eid\": \"01JC0000000000000000000001\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"result\", \"id\": \"EXP-1\", \"verdict\": \"YES\", \"rule_hash\": \"r1\", \"note\": \"A won\", \"v\": 1, \"eid\": \"01JC0000000000000000000003\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"link\", \"id\": \"EXP-2\", \"to\": \"EXP-1\", \"kind\": \"contradicts\", \"why\": \"w\", \"v\": 1, \"eid\": \"01JC0000000000000000000044\", \"t\": \"2026-01-04 00:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "expect": {
+     "state": "stale",
+     "verdict": null,
+     "shown": {
+      "labels": [
+       "needs:ruling"
+      ],
+      "managed_labels": [
+       "needs:ruling"
+      ],
+      "status": "Analyzing",
+      "closed": false,
+      "fields": {}
+     }
+    }
+   },
+   {
+    "name": "fact-retired",
+    "what": "a retired fact",
+    "register": "finding",
+    "lines": [
+     "{\"event\": \"fact\", \"id\": \"F1\", \"section\": \"s\", \"statement\": \"A beats B\", \"rests_on\": [{\"id\": \"EXP-1\", \"of\": \"34708588e4ce5ef26fef28682235efbbdc51b6385ac1249c58ea615c79142a8a\", \"verdict\": \"YES\"}], \"caveat\": \"one seed\", \"v\": 1, \"eid\": \"01JC0000000000000000000040\", \"t\": \"2026-01-03 00:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}",
+     "{\"event\": \"retire\", \"id\": \"F1\", \"because\": \"b\", \"v\": 1, \"eid\": \"01JC0000000000000000000042\", \"t\": \"2026-01-02 10:00:00+00:00\", \"by\": \"agent:a\", \"via\": \"tool@1\"}"
+    ],
+    "source": {
+     "state_labels": {
+      "stale": "needs:ruling"
+     },
+     "status_map": {
+      "fact": "Done",
+      "open": "Proposed",
+      "stale": "Analyzing",
+      "retired": "Done"
+     },
+     "closed": [
+      "Done"
+     ]
+    },
+    "expect": {
+     "state": "retired",
+     "verdict": null,
+     "shown": {
+      "labels": [],
+      "managed_labels": [
+       "needs:ruling"
+      ],
+      "status": "Done",
+      "closed": true,
+      "fields": {}
+     }
+    }
+   }
+  ]
+ }
+}

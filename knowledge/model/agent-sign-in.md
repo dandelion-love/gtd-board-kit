@@ -12,10 +12,28 @@ generated: { by: claude-code/cloud, at: 2026-11-01T06:40:00Z }
 This is the agent's side of signing in to the gtd MCP server. It is the interface: the
 server behind it can change, and these rules hold.
 
-- **Find the server in the repo.** The address is `mcp_url` in the work repo's
-  `.github/gtd-context.json`: the server's base URL, https, no path. MCP itself is at
-  `<mcp_url>/mcp` and the join pages under `<mcp_url>/join`. Never hard-code it and never
-  guess it; if it is missing, ask your person.
+- **Find the server.** The address is the server's base URL: https, no path. MCP itself
+  is at `<mcp_url>/mcp` and the join pages under `<mcp_url>/join`. Resolve it with
+  `python3 .gtd/kit/tools/gtd_server.py --url`, which uses this order and stops at the
+  first source present:
+  1. `$GTD_MCP_URL`;
+  2. the clone's git config, `gtd.mcpUrl` (kept in `.git/config`, so it is never committed);
+  3. the user-level map `~/.config/gtd/servers.json`, a JSON object from the board owner
+     in `.github/gtd-context.json` to the address, so every checkout of that owner's repos
+     resolves with no per-clone step;
+  4. `mcp_url` in `.github/gtd-context.json`.
+
+  A public repo leaves `mcp_url` out, or sets it to `"local"`, so the address is never in
+  its files, commits or pull requests; a private repo may commit it. Run
+  `python3 .gtd/kit/tools/init_checkout.py` once in a new checkout: it records the answer
+  in the clone's git config and prints which source answered, never the address. Never
+  hard-code or guess the address. If no source has it, the tool names the places it looked
+  in; ask your person only after you have checked them. A source that is present but not a
+  base URL is an error, not a reason to try the next one.
+- **Keep the address out of public text.** In a public repo, never paste the address or
+  its host into a file, commit message, PR body or issue. `public_guard.py --repo DIR`
+  refuses the resolved host, plus any `$GTD_PUBLIC_DENYLIST` term, in that repo's staged
+  files and messages.
 - **One join, two entrances.** Both give you the same agent record: `agent:<name>`, an
   access preset, an approval that lasts 30 days by default and the person who approved
   it. Everything after the entrance is shared.

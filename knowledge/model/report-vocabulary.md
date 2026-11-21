@@ -1,7 +1,7 @@
 ---
 type: Pattern
 title: Report vocabulary
-description: A holder reports one of six states; anyone may raise a question for a person, which adds a needs label and stops the work.
+description: A holder reports one of six states and leaves a four-part closing note; anyone may raise a question for a person, which adds a needs label and stops the work.
 tags: [board, reports]
 status: draft
 generated: { by: claude-code/cloud, at: 2026-11-01T04:00:00Z }
@@ -24,3 +24,22 @@ A question only a person can answer is an `attention` on the report, with a `nee
 value saying whom it waits for. The server adds `needs:<value>`, the card moves to the
 profile's needs-a-person column, and work on the item stops until the person answers.
 Taking the label off is the person's call.
+
+# Closing note
+
+A release, and a report that closes a leg of work, carries four short parts, so the next
+worker and the owner read what happened without the transcript:
+
+| Part | Holds |
+| --- | --- |
+| `done` | what was finished, with links to the proof |
+| `left` | what remains to do (the old release field `remaining` is the same part) |
+| `decided` | choices made on the way, each with how to undo it |
+| `set_aside` | what was considered and deliberately not done, and why |
+
+Write all four. An empty part is written `none`, not left out: a reader then knows the
+worker thought about it. A part you cannot fill is a decision to explain, not a gap. The
+server accepts a release without them for now (with a warning naming what is missing) and
+reads an absent part as `none`; with no note at all it reads `none recorded`. The next
+worker reads them, and how often the item was interrupted, before working
+([claims and leases](claims-and-leases.md)).

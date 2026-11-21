@@ -26,6 +26,7 @@ data, tokens or board contents.
 | `install/` | `add-to-repo.ps1` / `.sh`, `install-user.ps1`, the SessionStart hook, the `BOARD.local.md` starter |
 | `tests/check_kit.py` | Size budgets, frontmatter, versions, links, and the public guard over the tree |
 | `tools/public_guard.py`, `.githooks/` | The guard that keeps private data out: `pre-commit`, `commit-msg`, `pre-push` |
+| `tools/gtd_server.py`, `tools/init_checkout.py` | Find the server's address without committing it (environment, clone git config, user map, then the context file) and record it in a new checkout; `public_guard.py --repo DIR` refuses it in a work repo's staged files |
 | `tools/agent_guard.py` | Claude Code and Codex hooks for work repos: deny an own PR create while `pr_open` exists and workflow edits without a merged grant; a SessionStart reminder |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` | Rules for any agent working on the kit, and Claude Code hooks that run the guard |
 
@@ -113,9 +114,10 @@ Each repo layers its own rules on top of the kit without touching it:
   `board-lane` skill re-creates schedules after a restart.
 - **Workflow grants and merge grants** in `.gtd/BOARD.local.md`: the only ways rule 9
   opens (`knowledge/model/grants.md`). A workflow grant names workflow files an agent may
-  edit on a branch; a merge grant names exact files, and an agent may merge its own green
-  PR only when one merge grant names every file it changes. Each says who granted it,
-  when, and a link, and counts only on the default branch. No grant: never.
+  edit on a branch; a merge grant names exact files or a register's record pages, and an agent may merge its own green
+  PR (through the server's `pr_merge`) only when one merge grant names every file it
+  changes. Each says who granted it, when, and a link, and counts only on the default
+  branch; a merge grant also needs the owner's approval of the PR that added it. No grant: never.
 - A real folder at `.claude/skills/<name>` (and `.codex/skills/<name>`, `.agents/skills/<name>`) is the repo's own
   skill. One named like a kit skill replaces it; the installer leaves it alone.
 - The label-to-Status bridge already takes a local map at

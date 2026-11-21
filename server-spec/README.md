@@ -23,10 +23,14 @@ sense of RFC 2119 and leaves the how open.
 | [security.md](security.md) | The rules that hold whatever the deployment |
 | [conformance.md](conformance.md) | Numbered checks a server must pass, and how to run them |
 | [work-plan.md](work-plan.md) | The same spec cut into work units a coding agent can plan and build one at a time |
-| [ready-check.md](ready-check.md) | The read-only ready check: its verdicts and the five rules every server applies the same way |
+| [ready-check.md](ready-check.md) | The read-only ready check: its verdicts and the six rules every server applies the same way |
+| [prose-check.md](prose-check.md) | The prose check: what an epic or story title and summary must say, and the rules every server checks the same way |
+| [record-pages.md](record-pages.md) | Record pages: one addendum-only Markdown page per register item, the rule, the merge, and how a server reads and writes them |
+| [register-records.md](register-records.md) | Register records: the envelope, each register's events and required fields, validation, upgrading older records on read, the fold, and how an item shows on GitHub |
 | [typed-links.md](typed-links.md) | Typed links between items: the record, the kinds and their native forms, the fold, the Related section, the graph render |
 | [sign-offs.md](sign-offs.md) | The sign-off the server ends every write with: who, in which role, which act, which session |
 | [notifications.md](notifications.md) | Who an ask pings, under which identity, once: the map, `notify_get`, the ping comment, review requests, the push copy |
+| [milestone-handoff.md](milestone-handoff.md) | Optional milestone handoff between sessions: the record, the authoritative head, delivery state apart from the verdict, routing, delivery and negotiation |
 
 The agent-side halves live elsewhere in the kit and are normative here too:
 [agent sign-in](../knowledge/model/agent-sign-in.md) (the join wire shape),

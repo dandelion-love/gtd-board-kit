@@ -17,9 +17,14 @@ through the GitHub API when a tool needs the repo's profile and none was passed.
 | --- | --- | --- |
 | `profile` | yes | The profile name the repo follows ([below](#profiles)) |
 | `project` | no | The repo's board as `owner/number`. No board: board tools are not used |
-| `mcp_url` | for joined agents | The server's base URL, https, no path |
+| `mcp_url` | for joined agents | The server's base URL, https, no path. Optional in a public repo, where the file is published: leave it out or set `"local"` and the agent resolves the address locally ([agent sign-in](../knowledge/model/agent-sign-in.md)) |
 | `overrides` | no | The repo's deliberate departures from its profile ([below](#per-repo-customization-and-upstream-changes)) |
 | `notify` | no | Who each `needs` value pings, the louder channel and the new-issue mode ([notifications](notifications.md#the-map)) |
+
+`mcp_url` is read by agents, not by the server, which already knows its own address. An
+agent resolves it as `$GTD_MCP_URL`, then the clone's git config `gtd.mcpUrl`, then the
+user-level map `~/.config/gtd/servers.json` keyed by the `project` owner, then this file;
+`tools/gtd_server.py` is the reference.
 
 A server MUST ignore keys it does not know (deployments add their own, for example a
 manifest version stamp). It MUST NOT trust the file for authorization: the allowlists
@@ -77,7 +82,7 @@ names (a repo can rename them in `.gtd/BOARD.local.md`):
 | Field | Type | Used for |
 | --- | --- | --- |
 | `Status` | single select | The column; set by the bridge or `project_set_status` |
-| `Priority` | single select | Pickup order |
+| `Priority` | single select (`P0`, `P1`, `P2`, `P3`: [levels](../knowledge/model/board-fields.md#priority-levels)) | Pickup order |
 | `Size` | single select (`XS`, `S`, `M`, `L`, `XL`) | Whether an unpointed pickup is allowed |
 | `Agent` | text | Mirror of the current holder's runtime, written by the claim tools |
 | `Last report` | text | Mirror of the latest report, written by the claim tools |

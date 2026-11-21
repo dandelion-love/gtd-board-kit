@@ -32,12 +32,27 @@ Common rules for every tool:
 | Tool | Class | Arguments | Returns |
 | --- | --- | --- | --- |
 | `list_next_actions` | read | `repo`, `context?` (one label; empty for all open), `limit?` (default 30) | open **issues** (never PRs) with `number`, `title`, `labels`, `url` |
-| `issue_list` | read | `repo`, `state?` (`open`, `closed`, `all`), `labels?` (all must match), `limit?` | the same shape |
+| `issue_list` | read | `repo`, `state?` (`open`, `closed`, `all`), `labels?` (all must match), `limit?`, `query?` | the same shape; query results also report `truncated`, `incomplete`, and `search_warning` |
 | `issue_blocked_by_list` | read | `repo`, `number` | the issues blocking it (native blocked-by links), each with `repo`, `number`, `title`, `state` |
 | `project_get` | read | `project` | board `id`, `title`, `url`, `fields` (name, type, options), `status_options` (the live column names) |
 | `project_items` | read | `project`, `limit?` (1 to 100, default 50), `cursor?` | one page of items **in the board's manual order**: `repo`, `number`, `title`, `labels`, `state`, `status`, and every field value by name |
 | `project_item_find` | read | `repo`, `number`, `project` | the item for that issue with every field value, archived or not; refuses if it is not on the board |
 | `project_views_list` | read | `project` | the board's views: `number`, `name`, `layout`, `filter`, `fields`, `sort`, `group_by` |
+
+A server in `enforce` intake-check mode also omits from `list_next_actions` an item whose [intake check](#the-intake-check) is `needs-more` or `decline`; `issue_list` still lists it.
+
+When supported, `issue_list(query=...)` finds compact issue candidates in the named
+repository without returning every board item. `query` is 1–10 keywords, at most 200
+characters; all words match in title or body. `state` and all `labels` still filter,
+and the search limit is 1–100. Results are relevance-ordered candidates, not a duplicate
+verdict. `truncated` signals more matches and `incomplete` signals a provider-incomplete
+search. An indexed search can miss recent changes even when both are false; the
+`search_warning` states this. An empty result never proves a duplicate does not exist.
+Use a few distinctive terms, refine if needed, then `issue_get` only the candidates that
+need inspection. This search covers repository issues, not membership in a Project;
+PRs are excluded. It cannot be combined with the direct body `marker` lookup, which
+retains its read-after-write semantics. Servers predating this extension may not support
+`query`; check their advertised tool schema before using it.
 
 ### Claims and reports
 
@@ -50,10 +65,10 @@ can still let go of an item a person closed to stop it (a standing lane's fast s
 | Tool | Class | Further arguments | Refuses when |
 | --- | --- | --- | --- |
 | `item_get` | read | none | never, for an allowlisted issue |
-| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `project?` | someone else holds an unexpired lease; `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
+| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `handoff?`, `project?` | someone else holds an unexpired lease (a `review` claim naming `handoff`, the head review handoff addressed to the caller, is the one exception: it sits beside the holder's claim, [milestone handoff](milestone-handoff.md#authority), and is refused `self-review` from the holder's session); `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
 | `item_renew` | work | `lease?`, `project?` | the caller is not the holder |
-| `item_release` | work | `done`, `remaining`, `next` (all required), `handoff_to?`, `project?` | the caller is not the holder |
-| `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
+| `item_release` | work | `done?`, `left?`, `decided?`, `set_aside?`, `remaining?` (alias of `left`), `next?`, `handoff_to?`, `project?` | the caller is not the holder; `left` and `remaining` both given with different values |
+| `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `done?`, `left?`, `decided?`, `set_aside?`, `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
 
 `branch` names the branch the caller's commits for this item land on: the item's own
 `gtd/issue-<n>` branch, or an integration (release-candidate) branch that combines
@@ -85,6 +100,21 @@ label and Size rules above. `ready` is null when the server does not offer `item
 when `item_ready` would refuse the issue (an epic), or when the check fails; a failed check
 adds a warning and the claim goes ahead. Only `item_claim` returns it; `item_renew` does
 not re-run the check.
+
+**The closing note.** `item_release` and `item_report` take the four parts of the
+[closing note](claim-records.md#the-closing-note): `done`, `left`, `decided`, `set_aside`
+(each at most 4000 characters, as notes are). **None is required**, so a release in the old
+form (`done`, `remaining`, `next`) still succeeds. `remaining` is an alias of `left`: given
+alone it is stored as both; given with a different non-empty `left`, the call refuses. A
+release that carries none of the four parts (and no `remaining`), and a report with
+`state` `ready`, `failed` or `dropped` that carries none, succeeds with a warning that
+names the four. The result's `closing_note` shows the stored parts with `none` for an empty
+one.
+
+**Interruptions and the last worker's note.** `item_get`, and so every result that returns
+the folded item, shows `interruptions`, `previous_holder` and `closing_note` as
+[claim records](claim-records.md#interruptions) define them; `item_ready` returns the same
+three. A claim record carries `interruptions` for people reading the comment.
 
 Every record these tools post ends with a [sign-off](sign-offs.md) carrying the claim's
 `session`, and each result returns it as `signoff`.
@@ -174,6 +204,14 @@ All take `project`. Writes to an issue's item add the issue to the board first i
 | `project_status_update` | work | `body` (at most 2048 bytes), `state?`, `project` | Posts a board-level status update |
 | `project_draft_add`, `project_draft_update`, `project_draft_convert` | work | draft `title`, `body`; `item_id`; target `repo` | Draft items and turning one into an issue |
 
+**Priority.** `Priority` is a closed single select: `P0`, `P1`, `P2`, `P3`, meaning what
+[priority levels](../knowledge/model/board-fields.md#priority-levels) says. A server
+accepts exactly those four (never fewer than it accepted before: a server that took `P1`
+to `P3` now also takes `P0`). `project_set_field` on `Priority` refuses any other value
+and the refusal lists the four. A caller that is an agent principal may write `Priority`
+only into an empty field (one suggestion), and a refusal on a field that already holds a
+value says it is set; a person's principal may change it.
+
 ## Optional groups
 
 A server MAY offer any of these. A repo that relies on one says so in its
@@ -183,7 +221,7 @@ that offers the capability uses the name.
 | Group | Tools | What for |
 | --- | --- | --- |
 | Issue structure | `issue_update`, `issue_close`, `issue_reopen`, `issue_assign`, `issue_milestone`, `issue_type_set`, `issue_parent`, `sub_issue_add`, `sub_issue_remove`, `sub_issues_list`, `issue_blocked_by_add`, `issue_blocked_by_remove` (work, lists read). `issue_close` takes `repo`, `number`, `reason?` (`completed` or `not_planned`); the blocked-by pair takes `repo`, `number`, `blocker`, `blocker_repo?`, and `issue_blocked_by_add` passes GitHub's reason through when GitHub refuses a link (it refuses a dependency cycle); `sub_issue_add` takes `repo`, `parent`, `child`, `child_repo?`, `replace_parent?`; `issue_type_set` takes `repo`, `number`, `issue_type` or `clear`; `issue_parent` (read) returns an issue's parent or null. `sub_issue_add` and `issue_type_set` refuse a write that breaks a [parent rule](repo-context-and-profiles.md#kinds), naming the rule | Editing issues beyond labels |
-| Readiness | `item_ready` (read): `repo`, `number`, `project?` | Whether a story is ready to build: `ready`, `needs-refinement` (with what is missing) or `ready-blocked`, by the rules in [ready check](ready-check.md). Writes nothing |
+| Readiness | `item_ready` (read): `repo`, `number`, `project?`; `prose_check` (read): (`repo`, `number`) or (`title`, `body?`, `kind?`) | Whether a story is ready to build: `ready`, `needs-refinement` (with what is missing) or `ready-blocked`, by the rules in [ready check](ready-check.md); and whether an item's title and summary say what it delivers, by the rules in [prose check](prose-check.md). Both write nothing. A server with this group also returns `prose_warnings` from `capture`, `issue_update` and `organize` |
 | Board lifecycle | `project_create`, `project_update`, `project_template`, `project_copy`, `project_link_repo`, `project_views`, `project_reconcile`, `project_field_update`, `project_field_delete`, `project_item_remove`, `project_workflows`, `project_workflow_delete` (full) | Making and shaping boards from a profile |
 | Repo setup | `repo_reconcile_labels`, `work_items_plan`, `work_items_sync` (full; plan is read) | Making a repo's labels and issues match its profile and its files. A sync shows the items' [typed links](typed-links.md) on both ends and makes `depends-on` a native blocked-by |
 | Customization | `profile_updates` (read): `repo`, `project?`; returns `profile`, `overrides` (the repo's explicit ones), `inferred` (from the ledger, each `{kind, name, mode}`) and `updates` (each an [upstream change notice](repo-context-and-profiles.md#upstream-change-notice)) | Surfacing profile changes to items the repo skipped or reshaped. A reconciler in the Board lifecycle or Repo setup groups follows [what a reconciler does](repo-context-and-profiles.md#what-a-reconciler-does) |
@@ -193,12 +231,50 @@ that offers the capability uses the name.
 | Channels | `channels_list`, `channel_comments_read` (read), `channel_comment_post` (work) | Long-lived discussion issues a repo names as channels |
 | Dispatch | `dispatch`, `review_status`, `clarify`, `organize` | Starting an agent run from a label, reading review state, GTD clarify and organize steps. A server that starts runs from `run-agent` also starts a review run from `agent-review`: see [review requests](#review-requests) |
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
-| Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
-| Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
+| Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work); optional `pr_merge` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
+| Comment edits | `comment_update` (work): `repo`, `comment_id`, `body`, `session?`; `comment_redact` (work): `repo`, `comment_id`, `find`, `replace`, `session?` | Correcting a comment the server wrote, through the server, so the edit is signed instead of made with `gh` under a person's credentials. See [editing comments](#editing-comments) |
+| Stop | `item_stop` (work): `repo`, `number`, `reason?`, `wind_down?`, `session?`; `item_stop_clear` (work): `repo`, `number`, `note?`, `session?` | The owner asks a worker to wind down, as a signed record the server checks the owner for, mirrored by a label. See [stopping an item](#stopping-an-item) |
+| Stale done | `stale_done` (read): `repo`, `number?`, `branches?`, `limit?`; `item_close_done` (work): `repo`, `number`, `branches?`, `session?` | Finding open items whose merged work meets every acceptance criterion, and closing one only when the server's own check says so. See [closing finished items](#closing-finished-items) |
+| Intake | `intake_list` (read), `intake_ack` (work); optional `intake_check` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue; and the clear, small, fits check a new item gets before it is ordered. See [intake](#intake) and [the intake check](#the-intake-check) |
+| Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
+| Milestone handoff | `handoff_send`, `handoff_ack`, `handoff_cancel`, `handoff_bind`, `handoff_unbind` (work); `handoff_get`, `handoff_list`, `handoff_bindings` (read) | Handing a milestone of an item to another session, with delivery state kept apart from the review verdict. See [milestone handoff](milestone-handoff.md) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
+
+## Stopping an item
+
+The optional **Stop** group lets the item's owner ask a worker to wind down
+([the stop signal](../knowledge/model/stop-signal.md)). Both tools take `repo` and `number`
+and refuse a pull request and a closed issue.
+
+| Tool | Class | Further arguments | Returns |
+| --- | --- | --- | --- |
+| `item_stop` | work | `reason?` (at most 500 characters), `wind_down?` (a duration from `5m` to `24h`, default `30m`), `session?`, `project?` | the folded item as `item_get` does, plus `event`, `comment_url`, `stop` and `warnings` |
+| `item_stop_clear` | work | `note?`, `session?`, `project?` | the same |
+
+- **Owner check.** The server checks the caller against the item's owner: the repo owner's
+  principal, or a principal the owner named for the item's profile. Any other caller, an
+  agent worker of the item included, is refused and **nothing is recorded**. The check is
+  made by the server from the verified principal, never from an argument.
+- `item_stop` writes one signed `stop` record (`act` `stop`, role `owner`), and sets the
+  `stop-requested` label as a mirror. A stop already in effect posts nothing and returns
+  `unchanged: true`. `item_stop_clear` writes one `stop_clear` record, removes the label and
+  refuses when no stop is in effect.
+- **What a worker sees.** `item_get`, `item_renew` and `item_report` return `stop`
+  (`{state, by, at, wind_down_until, reason, overdue}`, or null) and, when a stop is in
+  effect, a warning `stop-requested` naming the limit. `item_renew` still succeeds on a
+  stopped item until `wind_down_until` passes; after it, `item_renew` refuses and names the
+  stop, and the lease runs out by itself. **No tool revokes a claim.** `item_release` by the
+  holder always works and removes the label.
+- **No worker.** A stop on an item nobody holds is recorded with `state` `at-rest`, keeps the
+  label, and `item_claim` refuses it, naming the stop, until the owner clears it.
+- **A label applied by hand.** When the server learns that the `stop-requested` label was
+  added by an actor who is the item's owner, it records the stop as if `item_stop` had been
+  called; by any other actor it removes the label and records nothing. The label never
+  clears a stop: removing it does nothing to the record.
+- A server that does not offer the group ignores the signal; its workers are unaffected.
 
 ## Opening pull requests
 
@@ -286,6 +362,27 @@ Two GitHub settings decide whether the owner can then approve:
   approve under that rule. Turn the rule off, or have the agent push with an identity that
   is not the owner's.
 
+## Merging pull requests
+
+`pr_merge(repo, number, method?)` is optional and **off by default**: a server offers it
+only when its operator turned merge grants on, and then merges as the server's own
+identity. It merges nothing, and says why, unless all of these hold:
+
+1. The PR is open, ready, unmerged and targets the default branch.
+2. It was opened by `pr_open` (the trusted `gtd-pr` marker) for the caller's principal,
+   and the caller holds a live claim on every issue the marker names. The principal alone
+   is not enough where many sessions share one agent identity.
+3. ONE merge grant on the default branch names every file the PR changes (both sides of
+   a rename; never `.github/` or `.gtd/`; no patterns). A grant names a file exactly, or
+   names a register ([register form](../knowledge/model/grants.md#register-form)) whose
+   record page the PR only appends valid records to. The owner approved the PR that
+   added that exact block ([owner approval](../knowledge/model/grants.md#owner-approval-of-a-grant)).
+4. Every check on the head is finished and green. A pending check is a refusal, not a
+   wait. Nobody has requested changes, and there is no conflict.
+
+`method` is `squash` (default), `merge` or `rebase`. It returns the merge commit, the
+grant and the owner it names. It never approves, closes an issue or force-pushes.
+
 ## Reviewing pull requests
 
 `pr_review` and `pr_review_reply` let an agent review a PR, or answer a finding on one,
@@ -342,6 +439,127 @@ or null when not asked) and `resolve_error` (why a resolve failed). A reply that
 stands even when the resolve fails. To retry only the resolve, call again with `resolve`
 true and no `body`: it posts nothing, so a retry never duplicates the reply. Answering a
 review finding is one call: say what changed and the commit, with `resolve` true.
+
+## Editing comments
+
+`comment_update` and `comment_redact` correct a comment the server itself wrote, on an
+issue or a pull request, so a wrong or leaky comment can be fixed without leaving the
+board rules ([BOARD.md](../BOARD.md) rule 1). Both are `work`. Neither exists in `read`.
+Both check the repo and the caller first, exactly as `issue_comment` does, and both write
+with the identity that wrote the comment (on a PR, the App: [pull request
+writes](sign-offs.md#pull-request-writes)).
+
+Both **refuse**, naming the reason, when:
+
+- the comment's GitHub author is not the server's own identity (the same authors as
+  [C10](conformance.md#claims-core)): a person's comment is theirs to edit;
+- the comment is a review comment on a pull request's diff: those belong to
+  [`pr_review`](#reviewing-pull-requests), and the refusal names it;
+- the new text holds a record marker or a sign-off marker (`comment_redact`: `find` or
+  `replace` holds `<!--` or `-->`): only the server writes markers;
+- the text is longer than a comment may be, or `body` or `find` is empty.
+
+### `comment_update`
+
+Replaces the prose of one comment. `body` is the new text, with no marker in it.
+
+- It **refuses** a comment that holds a record (`gtd-desk`) or an intake ack (`gtd-ack`),
+  and says to use `comment_redact`: a record's meaning is not rewritten.
+- The comment's own sign-off stays. The server adds one `edits` entry to that sign-off's
+  JSON, `{"by": <caller's principal>, "t": <UTC time>, "session": <if given>}`, and one
+  visible line `Edited by <principal> · <time>` above the marker. Entries only ever
+  append, in order, so every edit is on the comment. A comment that had no sign-off gets
+  one for the caller, `act` `comment`, with the first `edits` entry.
+- It returns `repo`, `number`, `comment_id`, `url`, `body` and `signoff` (the marker's JSON, with
+  `edits`).
+
+### `comment_redact`
+
+Replaces every literal occurrence of `find` with `replace` in one comment, record or not,
+and changes nothing else. It exists for the case where text must come out of a record the
+server wrote (a leaked name in a claim's note, a link, a title) without the record's
+meaning changing.
+
+- `find` is not empty. It returns `replaced`, the number of occurrences; zero refuses
+  ("nothing to redact") and writes nothing.
+- The result must leave every marker in the comment parsing to the same JSON **except in
+  free-text values**. These never change, in a `gtd-desk` record or a sign-off: `v`, `event`,
+  `act`, `by`, `role`, `t`, `session`, `lease_until`, `takeover_of`, `handoff_to`, `state`,
+  `attention`, `review`, and in `mandate` the `basis`, `purpose`, `session`, `rule`,
+  `policy_version`, `scope.repo`, `scope.item` and `scope.body_sha256`. Keys are never added
+  or removed. A `find` or `replace` that would change one of them refuses, naming the
+  field. Every other string (a note, a link, a title, `pointed_in`, `asked_by`) may change.
+- It appends an `edits` entry to the comment's sign-off as `comment_update` does, with
+  `"redacted": true`. A record that carries no sign-off gets one added, as above.
+- It returns `repo`, `number`, `comment_id`, `url`, `replaced` and `signoff`.
+
+## Closing finished items
+
+Work often lands where GitHub never closes the item: a PR into an integration branch
+carries no closing keyword that acts, and `Closes` is written only for verified work into the
+default branch ([opening pull requests](#opening-pull-requests)). Items then stay open
+after their work is done. `stale_done` finds them and `item_close_done` closes one. The
+rule is one function of the issue and its merged PRs, so the sweep and a worker that just
+saw its PR merge reach the same verdict.
+
+### The verdict
+
+For an open issue the server reads its body, labels, sub-issues, claim fold and the merged
+pull requests that reference it (a `gtd-pr` marker that names it, or a cross-reference
+from a merged PR), and returns `verdict` `close` or `keep` with `reasons`. A PR counts
+only if it merged into one of `branches` (default: any branch; `branches` names the
+repo's landed branches). `verdict` is `close` only when **no** reason below applies and
+every criterion is met. The server reads the most recently updated closed PRs (it
+returns the count as `window`). Reasons are a fixed list:
+
+| Reason | Keeps the item open when |
+| --- | --- |
+| `no-merged-pr` | no merged PR references it |
+| `no-criteria` | the body has no numbered `AC<n>` criteria to meet |
+| `unmet-criteria` | a criterion has no evidence (`unmet` lists the ids) |
+| `epic` | its Issue Type or `kind:` is epic: a person closes an epic, after its sub-issues and its outcome check |
+| `open-sub-issues` | any sub-issue is open |
+| `standing` | it carries `standing` (a lane's item, a standing chore) |
+| `needs` | it carries any `needs:*` label |
+| `human` | it carries `agent:human` |
+| `proposed` | it carries `agent-proposed`: no person has decided it |
+| `held` | another principal holds a live claim |
+| `mirror` | it is a mirror a profile syncs from a source (its body carries the mirror marker) |
+
+**A criterion is met** only by its own evidence, either (a) its line in the body is ticked
+(`[x]`) and ends in `Evidence:` with a pointer to proof (a link, or `#<n>`), or (b) a merged
+referencing PR's Evidence table has a row for that `AC<n>` (naming this issue when the PR
+carries several) whose result is not empty, `fail`, `no`, `todo`, `tbd`, `pending` or
+`n/a` ([where evidence goes](../knowledge/model/evidence-places.md)). A PR that only
+mentions the item, such as a planning or skeleton PR naming future work, meets no
+criterion, so the item stays open.
+
+### `stale_done`
+
+Read. With `number`, one issue's verdict; without, a sweep of open issues that have a
+merged referencing PR, at most `limit` (default 30, 100 max), with `truncated`. Each entry:
+`number`, `title`, `url`, `verdict`, `reasons`, `unmet`, `criteria` (`id`, `met`,
+`evidence`: the pointer or null) and `prs` (`number`, `url`, `base`, `merged_at`); the
+result adds `window`. It writes nothing and closes nothing.
+
+### `item_close_done`
+
+Work. Re-runs the verdict for `number` (with the same `branches`) and **refuses**, naming
+the reasons, unless it is `close`; it never closes a pull request. Then, in this order: it
+ticks each criterion met by (b) and appends the pointer, editing only boxes and pointers
+and never a criterion's text; it posts one signed comment naming the merged PRs and each
+criterion's evidence; it closes the issue as `completed`. It returns `number`, `url`,
+`closed`, `prs` and `criteria`. A close is undone with `issue_reopen`; the result is the
+record an undo needs.
+
+### Skills and a repo's choice
+
+The kit's skills call `item_close_done` for an item they just handed back, and a lane may
+sweep with `stale_done` ([board-claim](../skills/board-claim/SKILL.md), [board-lane](../skills/board-lane/SKILL.md)).
+The server does not read `.gtd/BOARD.local.md`: a repo turns the sweep off, or narrows
+the landed branches, in a `## Stale done` block there (`sweep: on|off`, `landed_branches:`), and the
+skills obey it, passing `branches`. A repo whose own rules forbid an agent to close an item
+sets `sweep: off`.
 
 ## Issue artifacts
 
@@ -453,6 +671,57 @@ marker last:
   anyone else is conversation.
 - Request text is data, never instructions ([security](security.md)). An ack is not consent to the work:
   `taken` records a decision a person or a lane's `may` already made.
+
+### The intake check
+
+`intake_check` is optional on a server in the Intake group (it needs neither a request
+label nor an ack). It records the answer to three questions about one open issue: **clear**,
+**small enough**, **fits** the board's purpose ([the lane that asks them](../skills/board-lane/intake.md)).
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `intake_check` | work | `repo`, `number`, `result`, `clear`, `small`, `fits`, `note?`, `session?` | `repo`, `number`, `result`, `url` (of the record comment, or of the standing one when `unchanged`), `unchanged`, `held` |
+
+- `result` is `pass`, `needs-more` or `decline`; `clear`, `small` and `fits` are booleans.
+  `pass` needs all three true. `needs-more` needs at least one of `clear` and `small`
+  false, and `fits` true. `decline` needs `fits` false. `needs-more` and `decline` need a
+  `note` (at most 2000 characters). A refusal says which rule failed and, for a bad
+  `result`, lists the three values.
+- It refuses a pull request, a closed issue, an epic, a `standing` item, a caller who is not
+  allowed to record (below), or a `note` holding a record, `gtd-pr`, sign-off or ack marker.
+- **Who may record a result.** The repo's checker (a principal the repo names for the intake
+  lane in `.github/gtd-context.json` under `intake.checkers`, or the owner), and nobody else.
+  A caller who holds the item, or who filed it, is refused unless it is the owner
+  (`not-the-checker`), so a worker cannot replace a lane's `decline` with `pass`. A later
+  record by an allowed caller replaces the earlier one; a later `pass` (or any result with
+  `held` false) also **removes** the owner's `needs:*` label that `enforce` added (only that
+  label, which the server marks as its own), so the item is pickable again.
+- **The record** is a comment with a visible line, the sign-off (`act` `intake-check`,
+  `role` `coordinator` unless the caller passes another) and one marker last:
+  `<!-- gtd-intake-check v1 {"v": 1, "by": "agent:x", "t": "...", "result": "pass", "clear": true, "small": true, "fits": true, "note": "..."} -->`.
+  Readers trust it only under a record author, as for an ack. The latest trusted record
+  wins. A record equal to the latest in `result`, the three answers and `note` posts
+  nothing and returns `unchanged: true`.
+- **`item_get` returns `intake_check`**: `{status, result, clear, small, fits, by, at, note,
+  mode, since, grandfathered}`. `status` is the latest record's `result`, or `unchecked`
+  when there is none: **never `pass` without a record**. `mode` is `watch` or `enforce`
+  (a server setting named `INTAKE_CHECK_MODE`, `watch` when unset; any other value reads as
+  `watch`). `since` is the time the server began recording checks; an item opened before it
+  with no record is `grandfathered`.
+- **`intake_list` rows** gain `check`: the same object, or null on a server without the
+  tool.
+- **Watch mode (the default) blocks nothing.** The record is written and every item stays
+  as pickable as before. **Enforce mode** holds an item whose status is `needs-more` or
+  `decline`: `intake_check` adds the profile's `owner_needs` label (`held` true),
+  `list_next_actions` omits the item, and an `inferred` `item_claim` refuses naming the
+  result. An `explicit` claim still works: a person who points an agent at an item has made
+  the call. `unchecked` and grandfathered items are never held, in either mode.
+- **Enforce needs record authors.** A pasted marker would count as a record when record
+  authors are not configured ([which comments count](claim-records.md#which-comments-count)),
+  so a server with none configured MUST run in `watch` whatever its setting says, and report
+  `mode` `watch`. `enforce` is honoured only when record authors are configured.
+- Switching to `enforce` is the owner's act, after reading the watch record; no tool does
+  it.
 
 ## Review requests
 
