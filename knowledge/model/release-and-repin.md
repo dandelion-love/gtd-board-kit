@@ -71,6 +71,18 @@ change per repo per train, at most one train a week unless the owner says otherw
 trains where they can be merged. The plan lists which stories ride which train, and the
 change that defines this process merges before the first train.
 
+# Review
+
+A reviewer checks the epic's `## Release` section. It passes when it holds either `None.`
+(nothing ships) or a table whose header is exactly `Slice | Kit change | Server change |
+Config or secret | Breaking | Live check`, in that order, with a filled row for each story
+that changes the kit or the server. A missing heading, a table with other or reordered
+columns, a row left empty or still holding the template's placeholder comments, or a
+change with no row is reported as missing or malformed. For an existing epic with no
+Release section, the fix is to append the section as a draft marked `_Draft by an agent;
+edit freely._`, keeping the person's text, as `board-decompose` does for any missing
+section.
+
 # Why
 
 Agents and servers move on different clocks (see

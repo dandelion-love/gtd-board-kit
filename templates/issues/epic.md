@@ -39,11 +39,11 @@ type: Epic
 
 ## Release
 
-<!-- One row per slice that changes the kit or the server. See knowledge/model/release-and-repin.md. None. if nothing ships. -->
+<!-- One row per slice that changes the kit or the server. See knowledge/model/release-and-repin.md. Replace the row; a row left empty is reported as missing. If nothing ships, delete the table and write None. -->
 
 | Slice | Kit change | Server change | Config or secret | Breaking | Live check |
 | --- | --- | --- | --- | --- | --- |
-| | | | | | |
+| <!-- #n --> | <!-- kit change, or none --> | <!-- server change, or none --> | <!-- setting the owner adds, or none --> | <!-- no, or why not additive --> | <!-- old call and new field or tool to check --> |
 
 ## Gates
 

@@ -45,9 +45,9 @@ Read the issue, its parent, its sub-issues and its blockers (`item_get`,
   `.gtd/kit/skills/board-decompose/templates.md`. An epic: Problem, Outcome check,
   Scope, Out of scope, Stories, Decisions, Risks and open questions, Release, Gates. A story: one
   `## Acceptance criteria` heading, `Steps`, `Blocked by` lines.
-- **Release.** An epic has a `## Release` table (Slice, Kit change, Server change,
-  Config or secret, Breaking, Live check). No heading or no table: report it as
-  **missing** and suggest the table from `templates.md`.
+- **Release.** `None.` or a well-formed table under `## Release`, as
+  `.gtd/kit/knowledge/model/release-and-repin.md` (Review) says. Otherwise report it as
+  **missing** or malformed; for a section that is absent, suggest appending it as a draft.
 - **Title and summary.** `prose_check(repo, number)` when offered (epics too): each
   `fail` is a finding, each `warn` one when you agree. Suggest the rewritten title and
   summary (`templates.md`, Titles and summaries).
