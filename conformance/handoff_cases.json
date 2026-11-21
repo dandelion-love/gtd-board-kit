@@ -580,6 +580,11 @@
       "revision": "r1"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -620,6 +625,11 @@
       "revision": "r2"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -660,6 +670,11 @@
       "revision": "r1"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -700,6 +715,11 @@
       "revision": "r1"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -723,6 +743,11 @@
      }
     ],
     "heads": {}
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -767,6 +792,11 @@
       "revision": "r9"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -786,7 +816,9 @@
      "milestone": "m1",
      "revision": "r1",
      "handoff": "H1",
-     "verdict": "looks-ready"
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": "review"
     },
     {
      "event": "authorize",
@@ -812,6 +844,11 @@
       "revision": "r1"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -831,7 +868,9 @@
      "milestone": "m1",
      "revision": "r1",
      "handoff": "H1",
-     "verdict": "looks-ready"
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": "review"
     },
     {
      "event": "handoff",
@@ -869,6 +908,11 @@
       "revision": "r2"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -888,7 +932,9 @@
      "milestone": "m1",
      "revision": "r1",
      "handoff": "H1",
-     "verdict": "looks-ready"
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": "review"
     },
     {
      "event": "authorize",
@@ -935,6 +981,11 @@
       "revision": "r2"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -953,7 +1004,9 @@
      "id": "V1",
      "revision": "r1",
      "handoff": "H1",
-     "verdict": "looks-ready"
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": "review"
     },
     {
      "event": "authorize",
@@ -979,6 +1032,11 @@
       "revision": "r1"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -997,7 +1055,9 @@
      "id": "V1",
      "milestone": "m1",
      "handoff": "H1",
-     "verdict": "looks-ready"
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": "review"
     },
     {
      "event": "authorize",
@@ -1023,6 +1083,11 @@
       "revision": "r1"
      }
     }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -1035,7 +1100,9 @@
      "milestone": "m1",
      "revision": "r1",
      "handoff": "H1",
-     "verdict": "looks-ready"
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": "review"
     },
     {
      "event": "authorize",
@@ -1051,6 +1118,11 @@
      }
     ],
     "heads": {}
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
    }
   },
   {
@@ -1077,7 +1149,9 @@
      "milestone": "m2",
      "revision": "r1",
      "handoff": "H1",
-     "verdict": "looks-ready"
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": "review"
     },
     {
      "event": "authorize",
@@ -1109,6 +1183,352 @@
      },
      "m2": {
       "handoff_id": "H2",
+      "revision": "r1"
+     }
+    }
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
+   }
+  },
+  {
+   "name": "verdict-wrong-author",
+   "what": "a verdict by a principal that is not the handoff's recipient is never effective",
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
+   },
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready",
+     "by": "agent:intruder",
+     "claim": "review"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "unauthorized-author"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-no-review-claim",
+   "what": "a verdict written without a live review claim is never effective",
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
+   },
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": null
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "no-review-claim"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "findings-own-head",
+   "what": "a findings handoff sits on its own milestone head and does not disturb the evidence head",
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
+   },
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "F1",
+     "milestone": "m1-findings",
+     "revision": "r1",
+     "supersedes": null,
+     "action": "address-findings"
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "F1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H2",
+      "revision": "r2"
+     },
+     "m1-findings": {
+      "handoff_id": "F1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "findings-on-evidence-milestone",
+   "what": "a findings handoff cannot take the evidence milestone",
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
+   },
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "F1",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1",
+     "action": "address-findings"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "F1",
+      "accepted": false,
+      "rule": "findings-milestone"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "findings-suffix-reserved",
+   "what": "only a findings handoff may use the findings milestone",
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
+   },
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1-findings",
+     "revision": "r1",
+     "supersedes": null,
+     "action": "review"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": false,
+      "rule": "reserved-suffix"
+     }
+    ],
+    "heads": {}
+   }
+  },
+  {
+   "name": "findings-round-trip",
+   "what": "review, findings back, a new revision and a second review: the second verdict is effective and the findings head stays",
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
+   },
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "needs-changes",
+     "by": "agent:checker",
+     "claim": "review"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    },
+    {
+     "event": "handoff",
+     "id": "F1",
+     "milestone": "m1-findings",
+     "revision": "r1",
+     "supersedes": null,
+     "action": "address-findings"
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1"
+    },
+    {
+     "event": "verdict",
+     "id": "V2",
+     "milestone": "m1",
+     "revision": "r2",
+     "handoff": "H2",
+     "verdict": "looks-ready",
+     "by": "agent:checker",
+     "claim": "review"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V2"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": true,
+      "rule": null
+     },
+     {
+      "id": "F1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V2",
+      "effective": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H2",
+      "revision": "r2"
+     },
+     "m1-findings": {
+      "handoff_id": "F1",
       "revision": "r1"
      }
     }
@@ -1415,7 +1835,7 @@
   },
   {
    "name": "route-worker",
-   "what": "a worker role needs no extra authorization",
+   "what": "a worker binding counts when the principal already took part in the item",
    "handoff": {
     "recipient": {
      "role": "worker"
@@ -1430,7 +1850,8 @@
      "role": "worker",
      "session": "work-1",
      "expires": 200,
-     "revoked": false
+     "revoked": false,
+     "participant": true
     }
    ],
    "roles": {
@@ -1443,6 +1864,37 @@
    "expect": {
     "binding": "bd_1",
     "rule": null
+   }
+  },
+  {
+   "name": "route-worker-stranger",
+   "what": "a worker role is not open to a principal that neither holds a grant nor took part in the item",
+   "handoff": {
+    "recipient": {
+     "role": "worker"
+    },
+    "sender_session": "rev-1",
+    "purpose": "work"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:stranger",
+     "role": "worker",
+     "session": "work-9",
+     "expires": 200,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": null,
+    "rule": "no-binding"
    }
   }
  ],
@@ -1493,7 +1945,7 @@
   },
   {
    "name": "bind-worker",
-   "what": "the worker role needs no grant",
+   "what": "a principal that took part in the item binds the worker role",
    "op": "create",
    "caller": "agent:builder",
    "owner": "person:owner",
@@ -1511,6 +1963,29 @@
    "expect": {
     "allowed": true,
     "rule": null
+   },
+   "participant": true
+  },
+  {
+   "name": "bind-worker-stranger",
+   "what": "a worker role is refused to a principal with no grant and no part in the item",
+   "op": "create",
+   "caller": "agent:builder",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:builder",
+    "role": "worker"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": false,
+    "rule": "role-not-authorized"
    }
   },
   {
@@ -2382,6 +2857,84 @@
     "state": "cancelled",
     "escalated": false
    }
+  },
+  {
+   "name": "poll-ack",
+   "what": "in poll mode a granted recipient acknowledges with no binding",
+   "mode": "poll",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "granted": true
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "state": "acknowledged",
+    "escalated": false
+   }
+  },
+  {
+   "name": "poll-ack-ungranted",
+   "what": "in poll mode a principal the role is not granted to cannot acknowledge",
+   "mode": "poll",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "granted": false
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": false,
+      "rule": "role-not-granted"
+     }
+    ],
+    "state": "delivered",
+    "escalated": false
+   }
   }
  ],
  "retry": [
@@ -2567,6 +3120,512 @@
    ],
    "expect": {
     "mode": "manual"
+   }
+  }
+ ],
+ "claims": [
+  {
+   "name": "review-beside-work",
+   "what": "a reviewer named by the head review handoff claims review while the worker holds the item",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:checker",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:checker-s",
+     "handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:checker",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": [
+     "agent:checker"
+    ]
+   }
+  },
+  {
+   "name": "review-self",
+   "what": "the holder cannot take the review claim",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:builder-s",
+     "handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": false,
+      "rule": "self-review"
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": []
+   }
+  },
+  {
+   "name": "review-same-session",
+   "what": "a reviewer on the holder's own session is refused",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:checker",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:builder-s",
+     "handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:checker",
+      "ok": false,
+      "rule": "self-review"
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": []
+   }
+  },
+  {
+   "name": "review-no-handoff",
+   "what": "a review claim naming no handoff stays refused while the item is held",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:checker",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:checker-s"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:checker",
+      "ok": false,
+      "rule": "held"
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": []
+   }
+  },
+  {
+   "name": "review-stale-handoff",
+   "what": "a review claim naming a superseded handoff is refused",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": false,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:checker",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:checker-s",
+     "handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:checker",
+      "ok": false,
+      "rule": "stale-handoff"
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": []
+   }
+  },
+  {
+   "name": "review-not-recipient",
+   "what": "only the handoff's recipient takes the review claim",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:other",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:other-s",
+     "handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:other",
+      "ok": false,
+      "rule": "not-recipient"
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": []
+   }
+  },
+  {
+   "name": "work-while-held",
+   "what": "a second work claim stays refused",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:other",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:other-s"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:other",
+      "ok": false,
+      "rule": "held"
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": []
+   }
+  },
+  {
+   "name": "review-release",
+   "what": "a reviewer releases its own review claim and the worker keeps the item",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:checker",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:checker-s",
+     "handoff": "H1"
+    },
+    {
+     "event": "release",
+     "by": "agent:checker"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:checker",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "release",
+      "by": "agent:checker",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": []
+   }
+  },
+  {
+   "name": "review-send",
+   "what": "a reviewer with a live review claim for the handoff may send; one without may not",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:checker",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:checker-s",
+     "handoff": "H1"
+    },
+    {
+     "event": "send",
+     "by": "agent:checker",
+     "for_handoff": "H1"
+    },
+    {
+     "event": "send",
+     "by": "agent:other",
+     "for_handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:checker",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "send",
+      "by": "agent:checker",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "send",
+      "by": "agent:other",
+      "ok": false,
+      "rule": "no-claim"
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": [
+     "agent:checker"
+    ]
+   }
+  },
+  {
+   "name": "holder-lapsed",
+   "what": "a lapsed work claim leaves the item open to the review claim as an ordinary claim",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 50,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:checker",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:checker-s",
+     "handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:checker",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "holder": "agent:checker",
+    "reviewers": []
    }
   }
  ]

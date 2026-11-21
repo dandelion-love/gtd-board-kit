@@ -281,7 +281,7 @@ if sorted(["X1", "JC2", "T10", "O1", "T2", "J1", "RUN"], key=report_order) != \
 
 handoff_cases = json.loads((ROOT / "conformance" / "handoff_cases.json").read_text())
 handoff_table = re.findall(r"^\| `([a-z][a-z0-9-]+)` \|", section("Milestone handoff"), re.M)
-handoff_json = [c["name"] for g in ("records", "head", "routing", "bindings", "authority", "delivery", "retry", "negotiation") for c in handoff_cases[g]]
+handoff_json = [c["name"] for g in ("records", "head", "routing", "bindings", "authority", "delivery", "retry", "negotiation", "claims") for c in handoff_cases[g]]
 if handoff_table != handoff_json:
     fail(f"MH case tables {handoff_table} differ from handoff_cases.json {handoff_json}")
 

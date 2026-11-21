@@ -19,7 +19,7 @@ with the item (that is `item_release`).
 5. **Keep working.** Do the independent work you are claimed for; do not hold your lease idle
    or poll in a loop. Report `waiting` on this milestone only if nothing else is left.
 6. **Read the answer** at your next `activity_since`, or with `handoff_get`. Act on a verdict
-   only if it names this milestone and the head's revision (`effective` true). A stale verdict
+   only if it names this milestone and the head's revision (`effective` true) and comes from your recipient. Findings you sent go on `<milestone>-findings`. A stale verdict
    means send a new handoff, not argue with it.
 
 Never say a release, a report or a comment wakes the recipient. Delivered is not

@@ -82,10 +82,20 @@ the current evidence. It is a fold over the handoff records in ascending comment
   `same-revision`, or `unknown-supersedes` (it names a handoff that is not the head of this
   milestone). A refused handoff is not a record.
 
+A handoff whose `action` is `address-findings` lives on its own milestone, the reviewed
+milestone's name plus the suffix `-findings` (`m1` reviewed, findings on `m1-findings`), so a
+findings handoff has a head of its own and never fights the evidence head. The pair is
+enforced: `address-findings` on any other milestone is refused `findings-milestone`, and any
+other action on a `-findings` milestone is refused `reserved-suffix`. A full round trip
+(review `m1`, findings on `m1-findings`, a new revision of `m1` superseding the first, a
+second review) is the case `findings-round-trip`.
+
 Who may create a successor: the sender's own principal, or the item's owner. Creation is
 **optimistic and concurrency-safe the way a claim is**
 ([claiming safely](claim-records.md#claiming-safely-without-a-lock)): post, fold again, and if
 the posted handoff is not the head's winner, delete the comment and refuse naming the head.
+A server that deletes the losing comment MUST log its comment id (or leave a tombstone
+comment naming it) so that a later reader can tell a withdrawn handoff from a missing one.
 Milestones are independent: a handoff on one never moves another's head.
 
 ## Delivery, verdict and completion are three things
@@ -138,7 +148,10 @@ post-then-recheck). So:
 - a supersession that lands before the check wins over an old verdict; a supersession that
   lands after leaves an earlier authorization standing for its own revision only, never for
   the new one;
-- there is no verdict-without-handoff: `no-handoff`.
+- there is no verdict-without-handoff: `no-handoff`;
+- the verdict's author must be the handoff's recipient (the named principal, or a principal
+  the role is granted to) **and** hold a live review claim for that handoff, otherwise it is
+  never effective: `unauthorized-author`, `no-review-claim`.
 
 The golden cases `verdict-old-revision` and `verdict-race-supersede`
 ([handoff_cases.json](../conformance/handoff_cases.json), group `head`) fix these, including a
@@ -154,6 +167,18 @@ role is not authority either. `scope` records what the sender asked and is check
 the recipient's claim (`scope.item` is the claimed item; `scope.purpose` equals the claim's
 `purpose`); a mismatch refuses the work, it never widens a claim.
 
+**A review claim beside a work claim.** A reviewer must be able to claim review while the
+worker still holds the item, or the review the handoff asks for could never start. So a
+`purpose` `review` claim is accepted next to a live work claim only when it names (`handoff`)
+the head handoff of a milestone, that handoff asks for a review and its recipient is the
+caller, and the caller's session differs from the holder's (otherwise `self-review`). It is a
+separate, scoped claim: it takes nothing from the holder, it covers only that handoff's
+milestone and purpose, it ends on its own lease or release, and the holder's claim, lease and
+interruption count are unchanged. A review claim naming no handoff, a superseded one or a
+handoff addressed to someone else is refused (`held`, `stale-handoff`, `not-recipient`). The
+holder and a reviewer with a live review claim for the handoff may `handoff_send`. The cases
+in group `claims` fold these claims.
+
 ## Routing and delivery
 
 ### Bindings
@@ -165,7 +190,7 @@ session **name** only: never an address, URL or credential ([privacy](#instructi
 
 | Act | Who may | Rule |
 | --- | --- | --- |
-| Create | the principal, for **its own** session | the role is `worker`, or the owner granted that principal the role in the repo's context (`handoff.roles`, a map from role to principals); never `owner`; the call is authenticated, the principal comes from the token and never from an argument |
+| Create | the principal, for **its own** session | the role is `worker` and the principal already took part in the item (it holds or held a claim, or wrote a report or handoff on it), or the owner granted that principal the role in the repo's context (`handoff.roles`, a map from role to principals); never `owner`; the call is authenticated, the principal comes from the token and never from an argument |
 | Replace | the same principal | a new binding for the same principal and role revokes the old one at once |
 | Revoke | the bound principal, or the owner | takes effect immediately; nobody else may revoke |
 | Expire | the clock | every binding has `expires_at`, at most 24 hours after creation (default 8); rebinding is how it is extended |
@@ -177,6 +202,8 @@ MUST be able to list them to the owner and to the bound principal (`handoff_bind
 (not revoked, not expired) of principals authorized for the role, limited to the named
 principal if the handoff names one:
 
+- a `worker` binding counts only for a principal granted the role or one that took part in
+  the item; a stranger's binding is not a route;
 - none: `no-binding`; the handoff stays `pending`, and polling still reaches it;
 - more than one distinct principal and none named: `ambiguous-recipient`; the sender names
   one;
@@ -197,8 +224,10 @@ rejection of unauthorized routing, self-review and an expired or revoked binding
   one for a new revision or another recipient. Every message carries it.
 - **Acknowledgement is idempotent and bound.** `handoff_ack` names the `delivery_id`, the
   `revision` and the caller's principal; it is accepted only when the caller is the
-  recipient (the named principal, or the one the role resolved to) **and** holds an active
-  binding. Another principal, or a revoked or expired binding, is refused
+  recipient (the named principal, or the one the role resolved to) **and**, in push mode,
+  holds an active binding. In poll mode there are no bindings, so the caller must instead be
+  a principal the role is granted to (`role-not-granted` otherwise). Another principal, or a
+  revoked or expired binding in push mode, is refused
   (`wrong-recipient`, `revoked-binding`); a wrong id or revision is refused
   (`delivery-mismatch`, `revision-mismatch`). The same acknowledgement again returns
   `unchanged` and changes nothing, so a lost acknowledgement is safely repeated.

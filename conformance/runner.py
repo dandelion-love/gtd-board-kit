@@ -2268,7 +2268,7 @@ def _handoff_case_result(case: dict, group: str, cmd: str | None) -> dict:
     if group == "records":
         return {"problems": ho.validate(case["record"])}
     if group == "head":
-        return ho.run_head(case["events"])
+        return ho.run_head(case["events"], case.get("roles"))
     if group == "routing":
         return ho.route(case)
     if group == "bindings":
@@ -2279,13 +2279,15 @@ def _handoff_case_result(case: dict, group: str, cmd: str | None) -> dict:
         return ho.run_delivery(case)
     if group == "negotiation":
         return ho.negotiate(case)
+    if group == "claims":
+        return ho.fold_claims(case)
     if case["op"] == "offsets":
         return {"offsets": ho.attempt_offsets(case["max_attempts"])}
     return {"delivery_id": ho.delivery_id(case["handoff_id"], case["revision"], case["recipient"])}
 
 
 #: The check each group of handoff_cases.json belongs to.
-HANDOFF_GROUPS = {"MH2": ("head",), "MH3": ("routing",), "MH4": ("bindings", "authority"),
+HANDOFF_GROUPS = {"MH2": ("head",), "MH3": ("routing",), "MH4": ("bindings", "authority", "claims"),
                   "MH5": ("delivery",), "MH6": ("retry",), "MH7": ("negotiation",)}
 
 

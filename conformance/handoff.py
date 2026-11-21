@@ -3,12 +3,13 @@ MH1 to MH8. Standard library only. A server copies this file and holds its copy 
 conformance/handoff_cases.json.
 
     validate(record)            -> list of problems ([] = a valid handoff record)
-    run_head(events)            -> {"outcomes": [...], "heads": {milestone: {handoff_id, revision}}}
+    run_head(events, roles)     -> {"outcomes": [...], "heads": {milestone: {handoff_id, revision}}}
     route(case)                 -> {"binding": id or None, "rule": refusal or None}
     bind_op(case)               -> {"allowed": bool, "rule": refusal or None}
     may_work(case)              -> {"allowed": bool, "rule": refusal or None}
     run_delivery(case)          -> {"outcomes": [...], "state": ..., "escalated": bool}
     negotiate(case)             -> {"mode": "push" | "poll" | "manual"}
+    fold_claims(case)           -> {"outcomes": [...], "holder": ..., "reviewers": [...]}
     delivery_id(...), attempt_offsets(...)
 
 `run_head` replays handoff, verdict and authorize events in comment order: the milestone head
@@ -95,17 +96,25 @@ def validate(record: dict) -> list[str]:
     return out
 
 
-def run_head(events: list[dict]) -> dict:
+def run_head(events: list[dict], roles: dict | None = None) -> dict:
+    """Replay handoff, verdict and authorize events. A handoff whose action is
+    ``address-findings`` lives on the milestone ``<reviewed>-findings`` (a head of its own, so a
+    findings handoff never fights the evidence head), and no other action may use that suffix."""
     heads: dict[str, dict] = {}
     handoffs: dict[str, dict] = {}
     verdicts: dict[str, dict] = {}
     outcomes: list[dict] = []
+    roles = roles or {}
     for ev in events:
         kind = ev["event"]
         if kind == "handoff":
             head = heads.get(ev["milestone"])
             sup = ev.get("supersedes")
-            if head is None and sup is None:
+            findings = ev.get("action") == "address-findings"
+            suffix = ev["milestone"].endswith("-findings")
+            if findings != suffix:
+                rule = "findings-milestone" if findings else "reserved-suffix"
+            elif head is None and sup is None:
                 rule = None
             elif head is None:
                 rule = "unknown-supersedes"
@@ -133,9 +142,25 @@ def run_head(events: list[dict]) -> dict:
             elif v.get("handoff") != head["handoff_id"] or v["revision"] != head["revision"]:
                 rule = "stale-revision"
             else:
-                rule = None
+                rule = _verdict_author(handoffs[head["handoff_id"]], v, roles)
             outcomes.append({"id": ev["verdict"], "effective": rule is None, "rule": rule})
     return {"outcomes": outcomes, "heads": heads}
+
+
+def _verdict_author(handoff: dict, verdict: dict, roles: dict) -> str | None:
+    """The verdict's author must be the handoff's recipient (the named principal, or a principal
+    granted the role) and must hold a live review claim."""
+    rec = handoff.get("recipient") or {"role": "reviewer"}
+    by = verdict.get("by")
+    if rec.get("principal") is not None:
+        ok = by == rec["principal"]
+    else:
+        ok = by in roles.get(rec["role"], [])
+    if not ok:
+        return "unauthorized-author"
+    if verdict.get("claim") != "review":
+        return "no-review-claim"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +177,7 @@ def route(case: dict) -> dict:
     roles = case.get("roles") or {}
     live = [b for b in case["bindings"]
             if b["role"] == role and (named is None or b["principal"] == named)
-            and (role == "worker" or b["principal"] in roles.get(role, []))
+            and (b["principal"] in roles.get(role, []) or (role == "worker" and b.get("participant")))
             and not b.get("revoked") and b["expires"] > now]
     if not live:
         return {"binding": None, "rule": "no-binding"}
@@ -174,7 +199,8 @@ def bind_op(case: dict) -> dict:
         return {"allowed": False, "rule": "others-binding"}
     if sub["role"] == "owner":
         return {"allowed": False, "rule": "owner-role"}
-    if sub["role"] != "worker" and caller not in (case.get("roles") or {}).get(sub["role"], []):
+    granted = caller in (case.get("roles") or {}).get(sub["role"], [])
+    if not (granted or (sub["role"] == "worker" and case.get("participant"))):
         return {"allowed": False, "rule": "role-not-authorized"}
     if case.get("ttl_minutes", 0) > MAX_TTL_MINUTES or case.get("ttl_minutes", 1) <= 0:
         return {"allowed": False, "rule": "ttl-out-of-range"}
@@ -240,7 +266,9 @@ def run_delivery(case: dict) -> dict:
                 out.update(ok=False, rule=state)
             elif ev["by"] != h["recipient"]:
                 out.update(ok=False, rule="wrong-recipient")
-            elif not ev.get("binding_active", True):
+            elif case.get("mode", "push") == "poll" and not ev.get("granted", True):
+                out.update(ok=False, rule="role-not-granted")
+            elif case.get("mode", "push") == "push" and not ev.get("binding_active", True):
                 out.update(ok=False, rule="revoked-binding")
             elif ev.get("delivery_id") != want_id:
                 out.update(ok=False, rule="delivery-mismatch")
@@ -286,3 +314,52 @@ def negotiate(case: dict) -> dict:
     if PUSH_CAPABILITY in caps and all(t in tools for t in PUSH_TOOLS):
         return {"mode": "push"}
     return {"mode": "poll"}
+
+
+# ---------------------------------------------------------------------------
+# A review claim alongside a work claim
+# ---------------------------------------------------------------------------
+
+def fold_claims(case: dict) -> dict:
+    """The claim fold with review claims that coexist with a live work claim. A review claim is
+    accepted beside a live work holder only with ``handoff`` naming the milestone's head, a
+    review handoff whose recipient the caller is, and never from the holder's own session."""
+    now = case["now"]
+    holder = None  # {by, session, purpose, until}
+    reviewers: list[dict] = []
+    outcomes = []
+    heads = case.get("heads", {})
+    for ev in case["events"]:
+        kind, by, out = ev["event"], ev["by"], {"event": ev["event"], "by": ev["by"], "ok": True, "rule": None}
+        live = holder is not None and holder["until"] > now
+        if kind == "claim" and ev["purpose"] == "review" and live:
+            h = heads.get(ev.get("handoff") or "")
+            if holder["by"] == by or holder["session"] == ev.get("session"):
+                out.update(ok=False, rule="self-review")
+            elif h is None:
+                out.update(ok=False, rule="held")
+            elif not h.get("head"):
+                out.update(ok=False, rule="stale-handoff")
+            elif h.get("purpose") != "review" or h.get("recipient") not in (None, by):
+                out.update(ok=False, rule="not-recipient")
+            else:
+                reviewers = [r for r in reviewers if r["by"] != by] + [{"by": by, "handoff": ev["handoff"], "until": ev["until"]}]
+        elif kind == "claim":
+            if holder is None or not live:
+                holder = {"by": by, "session": ev.get("session"), "purpose": ev["purpose"], "until": ev["until"]}
+            else:
+                out.update(ok=False, rule="held")
+        elif kind == "release":
+            if holder and holder["by"] == by:
+                holder = None
+            elif any(r["by"] == by for r in reviewers):
+                reviewers = [r for r in reviewers if r["by"] != by]
+            else:
+                out.update(ok=False, rule="not-holder")
+        elif kind == "send":
+            ok = (holder and holder["by"] == by) or any(r["by"] == by and r["handoff"] == ev.get("for_handoff") for r in reviewers)
+            if not ok:
+                out.update(ok=False, rule="no-claim")
+        outcomes.append(out)
+    return {"outcomes": outcomes, "holder": holder["by"] if holder else None,
+            "reviewers": sorted(r["by"] for r in reviewers if r["until"] > now)}

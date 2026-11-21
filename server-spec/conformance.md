@@ -468,9 +468,9 @@ server's own code through `--handoff-cmd`.
 | Id | Check |
 | --- | --- |
 | MH1 | Each `records` case below, validated against [the schema](schemas/milestone-handoff/handoff.schema.json), is valid or refused with the stated problem |
-| MH2 | Each `head` case below, replayed in order, gives the stated outcomes (a handoff accepted or refused with its rule, a verdict effective or refused with its rule) and the stated heads, including a supersession racing an old verdict |
+| MH2 | Each `head` case below, replayed in order, gives the stated outcomes (a handoff accepted or refused with its rule, a verdict effective or refused with its rule) and the stated heads, including a supersession racing an old verdict, a verdict by a non-recipient or without a review claim, and a findings handoff on its own milestone |
 | MH3 | Each `routing` case resolves a recipient role to the stated binding or is refused with the stated rule: unauthorized role, self-review, ambiguity, expired and revoked bindings |
-| MH4 | Each `bindings` case allows or refuses who may create, replace and revoke a binding, and each `authority` case shows that a claim is still required, that a comment or role name grants nothing, and that self-review is refused |
+| MH4 | Each `bindings` case allows or refuses who may create, replace and revoke a binding, each `authority` case shows that a claim is still required, that a comment or role name grants nothing, and that self-review is refused, and each `claims` case folds claims to show a review claim coexisting with a live work claim only under the head review handoff |
 | MH5 | Each `delivery` case, replayed in order, gives the stated outcomes and final state: duplicate delivery, lost acknowledgement, failed delivery with escalation, acknowledgement by another principal or on a revoked binding, and a delayed acknowledgement after supersession |
 | MH6 | Each `retry` case gives the stated attempt offsets or deduplication key |
 | MH7 | Each `negotiation` case gives the stated mode from the capabilities and tools; and a server whose `capabilities` names `milestone-handoff:1` or the push name lists every tool the name needs |
@@ -512,6 +512,12 @@ MH2 cases (group `head`; events are replayed in comment order):
 | `verdict-no-revision` | a verdict that names no revision is refused | H1 accepted; verdict V1 refused `missing-revision` |
 | `verdict-no-handoff` | a verdict on a milestone with no handoff is refused | verdict V1 refused `no-handoff` |
 | `verdict-other-milestone` | a verdict is effective for its own milestone only | H1 accepted; H2 accepted; verdict V1 refused `stale-revision` |
+| `verdict-wrong-author` | a verdict by a principal that is not the handoff's recipient is never effective | H1 accepted; verdict V1 refused `unauthorized-author` |
+| `verdict-no-review-claim` | a verdict written without a live review claim is never effective | H1 accepted; verdict V1 refused `no-review-claim` |
+| `findings-own-head` | a findings handoff sits on its own milestone head and does not disturb the evidence head | H1, F1, H2 accepted; heads `m1` H2 and `m1-findings` F1 |
+| `findings-on-evidence-milestone` | a findings handoff cannot take the evidence milestone | H1 accepted; F1 refused `findings-milestone` |
+| `findings-suffix-reserved` | only a findings handoff may use the findings milestone | H1 refused `reserved-suffix` |
+| `findings-round-trip` | review, findings back, a new revision and a second review: the second verdict is effective and the findings head stays | H1 accepted; V1 effective; F1, H2 accepted; V2 effective |
 
 MH3 cases (group `routing`):
 
@@ -526,7 +532,8 @@ MH3 cases (group `routing`):
 | `route-unauthorized-role` | a binding for a role the principal is no longer authorized for is not a route | refused `no-binding` |
 | `route-named-unbound` | the named principal has no binding | refused `no-binding` |
 | `route-self-review` | a review is never routed to the sender's own session | refused `self-review` |
-| `route-worker` | a worker role needs no extra authorization | binding `bd_1` |
+| `route-worker` | a worker binding counts when the principal already took part in the item | binding `bd_1` |
+| `route-worker-stranger` | a worker role is not open to a principal with no grant and no part in the item | refused `no-binding` |
 
 MH4 cases (group `bindings`):
 
@@ -534,7 +541,8 @@ MH4 cases (group `bindings`):
 | --- | --- | --- |
 | `bind-own` | a principal binds its own session for an authorized role | allowed |
 | `bind-replace` | a principal replaces its own binding | allowed |
-| `bind-worker` | the worker role needs no grant | allowed |
+| `bind-worker` | a principal that took part in the item binds the worker role | allowed |
+| `bind-worker-stranger` | a worker role is refused to a principal with no grant and no part in the item | refused `role-not-authorized` |
 | `bind-for-other` | no principal binds another's session | refused `others-binding` |
 | `bind-owner-by-agent` | an agent never binds the owner role | refused `owner-role` |
 | `bind-unauthorized` | a role the owner has not granted the principal | refused `role-not-authorized` |
@@ -575,6 +583,8 @@ MH5 cases (group `delivery`; events are replayed in order):
 | `cancel-pending` | a pending handoff may be cancelled | cancel; state `cancelled` |
 | `cancel-acknowledged` | an acknowledged handoff cannot be cancelled | deliver; ack; cancel refused `acknowledged`; state `acknowledged` |
 | `deliver-after-cancel` | an in-flight delivery after a cancel changes nothing | cancel; deliver refused `terminal`; state `cancelled` |
+| `poll-ack` | in poll mode a granted recipient acknowledges with no binding | deliver; ack; state `acknowledged` |
+| `poll-ack-ungranted` | in poll mode a principal the role is not granted to cannot acknowledge | deliver; ack refused `role-not-granted`; state `delivered` |
 
 MH6 cases (group `retry`):
 
@@ -597,6 +607,21 @@ MH7 cases (group `negotiation`):
 | `negotiate-push-no-bind` | push claimed but the binding tools are missing: poll | mode `poll` |
 | `negotiate-no-ack` | the capability claimed with the acknowledgement tool missing: manual | mode `manual` |
 | `negotiate-future-version` | only a later version named: manual | mode `manual` |
+
+MH4 cases (group `claims`; events are replayed in order, `now` is 100):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `review-beside-work` | a reviewer named by the head review handoff claims review while the worker holds the item | both accepted; holder the worker; reviewers the reviewer |
+| `review-self` | the holder cannot take the review claim | refused `self-review` |
+| `review-same-session` | a reviewer on the holder's own session is refused | refused `self-review` |
+| `review-no-handoff` | a review claim naming no handoff stays refused while the item is held | refused `held` |
+| `review-stale-handoff` | a review claim naming a superseded handoff is refused | refused `stale-handoff` |
+| `review-not-recipient` | only the handoff's recipient takes the review claim | refused `not-recipient` |
+| `work-while-held` | a second work claim stays refused | refused `held` |
+| `review-release` | a reviewer releases its own review claim and the worker keeps the item | holder the worker; no reviewers |
+| `review-send` | a reviewer with a live review claim for the handoff may send; one without may not | second send refused `no-claim` |
+| `holder-lapsed` | a lapsed work claim leaves the item open to the review claim as an ordinary claim | holder the reviewer |
 
 ## Security (all levels)
 
