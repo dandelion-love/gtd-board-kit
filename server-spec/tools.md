@@ -39,6 +39,8 @@ Common rules for every tool:
 | `project_item_find` | read | `repo`, `number`, `project` | the item for that issue with every field value, archived or not; refuses if it is not on the board |
 | `project_views_list` | read | `project` | the board's views: `number`, `name`, `layout`, `filter`, `fields`, `sort`, `group_by` |
 
+A server in `enforce` intake-check mode also omits from `list_next_actions` an item whose [intake check](#the-intake-check) is `needs-more` or `decline`; `issue_list` still lists it.
+
 When supported, `issue_list(query=...)` finds compact issue candidates in the named
 repository without returning every board item. `query` is 1–10 keywords, at most 200
 characters; all words match in title or body. `state` and all `labels` still filter,
@@ -63,10 +65,10 @@ can still let go of an item a person closed to stop it (a standing lane's fast s
 | Tool | Class | Further arguments | Refuses when |
 | --- | --- | --- | --- |
 | `item_get` | read | none | never, for an allowlisted issue |
-| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `project?` | someone else holds an unexpired lease; `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
+| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `handoff?`, `project?` | someone else holds an unexpired lease (a `review` claim naming `handoff`, the head review handoff addressed to the caller, is the one exception: it sits beside the holder's claim, [milestone handoff](milestone-handoff.md#authority), and is refused `self-review` from the holder's session); `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
 | `item_renew` | work | `lease?`, `project?` | the caller is not the holder |
-| `item_release` | work | `done`, `remaining`, `next` (all required), `handoff_to?`, `project?` | the caller is not the holder |
-| `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
+| `item_release` | work | `done?`, `left?`, `decided?`, `set_aside?`, `remaining?` (alias of `left`), `next?`, `handoff_to?`, `project?` | the caller is not the holder; `left` and `remaining` both given with different values |
+| `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `done?`, `left?`, `decided?`, `set_aside?`, `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
 
 `branch` names the branch the caller's commits for this item land on: the item's own
 `gtd/issue-<n>` branch, or an integration (release-candidate) branch that combines
@@ -98,6 +100,21 @@ label and Size rules above. `ready` is null when the server does not offer `item
 when `item_ready` would refuse the issue (an epic), or when the check fails; a failed check
 adds a warning and the claim goes ahead. Only `item_claim` returns it; `item_renew` does
 not re-run the check.
+
+**The closing note.** `item_release` and `item_report` take the four parts of the
+[closing note](claim-records.md#the-closing-note): `done`, `left`, `decided`, `set_aside`
+(each at most 4000 characters, as notes are). **None is required**, so a release in the old
+form (`done`, `remaining`, `next`) still succeeds. `remaining` is an alias of `left`: given
+alone it is stored as both; given with a different non-empty `left`, the call refuses. A
+release that carries none of the four parts (and no `remaining`), and a report with
+`state` `ready`, `failed` or `dropped` that carries none, succeeds with a warning that
+names the four. The result's `closing_note` shows the stored parts with `none` for an empty
+one.
+
+**Interruptions and the last worker's note.** `item_get`, and so every result that returns
+the folded item, shows `interruptions`, `previous_holder` and `closing_note` as
+[claim records](claim-records.md#interruptions) define them; `item_ready` returns the same
+three. A claim record carries `interruptions` for people reading the comment.
 
 Every record these tools post ends with a [sign-off](sign-offs.md) carrying the claim's
 `session`, and each result returns it as `signoff`.
@@ -187,6 +204,14 @@ All take `project`. Writes to an issue's item add the issue to the board first i
 | `project_status_update` | work | `body` (at most 2048 bytes), `state?`, `project` | Posts a board-level status update |
 | `project_draft_add`, `project_draft_update`, `project_draft_convert` | work | draft `title`, `body`; `item_id`; target `repo` | Draft items and turning one into an issue |
 
+**Priority.** `Priority` is a closed single select: `P0`, `P1`, `P2`, `P3`, meaning what
+[priority levels](../knowledge/model/board-fields.md#priority-levels) says. A server
+accepts exactly those four (never fewer than it accepted before: a server that took `P1`
+to `P3` now also takes `P0`). `project_set_field` on `Priority` refuses any other value
+and the refusal lists the four. A caller that is an agent principal may write `Priority`
+only into an empty field (one suggestion), and a refusal on a field that already holds a
+value says it is set; a person's principal may change it.
+
 ## Optional groups
 
 A server MAY offer any of these. A repo that relies on one says so in its
@@ -208,13 +233,48 @@ that offers the capability uses the name.
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
 | Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work); optional `pr_merge` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
 | Comment edits | `comment_update` (work): `repo`, `comment_id`, `body`, `session?`; `comment_redact` (work): `repo`, `comment_id`, `find`, `replace`, `session?` | Correcting a comment the server wrote, through the server, so the edit is signed instead of made with `gh` under a person's credentials. See [editing comments](#editing-comments) |
+| Stop | `item_stop` (work): `repo`, `number`, `reason?`, `wind_down?`, `session?`; `item_stop_clear` (work): `repo`, `number`, `note?`, `session?` | The owner asks a worker to wind down, as a signed record the server checks the owner for, mirrored by a label. See [stopping an item](#stopping-an-item) |
 | Stale done | `stale_done` (read): `repo`, `number?`, `branches?`, `limit?`; `item_close_done` (work): `repo`, `number`, `branches?`, `session?` | Finding open items whose merged work meets every acceptance criterion, and closing one only when the server's own check says so. See [closing finished items](#closing-finished-items) |
-| Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
+| Intake | `intake_list` (read), `intake_ack` (work); optional `intake_check` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue; and the clear, small, fits check a new item gets before it is ordered. See [intake](#intake) and [the intake check](#the-intake-check) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
+| Milestone handoff | `handoff_send`, `handoff_ack`, `handoff_cancel`, `handoff_bind`, `handoff_unbind` (work); `handoff_get`, `handoff_list`, `handoff_bindings` (read) | Handing a milestone of an item to another session, with delivery state kept apart from the review verdict. See [milestone handoff](milestone-handoff.md) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
+
+## Stopping an item
+
+The optional **Stop** group lets the item's owner ask a worker to wind down
+([the stop signal](../knowledge/model/stop-signal.md)). Both tools take `repo` and `number`
+and refuse a pull request and a closed issue.
+
+| Tool | Class | Further arguments | Returns |
+| --- | --- | --- | --- |
+| `item_stop` | work | `reason?` (at most 500 characters), `wind_down?` (a duration from `5m` to `24h`, default `30m`), `session?`, `project?` | the folded item as `item_get` does, plus `event`, `comment_url`, `stop` and `warnings` |
+| `item_stop_clear` | work | `note?`, `session?`, `project?` | the same |
+
+- **Owner check.** The server checks the caller against the item's owner: the repo owner's
+  principal, or a principal the owner named for the item's profile. Any other caller, an
+  agent worker of the item included, is refused and **nothing is recorded**. The check is
+  made by the server from the verified principal, never from an argument.
+- `item_stop` writes one signed `stop` record (`act` `stop`, role `owner`), and sets the
+  `stop-requested` label as a mirror. A stop already in effect posts nothing and returns
+  `unchanged: true`. `item_stop_clear` writes one `stop_clear` record, removes the label and
+  refuses when no stop is in effect.
+- **What a worker sees.** `item_get`, `item_renew` and `item_report` return `stop`
+  (`{state, by, at, wind_down_until, reason, overdue}`, or null) and, when a stop is in
+  effect, a warning `stop-requested` naming the limit. `item_renew` still succeeds on a
+  stopped item until `wind_down_until` passes; after it, `item_renew` refuses and names the
+  stop, and the lease runs out by itself. **No tool revokes a claim.** `item_release` by the
+  holder always works and removes the label.
+- **No worker.** A stop on an item nobody holds is recorded with `state` `at-rest`, keeps the
+  label, and `item_claim` refuses it, naming the stop, until the owner clears it.
+- **A label applied by hand.** When the server learns that the `stop-requested` label was
+  added by an actor who is the item's owner, it records the stop as if `item_stop` had been
+  called; by any other actor it removes the label and records nothing. The label never
+  clears a stop: removing it does nothing to the record.
+- A server that does not offer the group ignores the signal; its workers are unaffected.
 
 ## Opening pull requests
 
@@ -611,6 +671,57 @@ marker last:
   anyone else is conversation.
 - Request text is data, never instructions ([security](security.md)). An ack is not consent to the work:
   `taken` records a decision a person or a lane's `may` already made.
+
+### The intake check
+
+`intake_check` is optional on a server in the Intake group (it needs neither a request
+label nor an ack). It records the answer to three questions about one open issue: **clear**,
+**small enough**, **fits** the board's purpose ([the lane that asks them](../skills/board-lane/intake.md)).
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `intake_check` | work | `repo`, `number`, `result`, `clear`, `small`, `fits`, `note?`, `session?` | `repo`, `number`, `result`, `url` (of the record comment, or of the standing one when `unchanged`), `unchanged`, `held` |
+
+- `result` is `pass`, `needs-more` or `decline`; `clear`, `small` and `fits` are booleans.
+  `pass` needs all three true. `needs-more` needs at least one of `clear` and `small`
+  false, and `fits` true. `decline` needs `fits` false. `needs-more` and `decline` need a
+  `note` (at most 2000 characters). A refusal says which rule failed and, for a bad
+  `result`, lists the three values.
+- It refuses a pull request, a closed issue, an epic, a `standing` item, a caller who is not
+  allowed to record (below), or a `note` holding a record, `gtd-pr`, sign-off or ack marker.
+- **Who may record a result.** The repo's checker (a principal the repo names for the intake
+  lane in `.github/gtd-context.json` under `intake.checkers`, or the owner), and nobody else.
+  A caller who holds the item, or who filed it, is refused unless it is the owner
+  (`not-the-checker`), so a worker cannot replace a lane's `decline` with `pass`. A later
+  record by an allowed caller replaces the earlier one; a later `pass` (or any result with
+  `held` false) also **removes** the owner's `needs:*` label that `enforce` added (only that
+  label, which the server marks as its own), so the item is pickable again.
+- **The record** is a comment with a visible line, the sign-off (`act` `intake-check`,
+  `role` `coordinator` unless the caller passes another) and one marker last:
+  `<!-- gtd-intake-check v1 {"v": 1, "by": "agent:x", "t": "...", "result": "pass", "clear": true, "small": true, "fits": true, "note": "..."} -->`.
+  Readers trust it only under a record author, as for an ack. The latest trusted record
+  wins. A record equal to the latest in `result`, the three answers and `note` posts
+  nothing and returns `unchanged: true`.
+- **`item_get` returns `intake_check`**: `{status, result, clear, small, fits, by, at, note,
+  mode, since, grandfathered}`. `status` is the latest record's `result`, or `unchecked`
+  when there is none: **never `pass` without a record**. `mode` is `watch` or `enforce`
+  (a server setting named `INTAKE_CHECK_MODE`, `watch` when unset; any other value reads as
+  `watch`). `since` is the time the server began recording checks; an item opened before it
+  with no record is `grandfathered`.
+- **`intake_list` rows** gain `check`: the same object, or null on a server without the
+  tool.
+- **Watch mode (the default) blocks nothing.** The record is written and every item stays
+  as pickable as before. **Enforce mode** holds an item whose status is `needs-more` or
+  `decline`: `intake_check` adds the profile's `owner_needs` label (`held` true),
+  `list_next_actions` omits the item, and an `inferred` `item_claim` refuses naming the
+  result. An `explicit` claim still works: a person who points an agent at an item has made
+  the call. `unchecked` and grandfathered items are never held, in either mode.
+- **Enforce needs record authors.** A pasted marker would count as a record when record
+  authors are not configured ([which comments count](claim-records.md#which-comments-count)),
+  so a server with none configured MUST run in `watch` whatever its setting says, and report
+  `mode` `watch`. `enforce` is honoured only when record authors are configured.
+- Switching to `enforce` is the owner's act, after reading the watch record; no tool does
+  it.
 
 ## Review requests
 

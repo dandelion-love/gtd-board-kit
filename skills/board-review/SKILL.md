@@ -95,6 +95,8 @@ Never edit the person's text, never add `agent-ready` or `run-agent`, never star
 build, never close the issue. A finding that is new work: `capture` it with
 `agent-proposed` and link it.
 
+A review of a milestone handoff: read `handoff.md` first.
+
 ## 4. Hand back
 
 1. `issue_labels(number, remove=["agent-review"], repo, profile)`.
