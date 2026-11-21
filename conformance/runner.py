@@ -81,6 +81,7 @@ class Family(Enum):
     STOP = "ST"             # Stop (when item_stop or item_stop_clear is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
+    HANDOFF = "MH"          # Milestone handoff (when a handoff_* tool or the capability is offered)
     RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
@@ -97,6 +98,7 @@ HEADINGS = {
     Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.STALE: "Stale done", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
     Family.STOP: "Stop",
     Family.RECORDS: "Register records",
+    Family.HANDOFF: "Milestone handoff",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -123,6 +125,7 @@ LEVEL_OF = {
     Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.STALE: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
     Family.STOP: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
+    Family.HANDOFF: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -197,6 +200,8 @@ SPEC_FULL = frozenset((
     "org_issue_types", "org_issue_type_set", "repo_variables", "repo_variable_set",
     "repo_variable_delete"))
 SPEC_FULL_PREFIXES = ("webhook_",)
+CLASS.update(dict.fromkeys(("handoff_send", "handoff_ack", "handoff_cancel", "handoff_bind", "handoff_unbind"), "work"))
+CLASS.update(dict.fromkeys(("handoff_get", "handoff_list", "handoff_bindings"), "read"))
 
 
 def spec_class(name: str) -> str | None:
@@ -2487,6 +2492,115 @@ def who_principal(out: Any) -> str | None:
     return ((out or {}).get("item") or {}).get("holder")
 
 
+# ---------------------------------------------------------------------------
+# Milestone handoff (server-spec/milestone-handoff.md)
+# ---------------------------------------------------------------------------
+
+def _handoff_case_result(case: dict, group: str, cmd: str | None) -> dict:
+    if cmd:
+        proc = subprocess.run(cmd, shell=True, input=json.dumps({"group": group, **case}),
+                              capture_output=True, text=True, timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --handoff-cmd"}
+    sys.path.insert(0, str(HERE))
+    import handoff as ho
+    if group == "records":
+        return {"problems": ho.validate(case["record"])}
+    if group == "head":
+        return ho.run_head(case["events"], case.get("roles"))
+    if group == "routing":
+        return ho.route(case)
+    if group == "bindings":
+        return ho.bind_op(case)
+    if group == "authority":
+        return ho.may_work(case)
+    if group == "delivery":
+        return ho.run_delivery(case)
+    if group == "negotiation":
+        return ho.negotiate(case)
+    if group == "claims":
+        return ho.fold_claims(case)
+    if case["op"] == "offsets":
+        return {"offsets": ho.attempt_offsets(case["max_attempts"])}
+    return {"delivery_id": ho.delivery_id(case["handoff_id"], case["revision"], case["recipient"])}
+
+
+#: The check each group of handoff_cases.json belongs to.
+HANDOFF_GROUPS = {"MH2": ("head",), "MH3": ("routing",), "MH4": ("bindings", "authority", "claims"),
+                  "MH5": ("delivery",), "MH6": ("retry",), "MH7": ("negotiation",)}
+
+
+def check_handoff_cases(rep: Report, cmd: str | None) -> None:
+    """MH1 to MH7: the golden handoff cases, against the reference or a server's own code."""
+    cases = json.loads((HERE / "handoff_cases.json").read_text(encoding="utf-8"))
+    who = "--handoff-cmd" if cmd else "the reference handoff rules"
+    bad = []
+    for c in cases["records"]:
+        problems = _handoff_case_result(c, "records", cmd).get("problems")
+        want = c["expect"]
+        if problems is None or (not problems) != want["valid"] or \
+                (not want["valid"] and not any(want["problem"] in p for p in problems)):
+            bad.append(f"{c['name']}: {problems}")
+    rep.check("MH1", not bad, "; ".join(bad[:4]), f"{len(cases['records'])} cases, {who}")
+    for cid, groups in HANDOFF_GROUPS.items():
+        total = [(g, c) for g in groups for c in cases[g]]
+        bad = [c["name"] for g, c in total
+               if any(_handoff_case_result(c, g, cmd).get(k) != v for k, v in c["expect"].items())]
+        rep.check(cid, not bad, "; ".join(bad[:4]), f"{len(total)} cases, {who}")
+
+
+#: The files a handoff change adds. MH8 reads them: no runtime-specific endpoint, no private detail.
+HANDOFF_FILES = ("server-spec/milestone-handoff.md", "server-spec/schemas/milestone-handoff/handoff.schema.json",
+                 "conformance/handoff_cases.json", "conformance/handoff.py",
+                 "knowledge/model/milestone-handoff.md", "skills/board-report/handoff.md",
+                 "skills/board-review/handoff.md")
+_ENDPOINT = re.compile(r"https?://(?!example\.com\b)[a-z0-9]\S*|\blocalhost\b|\b127\.0\.0\.1\b|"
+                       r"\bwss?://[a-z0-9]|:\d{4,5}\b", re.IGNORECASE)
+
+
+def check_handoff_public(rep: Report) -> None:
+    """MH8: no runtime-specific endpoint or lab detail in the handoff files, and the human
+    notification contract names no handoff tool. The public guard covers the rest."""
+    root = HERE.parent
+    present = [root / f for f in HANDOFF_FILES if (root / f).exists()]
+    if not present:
+        rep.na("MH8", "the handoff files are not beside this runner")
+        return
+    bad = [f"{p.name}: {m.group(0)[:40]}" for p in present for m in [_ENDPOINT.search(p.read_text(encoding='utf-8'))] if m]
+    notes = root / "server-spec" / "notifications.md"
+    if notes.exists() and "handoff_" in notes.read_text(encoding="utf-8"):
+        bad.append("notifications.md names a handoff tool")
+    rep.check("MH8", not bad, "; ".join(bad[:4]), f"{len(present)} files scanned; inspect the rest by hand")
+
+
+HANDOFF_IDS = ("MH1", "MH2", "MH3", "MH4", "MH5", "MH6", "MH7", "MH8")
+
+
+def check_handoff(rep: Report, tools: dict, cmd: str | None, who: dict | None = None) -> None:
+    """The handoff checks against a server: n/a unless a handoff_* tool is offered. MH7 also
+    holds a server to its `capabilities`: a name it lists must be backed by every tool it needs."""
+    caps = (who or {}).get("capabilities") or []
+    sys.path.insert(0, str(HERE))
+    import handoff as ho
+    need = {ho.CAPABILITY: ho.CORE_TOOLS, ho.PUSH_CAPABILITY: ho.CORE_TOOLS + ho.PUSH_TOOLS}
+    missing = [f"{name}: {t}" for name, req in need.items() if name in caps for t in req if t not in tools]
+    if missing:
+        rep.fail("MH7", f"capability named without its tools: {'; '.join(missing[:4])}")
+    if not any(name.startswith("handoff_") for name in tools):
+        for cid in HANDOFF_IDS[:-1]:
+            rep.na(cid, "the milestone handoff capability is not offered")
+        check_handoff_public(rep)
+        return
+    check_handoff_public(rep)
+    if cmd:
+        check_handoff_cases(rep, cmd)
+    else:
+        for cid in HANDOFF_IDS[:-1]:
+            rep.manual(cid, "run the golden handoff cases against the server's own code: --handoff-cmd CMD")
+
+
 NOTIFY_IDS = ("N1", "N2", "N3", "N4", "N5")
 NOTIFY_HAND = {
     "N6": "pr_open a non-draft PR: review_requested is the owner's login and GitHub shows the "
@@ -3527,6 +3641,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--intake-cmd", help="a command that answers one intake-check case from stdin (I6)")
     ap.add_argument("--page-cmd", help="a command that answers one record-page case from stdin (RP1 to RP3)")
     ap.add_argument("--record-cmd", help="a command that answers one register-record case from stdin (RR1 to RR4)")
+    ap.add_argument("--handoff-cmd", help="a command that answers one milestone-handoff case from stdin (MH1 to MH7)")
     ap.add_argument("--github-token-env",
                     help="a read-only GitHub token for the sandbox repo, so N2 reads the ping's author from GitHub")
     ap.add_argument("--artifact-source-url",
@@ -3546,6 +3661,8 @@ def main(argv: list[str]) -> int:
         check_intake_check_cases(rep, a.intake_cmd)
         check_page_cases(rep, a.page_cmd)
         check_record_cases(rep, a.record_cmd)
+        check_handoff_cases(rep, a.handoff_cmd)
+        check_handoff_public(rep)
     seen: list[str] = []
     secrets: list[str] = []
 
@@ -3604,6 +3721,7 @@ def main(argv: list[str]) -> int:
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)
+                check_handoff(rep, _tools, a.handoff_cmd, who)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)

@@ -30,6 +30,7 @@ sense of RFC 2119 and leaves the how open.
 | [typed-links.md](typed-links.md) | Typed links between items: the record, the kinds and their native forms, the fold, the Related section, the graph render |
 | [sign-offs.md](sign-offs.md) | The sign-off the server ends every write with: who, in which role, which act, which session |
 | [notifications.md](notifications.md) | Who an ask pings, under which identity, once: the map, `notify_get`, the ping comment, review requests, the push copy |
+| [milestone-handoff.md](milestone-handoff.md) | Optional milestone handoff between sessions: the record, the authoritative head, delivery state apart from the verdict, routing, delivery and negotiation |
 
 The agent-side halves live elsewhere in the kit and are normative here too:
 [agent sign-in](../knowledge/model/agent-sign-in.md) (the join wire shape),

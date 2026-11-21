@@ -12,4 +12,5 @@
 * [Board fields and who writes them](board-fields.md) - Each standard field has a writer and a moment; a card waiting on a person names the gate and the ask
 * [Who said what](who-said-what.md) - The server signs every comment, record and PR body it writes for an agent with principal, role, act and session; search for the gtd-sign word
 * [Grants that widen rule 9](grants.md) - A merged, named BOARD.local grant lets an agent merge a PR whose every file it lists, or edit a named workflow
+* [Milestone handoff](milestone-handoff.md) - An optional packet naming an immutable revision and one next action; delivery, verdict and completion stay apart, and a verdict counts only for the revision it names
 * [Typed links between items](typed-links.md) - A fixed set of link kinds; only depends-on is a native blocked-by, the rest are Related lines on both ends, and one fold feeds the issues and the OKF graph

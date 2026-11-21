@@ -46,8 +46,8 @@ item_report(repo, number, state, note, links, project)
 - A question for a person is not a state: use `board-needs-person`.
 - **Waiting on a lane or its resource** (a run only a lane starts, a card a lane owns):
   `waiting` alone reaches nobody. Also `issue_comment` on that lane's item (its `item` in
-  `.gtd/BOARD.local.md`): your item's link and what you wait for. The lane's next tick
-  reads it in `activity_since` (`board-lane`) and answers there.
+  `.gtd/BOARD.local.md`): your item's link and what you wait for; its next tick reads it in
+  `activity_since` and answers.
 
 ## New activity
 
@@ -55,10 +55,10 @@ At each tick, before each report and before you release: `activity_since(repo,
 since=<the read_at you kept>)`. It lists what others wrote since then on items you hold,
 PRs opened for you by `pr_open` (comments and reviews) and the repo's channels. Answer
 each entry where it was written, or say in your next report why not. While
-`has_next_page`, call again with `next_cursor` and the same `since`. Then keep
-`read_at` (the same on every page); with none kept, omit `since` (last 24 hours) and skip what you already
-answered. Skip only entries whose url your own writes returned. No such tool on the server: read each held
-item's `follow_ups` (`item_get`) and each channel (`channel_comments_read`).
+`has_next_page`, call again with `next_cursor` and the same `since`; keep `read_at`.
+With none kept, omit `since` (last 24 hours). Skip entries whose url your own writes
+returned. No such tool: read each held item's `follow_ups` (`item_get`) and each channel
+(`channel_comments_read`).
 
 ## Cadence
 
@@ -86,6 +86,10 @@ Read `queue-and-fields.md` before you move a card, set a date or write a field.
 If `.gtd/BOARD.local.md` names a run-state channel, a run also posts there:
 `run_state_post(event=start | phase | end | hold | release | spend, host, by, …)`.
 Report both the item and the run.
+
+## Milestone handoff
+
+Independent review of one milestone while you keep the item: `handoff.md`.
 
 ## Board-level reports
 

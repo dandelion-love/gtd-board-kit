@@ -17,6 +17,7 @@ writes it; the caller never does.
 | A pull request review, and each inline comment it posts | `pr_review` (when offered) | `pr-review` |
 | A reply on a pull request's review thread | `pr_review_reply` (when offered) | `pr-reply` |
 | An edit to a comment the server wrote | `comment_update`, `comment_redact` (when offered) | the comment's own `act`, plus an `edits` entry ([editing comments](tools.md#editing-comments)) |
+| A milestone handoff | `handoff_send` (Milestone handoff capability, [milestone handoff](milestone-handoff.md)) | `handoff` |
 | A ping comment | `item_report` (Notifications group, [notifications](notifications.md)) | `ping` |
 | An intake check record | `intake_check` (Intake group, [the intake check](tools.md#the-intake-check)) | `intake-check` |
 | A comment from an optional tool (a channel post, a run-state event, ...) | that tool | a name the server chooses, lower case with hyphens (`channel`, `run-state`) |
@@ -95,6 +96,13 @@ refuses). They name the [review](tools.md#review-requests) stage and its outcome
 - The body's first line is the verdict line, `<Stage> review: <Verdict>` (for example
   `Work review: Needs changes`). When the caller's first line is not already that, the
   server writes it above the body.
+- **Milestone and revision (optional).** On a server with the
+  [milestone handoff](milestone-handoff.md) capability, `issue_comment` also takes
+  `review_milestone`, `review_revision` and `review_handoff` (all three or none), and the
+  sign-off's `review` object then carries `milestone`, `revision` and `handoff` beside
+  `stage` and `verdict`. Without them a verdict covers no milestone, and the handoff rules
+  never treat it as effective. A verdict is effective only while its revision is the head's
+  ([the verdict names the milestone and the revision](milestone-handoff.md#the-verdict-names-the-milestone-and-the-revision)).
 
 ### Session on records
 
