@@ -123,8 +123,10 @@ Every record these tools post ends with a [sign-off](sign-offs.md) carrying the 
 `attention`, which `item_get` returns as `attention.comment_id`) records that a person
 answered it, from **any** principal: the person's own words go in `note`, quoted, with the
 time and where they said it (a session chat, the answer page, a call). The record clears
-that attention, so the folded `status` is what it would be had no question been asked (the
-holder's last report, else claimed, blocked, handoff or open). A server that writes the
+that attention, so the folded `status` is what it would be had no question been asked: the
+holder's last report from before the question (a question asked with `state` such as
+`waiting` does not outlive its answer; the report it replaced returns, see the fold in
+[claim records](claim-records.md)), else claimed, blocked, handoff or open. A server that writes the
 board's Status writes that derived Status, in the profile's own column names, in the same
 call. It never removes the `needs:*` label: taking it off is the person's call, and the
 result warns while the label is still on. The record is the reporter's quote, not the
