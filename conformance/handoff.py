@@ -323,7 +323,9 @@ def negotiate(case: dict) -> dict:
 def fold_claims(case: dict) -> dict:
     """The claim fold with review claims that coexist with a live work claim. A review claim is
     accepted beside a live work holder only with ``handoff`` naming the milestone's head, a
-    review handoff whose recipient the caller is, and never from the holder's own session."""
+    review handoff whose recipient the caller is, and never from the holder's own session. The
+    principal is not compared: a fresh session of the holder's principal may review. A reviewer
+    authorizes ``send`` only while its review claim's lease is live."""
     now = case["now"]
     holder = None  # {by, session, purpose, until}
     reviewers: list[dict] = []
@@ -334,7 +336,7 @@ def fold_claims(case: dict) -> dict:
         live = holder is not None and holder["until"] > now
         if kind == "claim" and ev["purpose"] == "review" and live:
             h = heads.get(ev.get("handoff") or "")
-            if holder["by"] == by or holder["session"] == ev.get("session"):
+            if holder["session"] == ev.get("session"):
                 out.update(ok=False, rule="self-review")
             elif h is None:
                 out.update(ok=False, rule="held")
@@ -357,7 +359,8 @@ def fold_claims(case: dict) -> dict:
             else:
                 out.update(ok=False, rule="not-holder")
         elif kind == "send":
-            ok = (holder and holder["by"] == by) or any(r["by"] == by and r["handoff"] == ev.get("for_handoff") for r in reviewers)
+            ok = (holder and holder["by"] == by) or any(
+                r["by"] == by and r["handoff"] == ev.get("for_handoff") and r["until"] > now for r in reviewers)
             if not ok:
                 out.update(ok=False, rule="no-claim")
         outcomes.append(out)

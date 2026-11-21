@@ -348,7 +348,7 @@ second files one request issue, the first acks it (a project never acks its own 
 | I5 | (by hand) An ack marker pasted in a comment by a login that is not a record author is ignored: `intake_list` still shows the trusted ack, or null |
 
 A server that lists `intake_check` ([the intake check](tools.md#the-intake-check)) also passes
-these. I7 to I9 need a sandbox repo, and I9 runs only while the server is in `watch` mode.
+these. I7 to I9 need a sandbox repo, and I9 runs only while the server is in `watch` mode. I7 to I9 also need a second token (`--token-b-env`): that principal files the item and the first token, an accepted checker, checks it, because a check by the item's filer is refused.
 
 | Id | Check |
 | --- | --- |
@@ -698,12 +698,14 @@ MH4 cases (group `claims`; events are replayed in order, `now` is 100):
 | `review-beside-work` | a reviewer named by the head review handoff claims review while the worker holds the item | both accepted; holder the worker; reviewers the reviewer |
 | `review-self` | the holder cannot take the review claim | refused `self-review` |
 | `review-same-session` | a reviewer on the holder's own session is refused | refused `self-review` |
+| `review-same-principal` | a fresh session of the holder's own principal, named by the head review handoff, takes the review claim (sessions are compared, not principals) | accepted; reviewers the principal |
 | `review-no-handoff` | a review claim naming no handoff stays refused while the item is held | refused `held` |
 | `review-stale-handoff` | a review claim naming a superseded handoff is refused | refused `stale-handoff` |
 | `review-not-recipient` | only the handoff's recipient takes the review claim | refused `not-recipient` |
 | `work-while-held` | a second work claim stays refused | refused `held` |
 | `review-release` | a reviewer releases its own review claim and the worker keeps the item | holder the worker; no reviewers |
 | `review-send` | a reviewer with a live review claim for the handoff may send; one without may not | second send refused `no-claim` |
+| `review-expired-send` | a reviewer whose review lease has lapsed may not send | refused `no-claim` |
 | `holder-lapsed` | a lapsed work claim leaves the item open to the review claim as an ordinary claim | holder the reviewer |
 
 ## Security (all levels)

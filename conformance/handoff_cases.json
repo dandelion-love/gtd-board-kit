@@ -3268,6 +3268,55 @@
    }
   },
   {
+   "name": "review-same-principal",
+   "what": "a fresh session of the holder's own principal, named by the head review handoff, takes the review claim: the contract compares sessions, not principals",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:builder"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "review",
+     "until": 200,
+     "session": "agent:builder-review-s",
+     "handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": [
+     "agent:builder"
+    ]
+   }
+  },
+  {
    "name": "review-no-handoff",
    "what": "a review claim naming no handoff stays refused while the item is held",
    "now": 100,
@@ -3579,6 +3628,64 @@
     "reviewers": [
      "agent:checker"
     ]
+   }
+  },
+  {
+   "name": "review-expired-send",
+   "what": "a reviewer whose review lease has lapsed may not send",
+   "now": 100,
+   "heads": {
+    "H1": {
+     "head": true,
+     "purpose": "review",
+     "recipient": "agent:checker"
+    }
+   },
+   "events": [
+    {
+     "event": "claim",
+     "by": "agent:builder",
+     "purpose": "work",
+     "until": 200,
+     "session": "agent:builder-s"
+    },
+    {
+     "event": "claim",
+     "by": "agent:checker",
+     "purpose": "review",
+     "until": 50,
+     "session": "agent:checker-s",
+     "handoff": "H1"
+    },
+    {
+     "event": "send",
+     "by": "agent:checker",
+     "for_handoff": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "claim",
+      "by": "agent:builder",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "claim",
+      "by": "agent:checker",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "send",
+      "by": "agent:checker",
+      "ok": false,
+      "rule": "no-claim"
+     }
+    ],
+    "holder": "agent:builder",
+    "reviewers": []
    }
   },
   {

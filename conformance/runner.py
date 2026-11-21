@@ -26,6 +26,8 @@ What it needs, and which checks each unlocks:
                             artifacts are available; it creates two artifacts, deletes none)
     intake_* offered        I1 (with a token), I2 to I4 (with --repo and a second token: the
                             second files one labelled request, the first acks it); I5 is manual
+    intake_check offered    I7 to I9 (with --repo and a second token: the second files the item,
+                            the first, which must be an accepted checker, checks it)
     work_items_plan/_sync   L1 (with --link-cmd, which runs it whatever the token sees);
     offered                 L2 is manual
     no --server             C13, R1, R9, K1 and L1, against the reference fold, ready check,
@@ -2240,8 +2242,15 @@ INTAKE_CHECK_MANUAL = {
 }
 
 
-def check_intake_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None, cmd: str | None) -> None:
-    """I6 to I10: the intake check, when ``intake_check`` is offered."""
+def check_intake_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None, cmd: str | None,
+                       c2: Client | None = None) -> None:
+    """I6 to I10: the intake check, when ``intake_check`` is offered.
+
+    The contract refuses a check by the item's filer, so the fixtures are filed by the second
+    principal (``c2``, --token-b-env) and checked by the first (``c``). What the certifier
+    needs: the first token must be a principal the server accepts as a checker, and must not
+    be the filer; the second token only files. Without a second token I7 to I9 are skipped,
+    not failed, because a check by the filer would be refused by a conforming server."""
     if "intake_check" not in tools:
         for cid in ("I6", "I7", "I8", "I9", "I10"):
             rep.na(cid, "intake_check is not offered")
@@ -2253,11 +2262,24 @@ def check_intake_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None, 
     for cid, how in INTAKE_CHECK_MANUAL.items():
         rep.manual(cid, how)
     cls = tool_class(tools["intake_check"])[0]
-    if sb is None:
+    if sb is None or c2 is None:
         for cid in ("I7", "I8", "I9"):
-            rep.skip(cid, "needs --repo")
+            rep.skip(cid, "needs --repo and --token-b-env (a second principal files the item; "
+                          "the filer's own check is refused)")
         return
-    n = sb.issue("intake check")
+
+    def filed(what: str, labels: list[str] | None = None) -> int:
+        args = {"title": f"[conformance {sb.run}] {what}", "repo": sb.repo,
+                "note": "Created by the gtd-board-kit conformance runner. Safe to close."}
+        if labels:
+            args["labels"] = labels
+        ok_f, out_f, t_f = c2.call("capture", args)
+        if not ok_f:
+            raise CheckError(f"capture (second principal): {t_f[:160]}")
+        sb.made.append(int(out_f["number"]))
+        return int(out_f["number"])
+
+    n = filed("intake check")
     ok_u, out_u, _ = c.call("item_get", sb.args(n))
     fresh = ((out_u or {}).get("item") or {}).get("intake_check") or {}
     rep.check("I8", ok_u and fresh.get("status") == "unchecked",
@@ -2282,7 +2304,7 @@ def check_intake_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None, 
     if mode != "watch":
         rep.skip("I9", f"the server is in mode {mode!r}; I9 runs in watch mode")
         return
-    d = sb.issue("intake decline", labels=["agent-ready"])
+    d = filed("intake decline", labels=["agent-ready"])
     c.call("intake_check", sb.args(d, clear=True, small=True, fits=False, result="decline",
                                    note="Conformance run: not this board's work."))
     lbl = settle(lambda: c.call("list_next_actions", {"repo": sb.repo, "context": "agent-ready", "limit": 100}),
@@ -3714,7 +3736,7 @@ def main(argv: list[str]) -> int:
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
-                check_intake_check(rep, c, _tools, sb, a.intake_cmd)
+                check_intake_check(rep, c, _tools, sb, a.intake_cmd, c2)
                 check_comment_edits(rep, c, _tools, sb)
                 check_stale_done(rep, c, _tools, sb)
                 check_stop(rep, c, _tools, sb)
