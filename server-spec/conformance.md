@@ -458,6 +458,55 @@ Cases ([record_cases.json](../conformance/record_cases.json)):
 | RR2 | 13 | a current record unchanged; a naive time read in the source's zone; no time; a free-text `by`; a link with a URL becoming an artifact; an observation headline moving to `title`; prereg from a tag, from a plain registered-before, and left empty when qualified; a reading with no kind; `from` with no `id`; a benchmark result's status from its counts |
 | RR3, RR4 | 20 | an experiment registered, running, blocked, unblocked, closed by a verdict, unvalidated, retired void, a verdict standing over a later retire, unretired, holding an invalid record, and a version 0 one; a benchmark waiting, partial, complete and withdrawn; a finding current, stale after a reading, unchanged by a planning link, stale after another item's contradicts link, and retired |
 
+## Milestone handoff (when offered)
+
+A server that lists any `handoff_*` tool, or names `milestone-handoff:1` in its
+`capabilities`, must also pass these ([milestone handoff](milestone-handoff.md)). MH1 and MH2
+run offline against the reference ([handoff.py](../conformance/handoff.py)) or against a
+server's own code through `--handoff-cmd`.
+
+| Id | Check |
+| --- | --- |
+| MH1 | Each `records` case below, validated against [the schema](schemas/milestone-handoff/handoff.schema.json), is valid or refused with the stated problem |
+| MH2 | Each `head` case below, replayed in order, gives the stated outcomes (a handoff accepted or refused with its rule, a verdict effective or refused with its rule) and the stated heads, including a supersession racing an old verdict |
+
+MH1 cases ([handoff_cases.json](../conformance/handoff_cases.json), group `records`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `worker-to-reviewer` | a worker asks a reviewer to review a milestone revision | valid |
+| `reviewer-to-worker` | a reviewer hands findings back to the worker | valid |
+| `supersedes-set` | a successor handoff names the one it supersedes | valid |
+| `sha256-revision` | an artifact digest is an immutable revision too | valid |
+| `no-revision` | a handoff must name its evidence revision | refused: required (`$.revision`) |
+| `branch-name-revision` | a branch name is not immutable | refused: does not match (`$.revision`) |
+| `short-sha` | an abbreviated commit is refused | refused: does not match (`$.revision`) |
+| `no-supersedes-key` | supersedes is always present, null for the first | refused: required (`$.supersedes`) |
+| `unknown-action` | one concrete action from the fixed set | refused: must be one of (`$.action`) |
+| `runtime-endpoint` | no runtime-specific field is allowed in the record | refused: not allowed (`$.endpoint`) |
+| `bad-id` | the identifier has the fixed shape | refused: does not match (`$.handoff_id`) |
+| `bad-role` | a recipient role is one of the four roles | refused: must be one of (`$.recipient.role`) |
+| `no-sender-session` | the sender session is required | refused: required (`$.sender.session`) |
+| `too-much-evidence` | at most ten evidence links | refused: too many items (`$.evidence`) |
+
+MH2 cases (group `head`; events are replayed in comment order):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `head-first` | the first handoff on a milestone becomes its head | H1 accepted |
+| `head-supersede` | a successor naming the head and a new revision replaces it | H1 accepted; H2 accepted |
+| `head-stale-base` | a second handoff that does not name the head is refused | H1 accepted; H2 refused `stale-base` |
+| `head-same-revision` | a successor must change the revision | H1 accepted; H2 refused `same-revision` |
+| `head-unknown-base` | a first handoff cannot name a successor target | H1 refused `unknown-supersedes` |
+| `head-milestones-apart` | milestones have separate heads | H1 accepted; H2 accepted |
+| `verdict-current` | a verdict naming the head's handoff and revision is effective | H1 accepted; verdict V1 effective |
+| `verdict-old-revision` | accepting an old revision cannot authorize a newer one | H1 accepted; H2 accepted; verdict V1 refused `stale-revision` |
+| `verdict-race-supersede` | a supersession that lands before the check wins over an old verdict; one that lands after leaves the earlier authorization standing for its own revision only | H1 accepted; verdict V1 effective; H2 accepted; verdict V1 refused `stale-revision` |
+| `verdict-no-milestone` | a verdict that names no milestone is refused | H1 accepted; verdict V1 refused `missing-milestone` |
+| `verdict-no-revision` | a verdict that names no revision is refused | H1 accepted; verdict V1 refused `missing-revision` |
+| `verdict-no-handoff` | a verdict on a milestone with no handoff is refused | verdict V1 refused `no-handoff` |
+| `verdict-other-milestone` | a verdict is effective for its own milestone only | H1 accepted; H2 accepted; verdict V1 refused `stale-revision` |
+
 ## Security (all levels)
 
 | Id | Check |

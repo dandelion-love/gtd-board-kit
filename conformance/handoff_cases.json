@@ -1,0 +1,1118 @@
+{
+ "about": "Golden cases for the milestone handoff contract (server-spec/milestone-handoff.md). records: a handoff record validates against server-spec/schemas/milestone-handoff/handoff.schema.json (check MH1). head: events replay in comment order; handoff moves a milestone head only when accepted, verdict is recorded, authorize checks the verdict against the head at that moment (check MH2).",
+ "records": [
+  {
+   "name": "worker-to-reviewer",
+   "what": "a worker asks a reviewer to review a milestone revision",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": true
+   }
+  },
+  {
+   "name": "reviewer-to-worker",
+   "what": "a reviewer hands findings back to the worker",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F2H",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "address-findings",
+    "request": "Two findings on the parser: see the review comment; fix both and hand back.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:checker",
+     "session": "review-1",
+     "role": "reviewer"
+    },
+    "recipient": {
+     "role": "worker",
+     "principal": "agent:builder"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "work"
+    },
+    "t": "2026-01-01T13:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": true
+   }
+  },
+  {
+   "name": "supersedes-set",
+   "what": "a successor handoff names the one it supersedes",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F2H",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G"
+   },
+   "expect": {
+    "valid": true
+   }
+  },
+  {
+   "name": "sha256-revision",
+   "what": "an artifact digest is an immutable revision too",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": true
+   }
+  },
+  {
+   "name": "no-revision",
+   "what": "a handoff must name its evidence revision",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.revision: required"
+   }
+  },
+  {
+   "name": "branch-name-revision",
+   "what": "a branch name is not immutable",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "main",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.revision: does not match"
+   }
+  },
+  {
+   "name": "short-sha",
+   "what": "an abbreviated commit is refused",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "abc1234",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.revision: does not match"
+   }
+  },
+  {
+   "name": "no-supersedes-key",
+   "what": "supersedes is always present, null for the first",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z"
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.supersedes: required"
+   }
+  },
+  {
+   "name": "unknown-action",
+   "what": "one concrete action from the fixed set",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "please-look",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.action: must be one of"
+   }
+  },
+  {
+   "name": "runtime-endpoint",
+   "what": "no runtime-specific field is allowed in the record",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null,
+    "endpoint": "https://example.com/hook"
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.endpoint: not allowed"
+   }
+  },
+  {
+   "name": "bad-id",
+   "what": "the identifier has the fixed shape",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "h-1",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.handoff_id: does not match"
+   }
+  },
+  {
+   "name": "bad-role",
+   "what": "a recipient role is one of the four roles",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "manager"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.recipient.role: must be one of"
+   }
+  },
+  {
+   "name": "no-sender-session",
+   "what": "the sender session is required",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.sender.session: required"
+   }
+  },
+  {
+   "name": "too-much-evidence",
+   "what": "at most ten evidence links",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/na",
+     "https://example.com/evidence/nb",
+     "https://example.com/evidence/nc",
+     "https://example.com/evidence/nd",
+     "https://example.com/evidence/ne",
+     "https://example.com/evidence/nf",
+     "https://example.com/evidence/ng",
+     "https://example.com/evidence/nh",
+     "https://example.com/evidence/ni",
+     "https://example.com/evidence/nj",
+     "https://example.com/evidence/nk"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.evidence: too many items"
+   }
+  }
+ ],
+ "head": [
+  {
+   "name": "head-first",
+   "what": "the first handoff on a milestone becomes its head",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "head-supersede",
+   "what": "a successor naming the head and a new revision replaces it",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H2",
+      "revision": "r2"
+     }
+    }
+   }
+  },
+  {
+   "name": "head-stale-base",
+   "what": "a second handoff that does not name the head is refused",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": null
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": false,
+      "rule": "stale-base"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "head-same-revision",
+   "what": "a successor must change the revision",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": false,
+      "rule": "same-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "head-unknown-base",
+   "what": "a first handoff cannot name a successor target",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": "H0"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": false,
+      "rule": "unknown-supersedes"
+     }
+    ],
+    "heads": {}
+   }
+  },
+  {
+   "name": "head-milestones-apart",
+   "what": "milestones have separate heads",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m2",
+     "revision": "r9",
+     "supersedes": null
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     },
+     "m2": {
+      "handoff_id": "H2",
+      "revision": "r9"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-current",
+   "what": "a verdict naming the head's handoff and revision is effective",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-old-revision",
+   "what": "accepting an old revision cannot authorize a newer one",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "stale-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H2",
+      "revision": "r2"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-race-supersede",
+   "what": "a supersession that lands before the check wins over an old verdict; one that lands after leaves the earlier authorization standing for its own revision only",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "stale-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H2",
+      "revision": "r2"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-no-milestone",
+   "what": "a verdict that names no milestone is refused",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "missing-milestone"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-no-revision",
+   "what": "a verdict that names no revision is refused",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "missing-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-no-handoff",
+   "what": "a verdict on a milestone with no handoff is refused",
+   "events": [
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "no-handoff"
+     }
+    ],
+    "heads": {}
+   }
+  },
+  {
+   "name": "verdict-other-milestone",
+   "what": "a verdict is effective for its own milestone only",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m2",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m2",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "stale-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     },
+     "m2": {
+      "handoff_id": "H2",
+      "revision": "r1"
+     }
+    }
+   }
+  }
+ ]
+}

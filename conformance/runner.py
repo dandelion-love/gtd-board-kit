@@ -80,6 +80,7 @@ class Family(Enum):
     STALE = "SD"            # Stale done (when stale_done or item_close_done is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
+    HANDOFF = "MH"          # Milestone handoff (when a handoff_* tool or the capability is offered)
     RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
@@ -94,6 +95,7 @@ HEADINGS = {
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
     Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.STALE: "Stale done", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
+    Family.HANDOFF: "Milestone handoff",
     Family.RECORDS: "Register records",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
@@ -119,6 +121,7 @@ LEVEL_OF = {
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
     Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.STALE: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
+    Family.HANDOFF: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
 }
 
@@ -2138,6 +2141,58 @@ def check_intake(rep: Report, c: Client, tools: dict, sb: Sandbox | None,
 EDIT_IDS = ("CE1", "CE2", "CE3", "CE4")
 
 
+# ---------------------------------------------------------------------------
+# Milestone handoff (server-spec/milestone-handoff.md)
+# ---------------------------------------------------------------------------
+
+def _handoff_case_result(case: dict, group: str, cmd: str | None) -> dict:
+    if cmd:
+        proc = subprocess.run(cmd, shell=True, input=json.dumps({"group": group, **case}),
+                              capture_output=True, text=True, timeout=60, check=False)
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"error": "no JSON from --handoff-cmd"}
+    sys.path.insert(0, str(HERE))
+    import handoff as ho
+    if group == "records":
+        return {"problems": ho.validate(case["record"])}
+    return ho.run_head(case["events"])
+
+
+def check_handoff_cases(rep: Report, cmd: str | None) -> None:
+    """MH1 and MH2: the golden handoff cases, against the reference or a server's own code."""
+    cases = json.loads((HERE / "handoff_cases.json").read_text(encoding="utf-8"))
+    who = "--handoff-cmd" if cmd else "the reference handoff rules"
+    bad = []
+    for c in cases["records"]:
+        problems = _handoff_case_result(c, "records", cmd).get("problems")
+        want = c["expect"]
+        if problems is None or (not problems) != want["valid"] or \
+                (not want["valid"] and not any(want["problem"] in p for p in problems)):
+            bad.append(f"{c['name']}: {problems}")
+    rep.check("MH1", not bad, "; ".join(bad[:4]), f"{len(cases['records'])} cases, {who}")
+    bad = [c["name"] for c in cases["head"]
+           if any(_handoff_case_result(c, "head", cmd).get(k) != v for k, v in c["expect"].items())]
+    rep.check("MH2", not bad, "; ".join(bad[:4]), f"{len(cases['head'])} cases, {who}")
+
+
+HANDOFF_IDS = ("MH1", "MH2")
+
+
+def check_handoff(rep: Report, tools: dict, cmd: str | None) -> None:
+    """The handoff checks against a server: n/a unless a handoff_* tool is offered."""
+    if not any(name.startswith("handoff_") for name in tools):
+        for cid in HANDOFF_IDS:
+            rep.na(cid, "the milestone handoff capability is not offered")
+        return
+    if cmd:
+        check_handoff_cases(rep, cmd)
+    else:
+        for cid in ("MH1", "MH2"):
+            rep.manual(cid, "run the golden handoff cases against the server's own code: --handoff-cmd CMD")
+
+
 def check_comment_edits(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """CE1 to CE4: the comment edit tools, when either is offered."""
     have = [t for t in ("comment_update", "comment_redact") if t in tools]
@@ -3240,6 +3295,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--prose-cmd", help="a command that runs the prose check on one case from stdin (R9)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
+    ap.add_argument("--handoff-cmd", help="a command that answers one milestone-handoff case from stdin (MH1, MH2)")
     ap.add_argument("--page-cmd", help="a command that answers one record-page case from stdin (RP1 to RP3)")
     ap.add_argument("--record-cmd", help="a command that answers one register-record case from stdin (RR1 to RR4)")
     ap.add_argument("--github-token-env",
@@ -3258,6 +3314,7 @@ def main(argv: list[str]) -> int:
         check_prose_cases(rep, a.prose_cmd)
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
+        check_handoff_cases(rep, a.handoff_cmd)
         check_page_cases(rep, a.page_cmd)
         check_record_cases(rep, a.record_cmd)
     seen: list[str] = []
@@ -3316,6 +3373,7 @@ def main(argv: list[str]) -> int:
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)
+                check_handoff(rep, _tools, a.handoff_cmd)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
