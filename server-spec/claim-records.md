@@ -47,7 +47,7 @@ A record comment is human-readable Markdown with one marker at the end:
 | `claim` | `item_claim` | `lease_until`, `takeover_of` (principal or null), `mandate`, `interruptions?` (informational, below) |
 | `renew` | `item_renew` | `lease_until` |
 | `release` | `item_release` | the [closing note](#the-closing-note) parts `done`, `left`, `decided`, `set_aside`; `remaining` (the old name of `left`), `next`, `handoff_to` (principal, role, `any`, or null) |
-| `report` | `item_report` | `state` (or null), `note`, `attention` (or null), `needs` (when `attention`), `links`, and optionally the four closing note parts |
+| `report` | `item_report` | `state` (or null), `note`, `attention` (or null), `needs` (when `attention`), `links`, optionally the four closing note parts, and `answering?` (the comment id of the attention it answers, with `note` the person's words) |
 | `stop` | `item_stop` | `wind_down_until`, `reason?` |
 | `stop_clear` | `item_stop_clear` | `note?` |
 
@@ -190,7 +190,7 @@ Walk record comments in ascending comment id (GitHub assigns ids in creation ord
 | `claim` | Unless a stop is in effect: if there is no holder, or the record's `takeover_of` equals the holder **and** the holder's `lease_until` is before this record's time: the record's `by` becomes holder; take its lease, id, mandate; clear `handoff_to` and `last_report`; a takeover also counts one interruption and sets `previous_holder`. Otherwise (or during a stop) it is a **lost claim** (listed, no effect) |
 | `renew` | If `by` is the holder: `lease_until` takes the record's value |
 | `release` | If `by` is the holder: clear holder, lease, claim, mandate, last report; `handoff_to` takes the record's value; the closing note and `previous_holder` are set |
-| `report` | `attention` becomes this record's question (or clears, if it has none). If `by` is the holder and `state` is set: `last_report` and `last_note` take its values; `dropped` then releases as above. Closing note parts on a holder's report are kept for the lease |
+| `report` | `attention` becomes this record's question (or clears, if it has none; a record with `answering` clears the attention it names and is kept as `answered`). If `by` is the holder and `state` is set: `last_report` and `last_note` take its values; `dropped` then releases as above. Closing note parts on a holder's report are kept for the lease |
 | `stop`, `stop_clear` | `stop` starts a stop if none is in effect; `stop_clear` ends it |
 
 After the walk:
@@ -201,7 +201,7 @@ After the walk:
   has not answered.
 
 `item_get` returns at least: `holder`, `lease_until`, `stale`, `mandate`, `handoff_to`,
-`last_report`, `last_note`, `attention` (`{question, by, url}` or null), `lost_claims`,
+`last_report`, `last_note`, `attention` (`{question, by, url, comment_id}` or null), `lost_claims`,
 `follow_ups` (`{author, url}`), `open_blockers`, and the issue's `number`, `title`, `url`,
 `state`. A server that implements [the closing note](#the-closing-note),
 [interruptions](#interruptions) and [a stop](#a-stop) also returns `interruptions` (a whole

@@ -2446,6 +2446,35 @@ STOP_HAND = {
 }
 
 
+def check_answering(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict) -> None:
+    """C22: `answering` on `item_report` clears the open attention it names (tools.md)."""
+    props = ((tools.get("item_report") or {}).get("inputSchema") or {}).get("properties") or {}
+    if "answering" not in props:
+        rep.na("C22", "item_report does not take answering")
+        return
+    if sb is None:
+        rep.skip("C22", "needs --repo")
+        return
+    needs = profile.get("owner_needs") or "triage"
+    n = sb.issue("answering")
+    ok, out, text = c.call("item_report", sb.args(n, attention="Which way?", needs=needs))
+    cid = (out or {}).get("comment_id")
+    if not ok or not cid:
+        rep.skip("C22", f"could not ask the question: {text[:80]}")
+        return
+    no_note, _, t_note = c.call("item_report", sb.args(n, answering=cid))
+    unknown, _, t_unknown = c.call("item_report", sb.args(n, answering=int(cid) + 7, note="Yes."))
+    ok1, _, t1 = c.call("item_report", sb.args(n, answering=cid, note="Yes, go ahead (said in chat)."))
+    _, got, _ = c.call("item_get", sb.args(n))
+    again, _, t_again = c.call("item_report", sb.args(n, answering=cid, note="Yes."))
+    item = (got or {}).get("item") or {}
+    named = all("answering" in t.lower() for t in (t_note, t_unknown, t_again))
+    rep.check("C22", ok1 and item.get("attention") is None and not no_note and not unknown
+              and not again and named,
+              f"answer {ok1} {t1[:60]}; attention after {item.get('attention')!r}; no note refused {not no_note}; "
+              f"unknown id refused {not unknown}; second answer refused {not again}; refusals name answering {named}")
+
+
 def check_stop(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """ST1 and ST2: the stop tools, when either is offered; ST3 to ST6 need the owner's token."""
     have = [t for t in ("item_stop", "item_stop_clear") if t in tools]
@@ -3741,6 +3770,7 @@ def main(argv: list[str]) -> int:
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_intake_check(rep, c, _tools, sb, a.intake_cmd, c2)
+                check_answering(rep, c, _tools, sb, profiles.get(name) or {})
                 check_comment_edits(rep, c, _tools, sb)
                 check_stale_done(rep, c, _tools, sb)
                 check_stop(rep, c, _tools, sb)

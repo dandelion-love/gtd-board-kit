@@ -66,6 +66,7 @@ reports pass, fail, skip or manual for every id below.
 | C19 | (needs a closing-note server) `item_release` with `done`, `left`, `decided` and no `set_aside` succeeds and `item_get` shows `closing_note` with those parts and `set_aside` `none`; a release with none of the four succeeds with a `warnings` entry naming `done`, `left`, `decided` and `set_aside`; `left` and `remaining` given with different values refuse |
 | C20 | A fresh item with no earlier worker shows `interruptions` 0, `previous_holder` null and `closing_note` with all four parts `none recorded`; after one claim and release with a `handoff_to` the second caller's `item_get` shows `previous_holder` the first caller, `interruptions` 0 and the first caller's four parts |
 | C21 | (by hand) Claim with lease `1m`, wait two minutes: `item_get` shows `stale` and `interruptions` 1; a takeover by a second principal keeps `interruptions` at 1, names `previous_holder`, and shows the abandoned worker's last four parts, or `none recorded` |
+| C22 | (needs `answering` on `item_report`) After `item_report` with `attention`, `item_report` with `answering` = that record's comment id and a `note` succeeds from any caller; `item_get` then shows `attention` null. A second `answering` of the same id, an `answering` of an unknown id, and an `answering` with no `note` each refuse with a message naming `answering` |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
 

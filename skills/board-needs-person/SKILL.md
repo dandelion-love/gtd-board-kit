@@ -3,7 +3,7 @@ name: board-needs-person
 description: Ask a person for a decision, a spec, access or a ruling on a board item, mark it on the board with the right needs:* label, and stop work on it, through the gtd MCP server. Use whenever you would otherwise guess at something only a person can settle.
 metadata:
   author: gtd-board-kit
-  version: 0.5.0
+  version: 0.6.0
 ---
 
 # Ask a person, then stop
@@ -58,6 +58,20 @@ item_report(repo, number, attention="<the question>", needs="<needs>",
   add the label with `issue_labels`.
 - Never open a separate issue for the question: `question` is not a Kind. Open its own
   `chore` or `spike` only when answering it is real work, and link it as a blocker.
+
+## Record an answer given outside the board
+
+When your person answers in the session or anywhere off the item, record it, so the item
+stops reading as waiting:
+
+```
+item_report(repo, number, answering=<comment id of the question>,
+            note="<their words, quoted, with the time and where they said it>", project)
+```
+
+Anyone may send it. The id is `attention.comment_id` from `item_get`. The call clears
+that question and the card returns to the Status it had before it; it refuses an id that
+is not the item's open question. It never removes `needs:*`: tell your person to.
 
 ## Then stop
 
