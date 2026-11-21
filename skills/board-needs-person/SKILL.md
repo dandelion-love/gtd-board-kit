@@ -70,7 +70,8 @@ item_report(repo, number, answering=<comment id of the question>,
 ```
 
 Anyone may send it. The id is `attention.comment_id` from `item_get`. The call clears
-that question and the card returns to the Status it had before it; it refuses an id that
+that question and the card returns to the Status it had before it (your earlier report
+returns, even when you asked with `state="waiting"`); it refuses an id that
 is not the item's open question. It never removes `needs:*`: tell your person to.
 
 ## Then stop
