@@ -24,7 +24,15 @@ generated: { by: claude-code/cloud, at: 2026-11-01T04:00:00Z }
   has its own claim and lease; no claim covers several items, and no commit lands for
   a story its committer does not hold. A claim may record the `branch` its work lands on.
 - A lane's own item is held for as long as the lane runs; its lease is the heartbeat.
-- **Renew** before the lease ends; **release** with what is done, what remains and the
-  next step.
+- **Renew** before the lease ends; **release** with the four-part [closing
+  note](report-vocabulary.md#closing-note): what is done, what is left, what was decided and
+  what was set aside, and the next step.
+- **Taking over** an item whose last worker did not let go: read `closing_note` and
+  `interruptions` in `item_get` first. One interruption is counted for each takeover and for
+  each lease that has run out and is still held; a release and a fresh claim are a handoff,
+  not an interruption. A last worker who recorded no note reads `none recorded`; the item
+  still opens.
+- **A stop** from the owner ([the stop signal](stop-signal.md)): finish the step, write the
+  note, release. The server never revokes the claim itself.
 
 The states a holder reports are in [report vocabulary](/model/report-vocabulary.md).

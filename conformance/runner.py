@@ -78,6 +78,7 @@ class Family(Enum):
     NOTIFY = "N"            # Notifications (when notify_get is offered)
     EDITS = "CE"            # Comment edits (when comment_update or comment_redact is offered)
     STALE = "SD"            # Stale done (when stale_done or item_close_done is offered)
+    STOP = "ST"             # Stop (when item_stop or item_stop_clear is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
     RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
@@ -94,6 +95,7 @@ HEADINGS = {
     Family.READINESS: "Ready check", Family.PULL_REQUESTS: "Pull requests",
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
     Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.STALE: "Stale done", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
+    Family.STOP: "Stop",
     Family.RECORDS: "Register records",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
@@ -119,6 +121,7 @@ LEVEL_OF = {
     Family.READINESS: Level.EXTENDED, Family.PULL_REQUESTS: Level.EXTENDED,
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
     Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.STALE: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
+    Family.STOP: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
 }
 
@@ -166,6 +169,7 @@ PRESETS = ("desk", "read", "work", "full")
 
 # The preset class of every tool the spec classes (transport-and-identity.md, tools.md).
 CLASS = {"whoami": "desk"}
+CLASS.update(dict.fromkeys(("item_stop", "item_stop_clear"), "work"))
 CLASS.update(dict.fromkeys((
     "profile_list", "profile_get", "project_get", "project_items", "project_item_find",
     "project_views_list", "list_next_actions", "issue_list", "issue_blocked_by_list",
@@ -647,7 +651,7 @@ def parse_record(body: str) -> dict | None:
         rec = json.loads(found[0][1])
     except json.JSONDecodeError:
         return None
-    if not isinstance(rec, dict) or rec.get("event") not in ("claim", "renew", "release", "report"):
+    if not isinstance(rec, dict) or rec.get("event") not in ("claim", "renew", "release", "report", "stop", "stop_clear"):
         return None
     return rec
 
@@ -669,37 +673,73 @@ def _ts(value: str | None) -> datetime | None:
     return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) if value else None
 
 
+CLOSING_PARTS = ("done", "left", "decided", "set_aside")
+
+
+def closing_parts(rec: dict) -> dict | None:
+    """The four closing-note parts of a release or report record, or None when it carries
+    none. The old release field ``remaining`` is read as ``left``."""
+    parts = {}
+    for key in CLOSING_PARTS:
+        raw = rec.get(key)
+        if key == "left" and not str(raw or "").strip():
+            raw = rec.get("remaining")
+        parts[key] = str(raw or "").strip()
+    return parts if any(parts.values()) else None
+
+
 def reference_fold(comments: list[dict], now: str) -> dict:
     """The fold in server-spec/claim-records.md, over ``[{id, body}]`` in any order."""
     holder = lease = handoff = last_report = attention_by = None
-    lost = 0
+    lost = taken = 0
+    previous = stop = cur = ended = None  # cur: this lease's latest parts; ended: the last ended lease
     for c in sorted(comments, key=lambda c: c["id"]):
         rec = parse_record(c["body"])
         if rec is None:
             continue
         ev, by, at = rec["event"], rec.get("by"), _ts(rec.get("t"))
-        if ev == "claim":
-            if holder is None or (rec.get("takeover_of") == holder and lease and at and lease < at):
-                holder, lease = by, _ts(rec.get("lease_until"))
+        if ev == "stop":
+            stop = stop or {"by": by, "wind_down_until": _ts(rec.get("wind_down_until"))}
+        elif ev == "stop_clear":
+            stop = None
+        elif ev == "claim":
+            takeover = holder is not None and rec.get("takeover_of") == holder and lease and at and lease < at
+            if stop is None and (holder is None or takeover):
+                if takeover:
+                    taken += 1
+                    previous, ended = holder, {"by": holder, "parts": cur}
+                holder, lease, cur = by, _ts(rec.get("lease_until")), None
                 handoff = last_report = None
             else:
                 lost += 1
         elif ev == "renew" and by == holder:
             lease = _ts(rec.get("lease_until")) or lease
         elif ev == "release" and by == holder:
-            holder = lease = last_report = None
+            previous, ended = holder, {"by": holder, "parts": closing_parts(rec) or cur}
+            holder = lease = last_report = cur = None
             handoff = rec.get("handoff_to")
         elif ev == "report":
             attention_by = by if rec.get("attention") else None
+            if by == holder and closing_parts(rec):
+                cur = closing_parts(rec)
             if by == holder and rec.get("state"):
                 last_report = rec["state"]
                 if last_report == "dropped":
-                    holder = lease = last_report = None
+                    previous, ended = holder, {"by": holder, "parts": closing_parts(rec) or cur}
+                    holder = lease = last_report = cur = None
                     handoff = rec.get("handoff_to")
+    stale = bool(holder and lease and lease < _ts(now))
+    note = {"by": holder, "parts": cur} if stale else ended
+    parts = (note or {}).get("parts")
     stamp = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ") if d else None
     return {"holder": holder, "lease_until": stamp(lease),
-            "stale": bool(holder and lease and lease < _ts(now)), "last_report": last_report,
-            "handoff_to": handoff, "lost_claims": lost, "attention_by": attention_by}
+            "stale": stale, "last_report": last_report,
+            "handoff_to": handoff, "lost_claims": lost, "attention_by": attention_by,
+            "interruptions": taken + (1 if stale else 0), "previous_holder": previous,
+            "closing_by": (note or {}).get("by"),
+            "closing_parts": [parts[k] or "none" for k in CLOSING_PARTS] if parts else ["none recorded"] * 4,
+            "stop_state": None if stop is None else ("requested" if holder else "at-rest"),
+            "overdue": bool(stop and holder and stop["wind_down_until"] and _ts(now) > stop["wind_down_until"])}
 
 
 def render_record(rec: dict) -> str:
@@ -715,8 +755,9 @@ def fold_inputs(fixtures: dict) -> list[tuple[dict, list[dict], str]]:
         bodies = list(case.get("raw_comments") or [])
         for r in case["records"]:
             rec = {"v": 1, **r, "t": at(r["t"])}
-            if "lease_until" in rec:
-                rec["lease_until"] = at(r["lease_until"])
+            for key in ("lease_until", "wind_down_until"):
+                if key in rec:
+                    rec[key] = at(r[key])
             bodies.append(render_record(rec))
         comments = [{"id": i + 1, "body": b} for i, b in enumerate(bodies)]
         expect = dict(case["expect"])
@@ -1507,13 +1548,15 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     ok, _, _ = c.call("item_report", sb.args(n, note="x" * 5000))
     rep.check("X3", not ok, "a 5000-character note was accepted")
 
-    # C7 release
-    ok_m, _, _ = c.call("item_release", sb.args(n, done="checked"))
-    ok, out, text = c.call("item_release", sb.args(n, done="checked", remaining="none", next="close",
+    # C7 release in the old form: done, remaining, next
+    ok, out, text = c.call("item_release", sb.args(n, done="checked", remaining="the rest", next="close",
                                                    handoff_to="any"))
     item = (out or {}).get("item") or {}
-    rep.check("C7", not ok_m and ok and item.get("holder") is None and item.get("handoff_to") == "any",
-              f"missing fields refused {not ok_m}; release {ok} {text[:80]}")
+    left = (item.get("closing_note") or {}).get("left")
+    rep.check("C7", ok and item.get("holder") is None and item.get("handoff_to") == "any"
+              and left in (None, "the rest"),
+              f"release in the old form {ok} {text[:80]}; closing_note.left {left!r}, not the remaining given")
+    check_closing_note(rep, c, sb)
 
     # C14 several items, one branch: one claim per item, each with its own lease
     branch = f"rc/conformance-{sb.run}"
@@ -1616,7 +1659,7 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
                     ready_cmd: str | None, prose_cmd: str | None = None) -> None:
     """R1 to R10: item_ready and prose_check, when the server offers them
     (server-spec/ready-check.md, server-spec/prose-check.md)."""
-    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10")
+    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11")
     if "item_ready" not in tools:
         for cid in ids:
             rep.na(cid, "item_ready is not offered")
@@ -1625,6 +1668,8 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         check_ready_cases(rep, ready_cmd)
     else:
         rep.manual("R1", "run the golden cases against the server's own rules: --ready-cmd CMD")
+    rep.manual("R11", "item_ready on a story whose last worker released with four parts returns "
+                      "interruptions, previous_holder and the same closing_note as item_get")
     if "prose_check" not in tools:
         rep.fail("R9", "item_ready is offered but prose_check is not (the Readiness group has both)")
     elif prose_cmd:
@@ -1633,7 +1678,7 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         rep.manual("R9", "run the golden prose cases against the server's own rules: --prose-cmd CMD")
     if sb is None:
         for cid in ids[1:]:
-            if cid != "R9":
+            if cid not in ("R9", "R11"):
                 rep.skip(cid, "needs --repo")
         return
     owner_needs = profile.get("owner_needs") or "triage"
@@ -2208,6 +2253,89 @@ def check_comment_edits(rep: Report, c: Client, tools: dict, sb: Sandbox | None)
               f"({t_b[:50]}); no match refused {not ok_n}; marker in replace refused {not ok_h}",
               "text redacted, the record still folds, identity fields, no match and a marker refused")
     c.call("item_release", sb.args(g, done="checked", remaining="none", next="close"))
+
+
+def _note(out: Any) -> dict:
+    return (((out or {}).get("item") or {}).get("closing_note")) or {}
+
+
+def check_closing_note(rep: Report, c: Client, sb: Sandbox) -> None:
+    """C19 and C20: the four-part closing note and a first-claim read (claim-records.md)."""
+    a = sb.issue("closing note")
+    c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance", lease="30m", session="cn-a"))
+    bad, _, _ = c.call("item_release", sb.args(a, left="one", remaining="two"))
+    ok_none, out_none, t_none = c.call("item_release", sb.args(a))
+    c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance", lease="30m", session="cn-a"))
+    ok, out, text = c.call("item_release", sb.args(a, done="parser", left="tests", decided="old format"))
+    note = _note(out)
+    warned = " ".join(str(w) for w in (out_none or {}).get("warnings") or [])
+    if "closing_note" not in ((out or {}).get("item") or {}):
+        rep.na("C19", "the server does not return closing_note")
+        rep.na("C20", "the server does not return closing_note")
+        return
+    rep.check("C19", not bad and ok_none and all(k in warned for k in ("done", "left", "decided", "set_aside"))
+              and ok and [note.get(k) for k in ("done", "left", "decided", "set_aside")]
+              == ["parser", "tests", "old format", "none"],
+              f"differing left and remaining refused {not bad}; empty release {ok_none} warns {warned[:60]!r}; "
+              f"parts {[note.get(k) for k in ('done', 'left', 'decided', 'set_aside')]}")
+    fresh = sb.issue("closing note first claim")
+    _, out0, _ = c.call("item_get", sb.args(fresh))
+    it0 = (out0 or {}).get("item") or {}
+    n0 = it0.get("closing_note") or {}
+    _, out1, _ = c.call("item_get", sb.args(a))
+    it1 = (out1 or {}).get("item") or {}
+    rep.check("C20", it0.get("interruptions") == 0 and it0.get("previous_holder") is None
+              and [n0.get(k) for k in CLOSING_PARTS] == ["none recorded"] * 4
+              and it1.get("interruptions") == 0 and it1.get("previous_holder")
+              and (it1.get("closing_note") or {}).get("done") == "parser",
+              f"fresh item: interruptions {it0.get('interruptions')!r}, previous {it0.get('previous_holder')!r}, "
+              f"parts {[n0.get(k) for k in CLOSING_PARTS]}; released item: previous {it1.get('previous_holder')!r}, "
+              f"done {(it1.get('closing_note') or {}).get('done')!r}")
+
+
+STOP_HAND = {
+    "ST3": "as the owner: item_stop on a held item records one signed stop and sets the stop-requested "
+           "label; the holder's item_get, item_renew and item_report show stop requested; a second "
+           "item_stop is unchanged; the holder's release removes the label and the stop reads at-rest",
+    "ST4": "as the owner, with wind_down 5m: renew succeeds before the limit; after it item_get shows "
+           "overdue and item_renew refuses naming the stop; the holder is unchanged",
+    "ST5": "as the owner: a stop on an item nobody holds reads at-rest and item_claim refuses it; "
+           "after item_stop_clear a claim succeeds and the label is gone",
+    "ST6": "add the stop-requested label as a non-owner: it is removed and nothing is recorded; as "
+           "the owner: it becomes a recorded stop and stays",
+}
+
+
+def check_stop(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """ST1 and ST2: the stop tools, when either is offered; ST3 to ST6 need the owner's token."""
+    have = [t for t in ("item_stop", "item_stop_clear") if t in tools]
+    if not have:
+        for cid in ("ST1", "ST2") + tuple(STOP_HAND):
+            rep.na(cid, "the stop tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("ST1", len(have) == 2 and set(classes.values()) == {"work"}, f"offered {classes}",
+              "item_stop and item_stop_clear, class work")
+    for cid, how in STOP_HAND.items():
+        rep.manual(cid, how)
+    if sb is None or len(have) < 2:
+        rep.skip("ST2", "needs --repo and both tools")
+        return
+    n = sb.issue("stop")
+    ok1, _, t1 = c.call("item_stop", sb.args(n, reason="Conformance run."))
+    ok2, _, t2 = c.call("item_stop_clear", sb.args(n))
+    _, got, _ = c.call("item_get", sb.args(n))
+    item = (got or {}).get("item") or {}
+    _, issue, _ = c.call("issue_get", sb.args(n))
+    labels = [l if isinstance(l, str) else l.get("name") for l in (issue or {}).get("labels") or []]
+    if ok1:
+        rep.skip("ST2", "this token is the item's owner, so the stop was recorded; use a non-owner "
+                        "token (an agent) and clear the stop by hand")
+        return
+    rep.check("ST2", not ok1 and not ok2 and "owner" in (t1 + t2).lower() and not item.get("stop")
+              and "stop-requested" not in labels,
+              f"item_stop refused {not ok1} ({t1[:50]}); item_stop_clear refused {not ok2}; "
+              f"stop {item.get('stop')!r}; labels {labels}")
 
 
 def check_stale_done(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
@@ -3195,6 +3323,9 @@ MANUAL = {
     "T4": "sign in through the connector as an identity not on the allowlist; every call must be refused",
     "C4": "claim with lease 1m, wait two minutes, claim as a second principal: the record names takeover_of",
     "C10": "with record authors configured, paste a claim record from another account: item_get ignores it",
+    "C21": "claim with lease 1m, wait two minutes: item_get shows stale and interruptions 1; a takeover by a "
+           "second principal keeps interruptions at 1, names previous_holder and shows the abandoned "
+           "worker's last four parts, or none recorded",
     "C18": "review a PR opened through pr_open, and comment on a channel issue: activity_since for the "
            "PR's by principal lists a pr review with its review_state, and a channel comment",
     "J1": "remove every approver: /join/start and joined tokens are refused",
@@ -3313,6 +3444,7 @@ def main(argv: list[str]) -> int:
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_comment_edits(rep, c, _tools, sb)
                 check_stale_done(rep, c, _tools, sb)
+                check_stop(rep, c, _tools, sb)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)
