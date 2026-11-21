@@ -2169,6 +2169,8 @@ def _handoff_case_result(case: dict, group: str, cmd: str | None) -> dict:
         return ho.may_work(case)
     if group == "delivery":
         return ho.run_delivery(case)
+    if group == "negotiation":
+        return ho.negotiate(case)
     if case["op"] == "offsets":
         return {"offsets": ho.attempt_offsets(case["max_attempts"])}
     return {"delivery_id": ho.delivery_id(case["handoff_id"], case["revision"], case["recipient"])}
@@ -2176,11 +2178,11 @@ def _handoff_case_result(case: dict, group: str, cmd: str | None) -> dict:
 
 #: The check each group of handoff_cases.json belongs to.
 HANDOFF_GROUPS = {"MH2": ("head",), "MH3": ("routing",), "MH4": ("bindings", "authority"),
-                  "MH5": ("delivery",), "MH6": ("retry",)}
+                  "MH5": ("delivery",), "MH6": ("retry",), "MH7": ("negotiation",)}
 
 
 def check_handoff_cases(rep: Report, cmd: str | None) -> None:
-    """MH1 to MH6: the golden handoff cases, against the reference or a server's own code."""
+    """MH1 to MH7: the golden handoff cases, against the reference or a server's own code."""
     cases = json.loads((HERE / "handoff_cases.json").read_text(encoding="utf-8"))
     who = "--handoff-cmd" if cmd else "the reference handoff rules"
     bad = []
@@ -2198,19 +2200,53 @@ def check_handoff_cases(rep: Report, cmd: str | None) -> None:
         rep.check(cid, not bad, "; ".join(bad[:4]), f"{len(total)} cases, {who}")
 
 
-HANDOFF_IDS = ("MH1", "MH2", "MH3", "MH4", "MH5", "MH6")
+#: The files a handoff change adds. MH8 reads them: no runtime-specific endpoint, no private detail.
+HANDOFF_FILES = ("server-spec/milestone-handoff.md", "server-spec/schemas/milestone-handoff/handoff.schema.json",
+                 "conformance/handoff_cases.json", "conformance/handoff.py",
+                 "knowledge/model/milestone-handoff.md", "skills/board-report/handoff.md",
+                 "skills/board-review/handoff.md")
+_ENDPOINT = re.compile(r"https?://(?!example\.com\b)[a-z0-9]\S*|\blocalhost\b|\b127\.0\.0\.1\b|"
+                       r"\bwss?://[a-z0-9]|:\d{4,5}\b", re.IGNORECASE)
 
 
-def check_handoff(rep: Report, tools: dict, cmd: str | None) -> None:
-    """The handoff checks against a server: n/a unless a handoff_* tool is offered."""
-    if not any(name.startswith("handoff_") for name in tools):
-        for cid in HANDOFF_IDS:
-            rep.na(cid, "the milestone handoff capability is not offered")
+def check_handoff_public(rep: Report) -> None:
+    """MH8: no runtime-specific endpoint or lab detail in the handoff files, and the human
+    notification contract names no handoff tool. The public guard covers the rest."""
+    root = HERE.parent
+    present = [root / f for f in HANDOFF_FILES if (root / f).exists()]
+    if not present:
+        rep.na("MH8", "the handoff files are not beside this runner")
         return
+    bad = [f"{p.name}: {m.group(0)[:40]}" for p in present for m in [_ENDPOINT.search(p.read_text(encoding='utf-8'))] if m]
+    notes = root / "server-spec" / "notifications.md"
+    if notes.exists() and "handoff_" in notes.read_text(encoding="utf-8"):
+        bad.append("notifications.md names a handoff tool")
+    rep.check("MH8", not bad, "; ".join(bad[:4]), f"{len(present)} files scanned; inspect the rest by hand")
+
+
+HANDOFF_IDS = ("MH1", "MH2", "MH3", "MH4", "MH5", "MH6", "MH7", "MH8")
+
+
+def check_handoff(rep: Report, tools: dict, cmd: str | None, who: dict | None = None) -> None:
+    """The handoff checks against a server: n/a unless a handoff_* tool is offered. MH7 also
+    holds a server to its `capabilities`: a name it lists must be backed by every tool it needs."""
+    caps = (who or {}).get("capabilities") or []
+    sys.path.insert(0, str(HERE))
+    import handoff as ho
+    need = {ho.CAPABILITY: ho.CORE_TOOLS, ho.PUSH_CAPABILITY: ho.CORE_TOOLS + ho.PUSH_TOOLS}
+    missing = [f"{name}: {t}" for name, req in need.items() if name in caps for t in req if t not in tools]
+    if missing:
+        rep.fail("MH7", f"capability named without its tools: {'; '.join(missing[:4])}")
+    if not any(name.startswith("handoff_") for name in tools):
+        for cid in HANDOFF_IDS[:-1]:
+            rep.na(cid, "the milestone handoff capability is not offered")
+        check_handoff_public(rep)
+        return
+    check_handoff_public(rep)
     if cmd:
         check_handoff_cases(rep, cmd)
     else:
-        for cid in HANDOFF_IDS:
+        for cid in HANDOFF_IDS[:-1]:
             rep.manual(cid, "run the golden handoff cases against the server's own code: --handoff-cmd CMD")
 
 
@@ -3336,6 +3372,7 @@ def main(argv: list[str]) -> int:
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
         check_handoff_cases(rep, a.handoff_cmd)
+        check_handoff_public(rep)
         check_page_cases(rep, a.page_cmd)
         check_record_cases(rep, a.record_cmd)
     seen: list[str] = []
@@ -3394,7 +3431,7 @@ def main(argv: list[str]) -> int:
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)
-                check_handoff(rep, _tools, a.handoff_cmd)
+                check_handoff(rep, _tools, a.handoff_cmd, who)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)

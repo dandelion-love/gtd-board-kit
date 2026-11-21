@@ -94,6 +94,13 @@ refuses). They name the [review](tools.md#review-requests) stage and its outcome
 - The body's first line is the verdict line, `<Stage> review: <Verdict>` (for example
   `Work review: Needs changes`). When the caller's first line is not already that, the
   server writes it above the body.
+- **Milestone and revision (optional).** On a server with the
+  [milestone handoff](milestone-handoff.md) capability, `issue_comment` also takes
+  `review_milestone`, `review_revision` and `review_handoff` (all three or none), and the
+  sign-off's `review` object then carries `milestone`, `revision` and `handoff` beside
+  `stage` and `verdict`. Without them a verdict covers no milestone, and the handoff rules
+  never treat it as effective. A verdict is effective only while its revision is the head's
+  ([the verdict names the milestone and the revision](milestone-handoff.md#the-verdict-names-the-milestone-and-the-revision)).
 
 ### Session on records
 

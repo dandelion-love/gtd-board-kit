@@ -1,5 +1,5 @@
 """Reference for the milestone handoff contract (server-spec/milestone-handoff.md), for checks
-MH1 to MH6. Standard library only. A server copies this file and holds its copy to
+MH1 to MH8. Standard library only. A server copies this file and holds its copy to
 conformance/handoff_cases.json.
 
     validate(record)            -> list of problems ([] = a valid handoff record)
@@ -8,6 +8,7 @@ conformance/handoff_cases.json.
     bind_op(case)               -> {"allowed": bool, "rule": refusal or None}
     may_work(case)              -> {"allowed": bool, "rule": refusal or None}
     run_delivery(case)          -> {"outcomes": [...], "state": ..., "escalated": bool}
+    negotiate(case)             -> {"mode": "push" | "poll" | "manual"}
     delivery_id(...), attempt_offsets(...)
 
 `run_head` replays handoff, verdict and authorize events in comment order: the milestone head
@@ -264,3 +265,24 @@ def run_delivery(case: dict) -> dict:
         if kind != "supersede":
             outcomes.append(out)
     return {"outcomes": outcomes, "state": state, "escalated": escalated}
+
+
+# ---------------------------------------------------------------------------
+# Capability negotiation
+# ---------------------------------------------------------------------------
+
+CAPABILITY = "milestone-handoff:1"
+PUSH_CAPABILITY = "milestone-handoff-push:1"
+CORE_TOOLS = ("handoff_send", "handoff_get", "handoff_list", "handoff_ack", "handoff_cancel")
+PUSH_TOOLS = ("handoff_bind", "handoff_unbind", "handoff_bindings")
+
+
+def negotiate(case: dict) -> dict:
+    """How an agent hands a milestone over on this server. The capability name is what is
+    trusted; the tools must back it, or the agent falls back and says delivery is manual."""
+    caps, tools = set(case.get("capabilities") or []), set(case.get("tools") or [])
+    if CAPABILITY not in caps or not all(t in tools for t in CORE_TOOLS):
+        return {"mode": "manual"}
+    if PUSH_CAPABILITY in caps and all(t in tools for t in PUSH_TOOLS):
+        return {"mode": "push"}
+    return {"mode": "poll"}

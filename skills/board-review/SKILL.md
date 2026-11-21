@@ -3,7 +3,7 @@ name: board-review
 description: Review a board issue labelled agent-review (by a person, or by an agent asking another session to check its work), against the kit's epic and story shapes and the ready check, and post one comment of findings, through the gtd MCP server. Use when an issue carries agent-review, or a person asks for a review of a ticket.
 metadata:
   author: gtd-board-kit
-  version: 0.7.0
+  version: 0.8.0
 ---
 
 # Review an issue
@@ -91,6 +91,9 @@ signs it.
 Never edit the person's text, never add `agent-ready` or `run-agent`, never start a
 build, never close the issue. A finding that is new work: `capture` it with
 `agent-proposed` and link it.
+
+A review that arrives as a milestone handoff: read `handoff.md` first, and name its milestone
+and revision in the verdict (`review_milestone`, `review_revision`).
 
 ## 4. Hand back
 

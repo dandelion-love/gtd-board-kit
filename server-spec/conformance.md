@@ -473,6 +473,8 @@ server's own code through `--handoff-cmd`.
 | MH4 | Each `bindings` case allows or refuses who may create, replace and revoke a binding, and each `authority` case shows that a claim is still required, that a comment or role name grants nothing, and that self-review is refused |
 | MH5 | Each `delivery` case, replayed in order, gives the stated outcomes and final state: duplicate delivery, lost acknowledgement, failed delivery with escalation, acknowledgement by another principal or on a revoked binding, and a delayed acknowledgement after supersession |
 | MH6 | Each `retry` case gives the stated attempt offsets or deduplication key |
+| MH7 | Each `negotiation` case gives the stated mode from the capabilities and tools; and a server whose `capabilities` names `milestone-handoff:1` or the push name lists every tool the name needs |
+| MH8 | The handoff files name no runtime-specific endpoint (a host other than `example.com`, a port, a loopback address), and [notifications](notifications.md) names no handoff tool; the public guard and a reviewer's reading cover the rest |
 
 MH1 cases ([handoff_cases.json](../conformance/handoff_cases.json), group `records`):
 
@@ -583,6 +585,18 @@ MH6 cases (group `retry`):
 | `dedupe-stable` | the deduplication key is fixed by handoff, revision and recipient | `dl_5b6fb2d2bffe465e` |
 | `dedupe-new-revision` | a new revision is a new key | `dl_85f04884eccf6162` |
 | `dedupe-other-recipient` | another recipient is a new key | `dl_632663f9bc2481ef` |
+
+MH7 cases (group `negotiation`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `negotiate-none` | a legacy server offers nothing: the sender posts the packet as a comment and says delivery is manual | mode `manual` |
+| `negotiate-tools-only` | tools without the capability name are not trusted | mode `manual` |
+| `negotiate-poll` | the capability and the core tools without push: the recipient polls | mode `poll` |
+| `negotiate-push` | push claimed and backed by the binding tools: the server delivers to bound sessions | mode `push` |
+| `negotiate-push-no-bind` | push claimed but the binding tools are missing: poll | mode `poll` |
+| `negotiate-no-ack` | the capability claimed with the acknowledgement tool missing: manual | mode `manual` |
+| `negotiate-future-version` | only a later version named: manual | mode `manual` |
 
 ## Security (all levels)
 

@@ -6,8 +6,12 @@ next actor and whether the handoff was received. It extends the claim, report, a
 and signed-review records already in this spec; it replaces none of them and adds no second
 issue-status system. A server that does not offer it works exactly as before.
 
-This part of the page defines the record, the identifier, the delivery state and the
-milestone head: what a handoff *is*, and what a verdict on it means.
+Reading order: this page defines the record, the identifier, the delivery state and the
+milestone head (what a handoff *is*, and what a verdict on it means); then
+[routing and delivery](#routing-and-delivery) (how it reaches a session);
+[instructions and privacy](#instructions-and-privacy) (what agents do, and what this page
+never contains); and [capability negotiation](#capability-negotiation) (how an agent finds
+out whether a server offers it).
 
 ## What already exists, and what this adds
 
@@ -240,6 +244,10 @@ The optional **Milestone handoff** group ([tools](tools.md#optional-groups)). `r
 | `handoff_unbind` | work | `binding_id` | the binding, revoked |
 | `handoff_bindings` | read | `principal?` | the caller's bindings (the owner sees all) |
 
+`issue_comment` takes the three optional `review_milestone`, `review_revision` and
+`review_handoff` of [sign-offs](sign-offs.md#review-verdicts) on this capability; they are
+refused unless all three are given and the revision is a commit or digest.
+
 `handoff_send` refuses: a caller who holds no claim on the item (a worker's `purpose` `work`
 claim, or a reviewer's `review` claim: the sender must be the item's current holder); a
 pull request or a closed issue; a `revision` that is not a commit or digest; a refused head
@@ -247,4 +255,75 @@ pull request or a closed issue; a `revision` that is not a commit or digest; a r
 session (`self-review`); a `request` holding a record, `gtd-pr`, sign-off or handoff marker.
 A refused send writes nothing. `no-binding` is **not** a refusal: the handoff is written
 `pending` and retried.
+
+## Instructions and privacy
+
+### What an agent does
+
+The agent-facing form of this section is the model page
+[milestone handoff](../knowledge/model/milestone-handoff.md) and the instructions in the
+`board-report` and `board-review` skills. The contract they follow:
+
+- **A compact packet, one next action.** A handoff carries a packet of at most 1200
+  characters: the milestone, the immutable revision, links to the evidence (never pasted
+  logs), and **one** concrete requested action from the fixed set. A handoff that asks for
+  two things is two handoffs.
+- **Independent work continues.** While a milestone waits, the sender keeps working on
+  anything else it is authorized and claimed for, and does not hold its lease idle. A
+  `waiting` report is for a sender with nothing else to do.
+- **The recipient claims first.** A reviewer claims the item (`purpose` `review`) before it
+  reviews, reads `handoff_get` to confirm the handoff is the head and not stale, and writes a
+  verdict that names the milestone and the revision. A verdict that cannot name them is not
+  written.
+- **A new revision is a new handoff** that supersedes the old; the sender never edits a
+  revision.
+- **Never claim a wake-up the server did not promise.** Without the push capability a
+  release, a report or a comment does not wake a session; the sender says delivery is
+  manual or polled and tells its person.
+
+### Legacy servers
+
+A server without the capability stays fully usable. The sender writes the same packet as a
+signed comment on the issue (`issue_comment`), links it from a report, and says delivery is
+**manual**. The recipient finds it by polling: `activity_since` on the items it holds,
+`list_next_actions` with the `agent-review` label, or `handoff_list` where only polling is
+offered. Nothing in this page changes how a legacy server behaves.
+
+### Privacy and the public kit
+
+- **No runtime-specific detail.** The record, the schema, the tools, the fixtures and the
+  instructions name no endpoint, host, port, webhook, queue, chat product or deployment. How
+  a server reaches a bound session is its own business; a binding holds a session **name**.
+  Conformance check MH8 and the public guard read these files for it.
+- **Agent delivery is not human notification.** A handoff never pings a person and no
+  handoff tool appears in [notifications](notifications.md). When a person must act (a
+  handoff that could not be delivered), the existing ask and its ping rules apply
+  unchanged. A change to who is pinged, or when, is out of scope here.
+- **Out of scope**: a delivery daemon, model scheduling, new chats, automatic promotion or
+  merge, and any scientific or product acceptance policy.
+
+## Capability negotiation
+
+A server says it offers the capability in the `capabilities` list of `whoami` and of the
+well-known document ([transport and identity](transport-and-identity.md#whoami)):
+
+| Name | Means | Needs these tools |
+| --- | --- | --- |
+| `milestone-handoff:1` | records, state, head, verdicts and polling | `handoff_send`, `handoff_get`, `handoff_list`, `handoff_ack`, `handoff_cancel` |
+| `milestone-handoff-push:1` | the server also delivers to bound sessions | the five above and `handoff_bind`, `handoff_unbind`, `handoff_bindings` |
+
+An agent trusts the **name** and checks the **tools** that must back it, then picks a mode:
+
+| Mode | When | What the agent does |
+| --- | --- | --- |
+| `push` | both names, all eight tools | send; the server delivers to a bound session; the recipient may poll too |
+| `poll` | `milestone-handoff:1` and its five tools, no push | send; tell the recipient's person or lane; the recipient polls `handoff_list` |
+| `manual` | anything else: no name, a missing tool, or a version it does not know | post the packet as a signed comment, say delivery is manual |
+
+Tools without the name are not trusted, and a name without its tools falls back, so a
+half-built server never makes an agent believe a handoff was delivered. A server that lists
+either name while a required tool is missing fails MH7. Examples (the `negotiation` cases):
+a legacy server with only `item_get` and `issue_comment` gives `manual`; a server with the
+five tools and `milestone-handoff:1` gives `poll`; adding the push name and the binding tools
+gives `push`; `milestone-handoff:2` alone gives `manual`.
 

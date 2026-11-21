@@ -1,5 +1,5 @@
 {
- "about": "Golden cases for the milestone handoff contract (server-spec/milestone-handoff.md). records: a handoff record validates against server-spec/schemas/milestone-handoff/handoff.schema.json (check MH1). head: events replay in comment order; handoff moves a milestone head only when accepted, verdict is recorded, authorize checks the verdict against the head at that moment (check MH2). routing: a handoff's recipient role resolves to one active binding or a rule refuses (MH3). bindings and authority: who may create, replace and revoke a binding, and that only a claim lets a recipient work (MH4). delivery: delivery-state events in order (MH5). retry: the bounded retry offsets and the stable deduplication key (MH6).",
+ "about": "Golden cases for the milestone handoff contract (server-spec/milestone-handoff.md). records: a handoff record validates against server-spec/schemas/milestone-handoff/handoff.schema.json (check MH1). head: events replay in comment order; handoff moves a milestone head only when accepted, verdict is recorded, authorize checks the verdict against the head at that moment (check MH2). routing: a handoff's recipient role resolves to one active binding or a rule refuses (MH3). bindings and authority: who may create, replace and revoke a binding, and that only a claim lets a recipient work (MH4). delivery: delivery-state events in order (MH5). retry: the bounded retry offsets and the stable deduplication key (MH6). negotiation: the mode an agent uses from a server's capabilities and tools (MH7).",
  "records": [
   {
    "name": "worker-to-reviewer",
@@ -2449,6 +2449,124 @@
    "recipient": "agent:checker-2",
    "expect": {
     "delivery_id": "dl_632663f9bc2481ef"
+   }
+  }
+ ],
+ "negotiation": [
+  {
+   "name": "negotiate-none",
+   "what": "a legacy server offers nothing: the sender posts the packet as a comment and says delivery is manual",
+   "tools": [
+    "item_get",
+    "issue_comment"
+   ],
+   "capabilities": [],
+   "expect": {
+    "mode": "manual"
+   }
+  },
+  {
+   "name": "negotiate-tools-only",
+   "what": "tools without the capability name are not trusted",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel"
+   ],
+   "capabilities": [],
+   "expect": {
+    "mode": "manual"
+   }
+  },
+  {
+   "name": "negotiate-poll",
+   "what": "the capability and the core tools without push: the recipient polls",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel"
+   ],
+   "capabilities": [
+    "milestone-handoff:1"
+   ],
+   "expect": {
+    "mode": "poll"
+   }
+  },
+  {
+   "name": "negotiate-push",
+   "what": "push claimed and backed by the binding tools: the server delivers to bound sessions",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel",
+    "handoff_bind",
+    "handoff_unbind",
+    "handoff_bindings"
+   ],
+   "capabilities": [
+    "milestone-handoff:1",
+    "milestone-handoff-push:1"
+   ],
+   "expect": {
+    "mode": "push"
+   }
+  },
+  {
+   "name": "negotiate-push-no-bind",
+   "what": "push claimed but the binding tools are missing: poll",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel"
+   ],
+   "capabilities": [
+    "milestone-handoff:1",
+    "milestone-handoff-push:1"
+   ],
+   "expect": {
+    "mode": "poll"
+   }
+  },
+  {
+   "name": "negotiate-no-ack",
+   "what": "the capability claimed with the acknowledgement tool missing: manual",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_cancel"
+   ],
+   "capabilities": [
+    "milestone-handoff:1"
+   ],
+   "expect": {
+    "mode": "manual"
+   }
+  },
+  {
+   "name": "negotiate-future-version",
+   "what": "only a later version named: manual",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel"
+   ],
+   "capabilities": [
+    "milestone-handoff:2"
+   ],
+   "expect": {
+    "mode": "manual"
    }
   }
  ]
