@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.9.0
+  version: 0.10.0
 ---
 
 # Claim an item and work it
@@ -27,20 +27,16 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, sessio
 - Lease: enough for the work, at most 72h; renew it.
 - `branch`: where its commits land (`gtd/issue-<number>`, or the combined branch).
 - `session`: one name for this session; no session reviews its own work.
+- **Taking over** (`previous_holder` set, or `interruptions` above 0): read `closing_note`
+  (done, left, decided, set_aside) and `interruptions` in `item_get` first. Start from `left`,
+  keep `decided`, skip `set_aside`; `none recorded`: read its reports and commits.
+- A `stop` in any result: finish the step, write the note, release (`board-report`).
 
 ## Several stories on one branch
 
-Your unit of work may be one or more stories, and the session that owns them may combine
-them on one integration (release-candidate) branch.
-
-- **Claim every story you work on**, one `item_claim` each, before its first commit.
-  An unclaimed story never gets a commit, even on a combined branch. Refused on one?
-  Leave it out of the batch.
-- Each claim has its own lease, reports and release. Dropping a story: take its commits
-  off the branch and release it.
-- The PR lists every story it carries in `pr_open`'s `issues`. Before opening it, check
-  each: you hold it (`item_get`), or it reached the combined branch through its own
-  merged PR (the evidence for a released item).
+Claim every story you work, one `item_claim` each, before its first commit; each has its
+own lease, reports and release. The PR lists them all in `pr_open`'s `issues`. Details in
+`branches.md`; read it before combining stories.
 
 ## 2. Show it on the board
 
@@ -91,7 +87,8 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
 5. Only under an owner-approved merge grant covering every changed file: `pr_merge`
    (refuses on pending checks, requested changes or conflict). No `pr_merge`, no merge.
    Report with the merged link (`grants.md`).
-6. `item_release(repo, number, done, remaining, next, project)`, or keep holding (renew)
+6. `item_release(repo, number, done, left, decided, set_aside, next, project)` (no `left` in the
+   server's schema? pass `remaining`), or keep holding (renew)
    to answer review comments yourself (`activity_since`): each finding with
    `pr_review_reply(…, resolve=true)` (what changed, the commit), a PR note with
    `issue_comment`. Your own GitHub tool only if neither is offered: it is unsigned.

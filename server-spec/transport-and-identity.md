@@ -83,6 +83,7 @@ Registered in every mode, class `desk`. Takes no arguments. Returns:
 | `join_url` | string or null | `<mcp_url>/join` when the join is switched on, else null |
 | `conformance` | list of strings | The levels from the [README](README.md#conformance-levels) this server meets ([spec version and levels](#spec-version-and-levels)) |
 | `spec_version` | string | The kit version of this spec the server implements, `MAJOR.MINOR.PATCH` |
+| `capabilities` | list of strings, optional | Named optional capabilities beyond the levels, such as `milestone-handoff:1` ([milestone handoff](milestone-handoff.md#capability-negotiation)); absent or empty means none |
 
 An agent calls `whoami` first in every session (BOARD.md rule 1), so it must be cheap and
 must never fail for a valid token.
@@ -104,6 +105,7 @@ The well-known document is JSON:
 | `conformance` | list of strings | The same value `whoami` gives |
 | `mcp` | string | `<mcp_url>/mcp` |
 | `join_url` | string or null | `<mcp_url>/join` when the join is switched on, else null |
+| `capabilities` | list of strings, optional | The same value `whoami` gives; absent means none |
 
 It carries nothing about any caller, agent or person, never a token, and MAY be cached for
 up to five minutes (`Cache-Control: max-age=300` or less).

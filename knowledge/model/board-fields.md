@@ -19,7 +19,7 @@ who writes those.
 | --- | --- | --- | --- |
 | `Epic` | the parent epic as `#n`; on an epic, its own number, so a view grouped by Epic shows the epic with its stories | the agent that links it | `board-decompose` step 5, or whenever a parent changes |
 | `Size` | XS to XL; an epic is the size of its whole plan (usually L or XL) | an agent suggests once | when it creates or plans the item |
-| `Priority` | P0 to P3 | a person; an agent may suggest once, from a date or a stated deadline, and says so in its report | when it creates or plans the item |
+| `Priority` | one of `P0`, `P1`, `P2`, `P3` ([levels](#priority-levels)) | a person; an agent may suggest once, into an empty field, from a date or a stated deadline, and says so in its report | when it creates or plans the item |
 | `Lane` | the batch the work rides: the integration branch's short name, e.g. `pitch` for `rc/pitch`; `(person)` for an item only a person works | the session that plans or orchestrates the batch | when it plans the batch or first claims an item for it |
 | `Owns` | the paths the item's PR will change, taken from its acceptance criteria; an epic names its folder | the agent that writes the item | `board-decompose` step 5 |
 | `Gates` | which [human gates](/decomposition/human-gates/minimum-gate-set-solo-owner.md) apply and which one is open, e.g. `G1 open: add agent-ready to approve the plan` or `G2, G4` | the agent that plans the item; whoever sees a gate pass | at planning, and when a gate passes |
@@ -30,6 +30,34 @@ who writes those.
 
 A person's value always wins: read a field before changing it, and never overwrite one
 you did not write.
+
+# Priority levels
+
+Four levels, each with one meaning, so two people (or an agent and a person) reading `P1`
+mean the same thing. Lower is more urgent. The set is closed: a board's `Priority` options
+are exactly these four, and a server accepts exactly these four.
+
+| Level | Meaning | Example |
+| --- | --- | --- |
+| `P0` | Drop other work: something is broken for users now, or a hard deadline passes today. | a release is down and users cannot sign in |
+| `P1` | Do next: needed this week, or it blocks other planned work. | a fix a launch on Friday depends on |
+| `P2` | Normal: do it in board order, with no date pressure. | a planned feature with no deadline |
+| `P3` | When idle: worth keeping, never worth interrupting other work. | a tidy-up of old wording |
+
+An item with no `Priority` is unranked, not `P2`: pickup treats it after `P3`.
+
+**Who may set a level.** A person: the board's owner, or someone the owner named in the
+profile. An agent may **suggest** a level once, only when the field is empty, from a date
+or a stated deadline in the item, and says so in its report (`Priority suggested: P1,
+because the item names a Friday deadline`). A suggestion is not a decision: a person
+confirms it by leaving it, or changes it. An agent never overwrites a value that is
+already set, whoever set it, and never suggests twice on one item; a refusal for that
+reason says the field is set.
+
+**A level outside the four is refused.** The refusal lists the allowed levels
+(`P0, P1, P2, P3`). Writing `P4`, `p1 ` or `high` changes nothing. Existing boards keep
+working: a board that has only `P1` to `P3` accepts them unchanged, and adding `P0` to
+its options is a person's change to the board.
 
 # A card waiting on a person
 

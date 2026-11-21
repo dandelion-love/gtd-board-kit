@@ -2,6 +2,7 @@
   "about": "Golden cases for the claim fold (server-spec conformance C13). Times are minutes after base; 'now' is when the fold runs. Each record becomes one comment in this order, carrying the marker from server-spec/claim-records.md.",
   "base": "2026-01-01T00:00:00Z",
   "now": 200,
+  "owners": ["person:owner"],
   "cases": [
     {
       "name": "a",
@@ -93,6 +94,147 @@
       ],
       "records": [{"event": "claim", "by": "agent:a", "t": 0, "lease_until": 300}],
       "expect": {"holder": "agent:a", "lease_until": 300, "stale": false, "last_report": null, "handoff_to": null, "lost_claims": 0}
+    },
+    {
+      "name": "k",
+      "says": "a takeover after an abandoned lease counts one interruption, names the last worker and carries the parts the worker recorded",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 60},
+        {"event": "report", "by": "agent:a", "t": 30, "state": "progress", "note": "half", "done": "parser", "left": "tests", "decided": "keep the old format", "set_aside": "a rewrite"},
+        {"event": "claim", "by": "agent:b", "t": 90, "lease_until": 300, "takeover_of": "agent:a"}
+      ],
+      "expect": {"holder": "agent:b", "interruptions": 1, "previous_holder": "agent:a", "closing_by": "agent:a", "closing_parts": ["parser", "tests", "keep the old format", "a rewrite"]}
+    },
+    {
+      "name": "l",
+      "says": "a release in the new form: an empty part reads none",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 150},
+        {"event": "release", "by": "agent:a", "t": 50, "done": "parser", "left": "", "decided": "keep the old format", "set_aside": "", "next": "tests"}
+      ],
+      "expect": {"holder": null, "interruptions": 0, "previous_holder": "agent:a", "closing_by": "agent:a", "closing_parts": ["parser", "none", "keep the old format", "none"]}
+    },
+    {
+      "name": "m",
+      "says": "a release in the old form (done, remaining, next): remaining is read as left",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 150},
+        {"event": "release", "by": "agent:a", "t": 50, "done": "parser", "remaining": "tests", "next": "write them"}
+      ],
+      "expect": {"holder": null, "interruptions": 0, "closing_parts": ["parser", "tests", "none", "none"]}
+    },
+    {
+      "name": "n",
+      "says": "a takeover where the last worker recorded no note: none recorded, and the item still opens",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 60},
+        {"event": "claim", "by": "agent:b", "t": 90, "lease_until": 300, "takeover_of": "agent:a"}
+      ],
+      "expect": {"holder": "agent:b", "interruptions": 1, "previous_holder": "agent:a", "closing_by": "agent:a", "closing_parts": ["none recorded", "none recorded", "none recorded", "none recorded"]}
+    },
+    {
+      "name": "o",
+      "says": "a lease that has run out and was never taken over counts one interruption now, and shows the stale holder's parts",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 120},
+        {"event": "report", "by": "agent:a", "t": 30, "state": "progress", "done": "parser"}
+      ],
+      "expect": {"holder": "agent:a", "stale": true, "interruptions": 1, "closing_by": "agent:a", "closing_parts": ["parser", "none", "none", "none"]}
+    },
+    {
+      "name": "p",
+      "says": "two abandoned leases, two takeovers, two interruptions",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 30},
+        {"event": "claim", "by": "agent:b", "t": 40, "lease_until": 90, "takeover_of": "agent:a"},
+        {"event": "claim", "by": "agent:c", "t": 100, "lease_until": 300, "takeover_of": "agent:b"}
+      ],
+      "expect": {"holder": "agent:c", "stale": false, "interruptions": 2, "previous_holder": "agent:b", "closing_by": "agent:b", "closing_parts": ["none recorded", "none recorded", "none recorded", "none recorded"]}
+    },
+    {
+      "name": "q",
+      "says": "a release and a fresh claim are a handoff, not an interruption",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 150},
+        {"event": "release", "by": "agent:a", "t": 50, "done": "x", "left": "y", "decided": "z", "set_aside": "w"},
+        {"event": "claim", "by": "agent:b", "t": 60, "lease_until": 300}
+      ],
+      "expect": {"holder": "agent:b", "interruptions": 0, "previous_holder": "agent:a", "closing_by": "agent:a", "closing_parts": ["x", "y", "z", "w"]}
+    },
+    {
+      "name": "r",
+      "says": "a stop on a live holder: requested, not overdue before the limit, the holder unchanged",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 300},
+        {"event": "stop", "by": "person:owner", "t": 100, "wind_down_until": 230}
+      ],
+      "expect": {"holder": "agent:a", "stop_state": "requested", "overdue": false}
+    },
+    {
+      "name": "s",
+      "says": "after the wind-down limit the item is overdue; the claim is not revoked",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 300},
+        {"event": "stop", "by": "person:owner", "t": 100, "wind_down_until": 150}
+      ],
+      "expect": {"holder": "agent:a", "stop_state": "requested", "overdue": true, "stale": false}
+    },
+    {
+      "name": "t",
+      "says": "a release after a stop leaves the item at rest",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 300},
+        {"event": "stop", "by": "person:owner", "t": 100, "wind_down_until": 150},
+        {"event": "release", "by": "agent:a", "t": 120, "done": "x", "left": "y", "decided": "z", "set_aside": "w"}
+      ],
+      "expect": {"holder": null, "stop_state": "at-rest", "overdue": false, "closing_parts": ["x", "y", "z", "w"]}
+    },
+    {
+      "name": "u",
+      "says": "a stop on an item with no worker blocks a claim until it is cleared",
+      "records": [
+        {"event": "stop", "by": "person:owner", "t": 10, "wind_down_until": 40},
+        {"event": "claim", "by": "agent:a", "t": 20, "lease_until": 300}
+      ],
+      "expect": {"holder": null, "stop_state": "at-rest", "lost_claims": 1}
+    },
+    {
+      "name": "v",
+      "says": "clearing a stop lets a claim win",
+      "records": [
+        {"event": "stop", "by": "person:owner", "t": 10, "wind_down_until": 40},
+        {"event": "stop_clear", "by": "person:owner", "t": 15},
+        {"event": "claim", "by": "agent:a", "t": 20, "lease_until": 300}
+      ],
+      "expect": {"holder": "agent:a", "stop_state": null, "lost_claims": 0}
+    },
+    {
+      "name": "w",
+      "says": "a stop pasted by an account that is not the owner is ignored: the claim wins",
+      "records": [
+        {"event": "stop", "by": "person:stranger", "t": 10, "wind_down_until": 40},
+        {"event": "claim", "by": "agent:a", "t": 20, "lease_until": 300}
+      ],
+      "expect": {"holder": "agent:a", "stop_state": null, "lost_claims": 0}
+    },
+    {
+      "name": "x",
+      "says": "a stop_clear by a non-owner does not clear the owner's stop",
+      "records": [
+        {"event": "stop", "by": "person:owner", "t": 10, "wind_down_until": 40},
+        {"event": "stop_clear", "by": "person:stranger", "t": 15},
+        {"event": "claim", "by": "agent:a", "t": 20, "lease_until": 300}
+      ],
+      "expect": {"holder": null, "stop_state": "at-rest", "lost_claims": 1}
+    },
+    {
+      "name": "y",
+      "says": "a late renew of a lapsed lease brings it back to live, and the count falls: it is not monotonic",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 60},
+        {"event": "renew", "by": "agent:a", "t": 90, "lease_until": 300}
+      ],
+      "expect": {"holder": "agent:a", "stale": false, "interruptions": 0}
     }
   ]
 }
