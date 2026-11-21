@@ -65,8 +65,8 @@ can still let go of an item a person closed to stop it (a standing lane's fast s
 | `item_get` | read | none | never, for an allowlisted issue |
 | `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `project?` | someone else holds an unexpired lease; `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
 | `item_renew` | work | `lease?`, `project?` | the caller is not the holder |
-| `item_release` | work | `done`, `remaining`, `next` (all required), `handoff_to?`, `project?` | the caller is not the holder |
-| `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
+| `item_release` | work | `done?`, `left?`, `decided?`, `set_aside?`, `remaining?` (alias of `left`), `next?`, `handoff_to?`, `project?` | the caller is not the holder; `left` and `remaining` both given with different values |
+| `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `done?`, `left?`, `decided?`, `set_aside?`, `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
 
 `branch` names the branch the caller's commits for this item land on: the item's own
 `gtd/issue-<n>` branch, or an integration (release-candidate) branch that combines
@@ -98,6 +98,21 @@ label and Size rules above. `ready` is null when the server does not offer `item
 when `item_ready` would refuse the issue (an epic), or when the check fails; a failed check
 adds a warning and the claim goes ahead. Only `item_claim` returns it; `item_renew` does
 not re-run the check.
+
+**The closing note.** `item_release` and `item_report` take the four parts of the
+[closing note](claim-records.md#the-closing-note): `done`, `left`, `decided`, `set_aside`
+(each at most 4000 characters, as notes are). **None is required**, so a release in the old
+form (`done`, `remaining`, `next`) still succeeds. `remaining` is an alias of `left`: given
+alone it is stored as both; given with a different non-empty `left`, the call refuses. A
+release that carries none of the four parts (and no `remaining`), and a report with
+`state` `ready`, `failed` or `dropped` that carries none, succeeds with a warning that
+names the four. The result's `closing_note` shows the stored parts with `none` for an empty
+one.
+
+**Interruptions and the last worker's note.** `item_get`, and so every result that returns
+the folded item, shows `interruptions`, `previous_holder` and `closing_note` as
+[claim records](claim-records.md#interruptions) define them; `item_ready` returns the same
+three. A claim record carries `interruptions` for people reading the comment.
 
 Every record these tools post ends with a [sign-off](sign-offs.md) carrying the claim's
 `session`, and each result returns it as `signoff`.
@@ -208,6 +223,7 @@ that offers the capability uses the name.
 | Issue artifacts | `issue_artifact_list`, `issue_artifact_get` (read); `issue_artifact_create`, `issue_artifact_update` (work) | Evidence and plans kept on an issue as GitHub issue artifacts. See [issue artifacts](#issue-artifacts) |
 | Pull requests | `pr_open`, `pr_review`, `pr_review_reply` (work); optional `pr_merge` (work) | Opening a pull request under the server's own identity for the agent that asked, so the owner can review and approve it, and reviewing one or answering its review threads, signed. See [opening pull requests](#opening-pull-requests) and [reviewing pull requests](#reviewing-pull-requests) |
 | Comment edits | `comment_update` (work): `repo`, `comment_id`, `body`, `session?`; `comment_redact` (work): `repo`, `comment_id`, `find`, `replace`, `session?` | Correcting a comment the server wrote, through the server, so the edit is signed instead of made with `gh` under a person's credentials. See [editing comments](#editing-comments) |
+| Stop | `item_stop` (work): `repo`, `number`, `reason?`, `wind_down?`, `session?`; `item_stop_clear` (work): `repo`, `number`, `note?`, `session?` | The owner asks a worker to wind down, as a signed record the server checks the owner for, mirrored by a label. See [stopping an item](#stopping-an-item) |
 | Stale done | `stale_done` (read): `repo`, `number?`, `branches?`, `limit?`; `item_close_done` (work): `repo`, `number`, `branches?`, `session?` | Finding open items whose merged work meets every acceptance criterion, and closing one only when the server's own check says so. See [closing finished items](#closing-finished-items) |
 | Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
@@ -215,6 +231,39 @@ that offers the capability uses the name.
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
+
+## Stopping an item
+
+The optional **Stop** group lets the item's owner ask a worker to wind down
+([the stop signal](../knowledge/model/stop-signal.md)). Both tools take `repo` and `number`
+and refuse a pull request and a closed issue.
+
+| Tool | Class | Further arguments | Returns |
+| --- | --- | --- | --- |
+| `item_stop` | work | `reason?` (at most 500 characters), `wind_down?` (a duration from `5m` to `24h`, default `30m`), `session?`, `project?` | the folded item as `item_get` does, plus `event`, `comment_url`, `stop` and `warnings` |
+| `item_stop_clear` | work | `note?`, `session?`, `project?` | the same |
+
+- **Owner check.** The server checks the caller against the item's owner: the repo owner's
+  principal, or a principal the owner named for the item's profile. Any other caller, an
+  agent worker of the item included, is refused and **nothing is recorded**. The check is
+  made by the server from the verified principal, never from an argument.
+- `item_stop` writes one signed `stop` record (`act` `stop`, role `owner`), and sets the
+  `stop-requested` label as a mirror. A stop already in effect posts nothing and returns
+  `unchanged: true`. `item_stop_clear` writes one `stop_clear` record, removes the label and
+  refuses when no stop is in effect.
+- **What a worker sees.** `item_get`, `item_renew` and `item_report` return `stop`
+  (`{state, by, at, wind_down_until, reason, overdue}`, or null) and, when a stop is in
+  effect, a warning `stop-requested` naming the limit. `item_renew` still succeeds on a
+  stopped item until `wind_down_until` passes; after it, `item_renew` refuses and names the
+  stop, and the lease runs out by itself. **No tool revokes a claim.** `item_release` by the
+  holder always works and removes the label.
+- **No worker.** A stop on an item nobody holds is recorded with `state` `at-rest`, keeps the
+  label, and `item_claim` refuses it, naming the stop, until the owner clears it.
+- **A label applied by hand.** When the server learns that the `stop-requested` label was
+  added by an actor who is the item's owner, it records the stop as if `item_stop` had been
+  called; by any other actor it removes the label and records nothing. The label never
+  clears a stop: removing it does nothing to the record.
+- A server that does not offer the group ignores the signal; its workers are unaffected.
 
 ## Opening pull requests
 

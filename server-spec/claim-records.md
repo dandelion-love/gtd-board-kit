@@ -44,10 +44,12 @@ A record comment is human-readable Markdown with one marker at the end:
 
 | `event` | Written by tool | Fields beyond `v`, `by`, `t` |
 | --- | --- | --- |
-| `claim` | `item_claim` | `lease_until`, `takeover_of` (principal or null), `mandate` |
+| `claim` | `item_claim` | `lease_until`, `takeover_of` (principal or null), `mandate`, `interruptions?` (informational, below) |
 | `renew` | `item_renew` | `lease_until` |
-| `release` | `item_release` | `done`, `remaining`, `next`, `handoff_to` (principal, role, `any`, or null) |
-| `report` | `item_report` | `state` (or null), `note`, `attention` (or null), `needs` (when `attention`), `links` |
+| `release` | `item_release` | the [closing note](#the-closing-note) parts `done`, `left`, `decided`, `set_aside`; `remaining` (the old name of `left`), `next`, `handoff_to` (principal, role, `any`, or null) |
+| `report` | `item_report` | `state` (or null), `note`, `attention` (or null), `needs` (when `attention`), `links`, and optionally the four closing note parts |
+| `stop` | `item_stop` | `wind_down_until`, `reason?` |
+| `stop_clear` | `item_stop_clear` | `note?` |
 
 `mandate` is:
 
@@ -75,6 +77,68 @@ the field existed has no `branch`; readers treat a missing key as null.
 `purpose` reads as `work` and a missing `session` as null. `item_claim` reads them from
 earlier records to refuse a review by the session that worked the item
 ([review claims](tools.md#claims-and-reports)).
+
+## The closing note
+
+A holder who lets go, or who is asked to wind down, leaves a **closing note** of four
+short parts, so the next worker (and the owner) read what happened without the
+transcript:
+
+| Part | Holds |
+| --- | --- |
+| `done` | what was finished, with links to the proof |
+| `left` | what remains to do |
+| `decided` | choices made on the way, each with how to undo it |
+| `set_aside` | what was considered and deliberately not done, and why |
+
+A `release` record carries them, and an `item_report` record may carry them (a worker
+that reports a checkpoint leaves a note even if its lease later runs out). They are
+**optional for one release**: a record without them is valid, so a client in the old form
+(`done`, `remaining`, `next`) keeps working. `remaining` is an **alias of `left`**: a
+reader takes `left` when it is present and non-empty, else `remaining`; a writer given
+both with different non-empty values refuses; a record may hold either. A server writes
+both keys with the same value, so a reader that predates `left` still sees it.
+
+Reading a note, an empty or missing part reads `none`. When no note exists at all, every
+part reads `none recorded` (the item still opens). A release or report that carries none
+of the four parts is accepted with a warning that names the four.
+
+## Interruptions
+
+An **interruption** is a lease that ended without its holder letting go. It is counted
+once, by this rule: **one for each takeover, and one for a lease that has run out and is
+still held by its holder** (stale). A takeover is how a stale lease stops being stale, so
+the same lease is never counted twice. A release, a `dropped` report and a hand-off to a
+fresh claim are not interruptions. The count is a pure fold of the records:
+
+```
+interruptions = (valid takeover claims) + (1 if the holder's lease has run out)
+```
+
+The fold also keeps `previous_holder`: the holder a valid takeover replaced, or the one
+who last released; never cleared by a later claim. A `claim` record MAY carry
+`interruptions` (the count including that takeover) for a person reading the comment; a
+reader recomputes it and never trusts the stored value.
+
+**The last worker's note.** The note a new worker reads, `closing_note`, belongs to the
+**most recent lease that ended**: the stale holder's own latest parts while it is stale;
+the replaced holder's parts after a takeover; the releasing holder's parts after a
+release (parts on the release, else the latest parts it reported). `closing_note.by` names
+that worker. A worker that recorded nothing leaves `none recorded`, never an earlier
+worker's note, so a reader is never told something the last worker did not say. A lease
+in progress shows the note of the lease before it, until it ends.
+
+## A stop
+
+`stop` and `stop_clear` are written only by `item_stop` and `item_stop_clear` for a caller
+the server has checked as the item's owner ([the stop signal](../knowledge/model/stop-signal.md)).
+The fold keeps one **stop** while it is in effect: the first `stop` after the last
+`stop_clear` (a later `stop` changes nothing). A stop in effect has a state:
+`requested` while someone holds the item, and `at-rest` when nobody does (no worker, or
+the holder released). It is **overdue** when a holder still holds the item after
+`wind_down_until`. While a stop is in effect, a `claim` is lost (listed, no effect): the
+item stays unclaimed until the owner clears the stop. The fold never revokes a holder:
+`renew` still works in the fold, and only `item_renew` refuses past the limit.
 
 ## Several items, one branch
 
@@ -110,10 +174,11 @@ Walk record comments in ascending comment id (GitHub assigns ids in creation ord
 
 | Record | Effect |
 | --- | --- |
-| `claim` | If there is no holder, or the record's `takeover_of` equals the holder **and** the holder's `lease_until` is before this record's time: the record's `by` becomes holder; take its lease, id, mandate; clear `handoff_to` and `last_report`. Otherwise it is a **lost claim** (listed, no effect) |
+| `claim` | Unless a stop is in effect: if there is no holder, or the record's `takeover_of` equals the holder **and** the holder's `lease_until` is before this record's time: the record's `by` becomes holder; take its lease, id, mandate; clear `handoff_to` and `last_report`; a takeover also counts one interruption and sets `previous_holder`. Otherwise (or during a stop) it is a **lost claim** (listed, no effect) |
 | `renew` | If `by` is the holder: `lease_until` takes the record's value |
-| `release` | If `by` is the holder: clear holder, lease, claim, mandate, last report; `handoff_to` takes the record's value |
-| `report` | `attention` becomes this record's question (or clears, if it has none). If `by` is the holder and `state` is set: `last_report` and `last_note` take its values; `dropped` then releases as above |
+| `release` | If `by` is the holder: clear holder, lease, claim, mandate, last report; `handoff_to` takes the record's value; the closing note and `previous_holder` are set |
+| `report` | `attention` becomes this record's question (or clears, if it has none). If `by` is the holder and `state` is set: `last_report` and `last_note` take its values; `dropped` then releases as above. Closing note parts on a holder's report are kept for the lease |
+| `stop`, `stop_clear` | `stop` starts a stop if none is in effect; `stop_clear` ends it |
 
 After the walk:
 
@@ -125,7 +190,11 @@ After the walk:
 `item_get` returns at least: `holder`, `lease_until`, `stale`, `mandate`, `handoff_to`,
 `last_report`, `last_note`, `attention` (`{question, by, url}` or null), `lost_claims`,
 `follow_ups` (`{author, url}`), `open_blockers`, and the issue's `number`, `title`, `url`,
-`state`.
+`state`. A server that implements [the closing note](#the-closing-note),
+[interruptions](#interruptions) and [a stop](#a-stop) also returns `interruptions` (a whole
+number), `previous_holder` (a principal or null), `closing_note`
+(`{by, done, left, decided, set_aside}`, each part a string, with `none` and `none recorded`
+as above) and `stop` (`{state, by, at, wind_down_until, reason, overdue}`, or null).
 
 ## Claiming safely without a lock
 

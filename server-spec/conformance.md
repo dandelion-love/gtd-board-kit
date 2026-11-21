@@ -51,7 +51,7 @@ reports pass, fail, skip or manual for every id below.
 | C5 | `inferred` refuses without `agent-ready`; with `agent:<other runtime>`; with `agent:human`; with `needs:*`, `blocked` or `agent-proposed`; with a board Size outside `pickup_sizes` or none; and succeeds for `agent-ready` + `agent:any` + Size `S` |
 | C6 | `item_renew`, `item_release` and a `state` report by a non-holder refuse |
 | C6b | After a person closes a held issue, the holder's `item_release` succeeds and `item_claim` by anyone refuses |
-| C7 | `item_release` needs `done`, `remaining`, `next`; afterwards `item_get` shows no holder and the `handoff_to` |
+| C7 | `item_release` in the old form (`done`, `remaining`, `next`) succeeds; afterwards `item_get` shows no holder and the `handoff_to`, and `closing_note.left` equals the `remaining` given |
 | C8 | `item_report` with `attention` and `needs=<owner_needs>` adds that `needs:*` label; without `needs` it refuses and lists the values; `state=dropped` releases. The label read retries for up to 30 seconds, as in P6 |
 | C9 | A non-record comment after the holder's last record appears in `follow_ups`, and still does after the holder's `item_renew`; a comment with two markers is not a record |
 | C10 | With record authors set, a record pasted by another login is ignored by the fold |
@@ -63,6 +63,9 @@ reports pass, fail, skip or manual for every id below.
 | C16 | `activity_since` after a claim and a plain comment on the held issue: the comment is an entry with `source` `held`, `kind` `comment` and the issue's `number`, and no entry is a record; with `since` after the comment it is absent; with a second token, the second caller sees no entry for that issue |
 | C17 | `activity_since` with `limit=1` over two new comments: the first page has one entry and `has_next_page`; `next_cursor` gives the other, with no repeat, and the same `read_at` as the first page |
 | C18 | (by hand) A review on a PR opened through `pr_open` appears for the PR's `by` principal as `source` `pr`, `kind` `review`, with its `review_state`; a comment on a channel issue appears as `source` `channel` |
+| C19 | (needs a closing-note server) `item_release` with `done`, `left`, `decided` and no `set_aside` succeeds and `item_get` shows `closing_note` with those parts and `set_aside` `none`; a release with none of the four succeeds with a `warnings` entry naming `done`, `left`, `decided` and `set_aside`; `left` and `remaining` given with different values refuse |
+| C20 | A fresh item with no earlier worker shows `interruptions` 0, `previous_holder` null and `closing_note` with all four parts `none recorded`; after one claim and release with a `handoff_to` the second caller's `item_get` shows `previous_holder` the first caller, `interruptions` 0 and the first caller's four parts |
+| C21 | (by hand) Claim with lease `1m`, wait two minutes: `item_get` shows `stale` and `interruptions` 1; a takeover by a second principal keeps `interruptions` at 1, names `previous_holder`, and shows the abandoned worker's last four parts, or `none recorded` |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
 
@@ -78,6 +81,24 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 | h | claim A to 300; report B `attention` | holder A, attention from B, `last_report` null |
 | i | claim A to 300; report A `blocked` | holder A, `last_report` blocked |
 | j | four non-record comments (plain text, two markers, `v2`, bad JSON); claim A to 300 | holder A only |
+| k | claim A to 60; A reports `progress` with parts at 30; claim B at 90 `takeover_of` A | holder B, `interruptions` 1, `previous_holder` A, parts A's |
+| l | claim A; release A with `done`, `decided`, an empty `left` and `set_aside` | parts `done`, `none`, `decided`, `none` |
+| m | claim A; release A in the old form (`done`, `remaining`, `next`) | `left` is the `remaining` |
+| n | claim A to 60; claim B at 90 `takeover_of` A, A having recorded no note | `interruptions` 1, parts all `none recorded` |
+| o | claim A to 120; A reports `progress` with `done`; now is 200 | holder A, stale, `interruptions` 1, A's parts |
+| p | claim A to 30; B takes over at 40 to 90; C takes over at 100 | holder C, `interruptions` 2, parts `none recorded` |
+| q | claim A; release A with all four parts; claim B | holder B, `interruptions` 0, A's parts |
+| r | claim A to 300; `stop` at 100 with limit 230 | holder A, `stop_state` `requested`, not overdue |
+| s | the same with limit 150 | overdue, holder A still, not stale |
+| t | claim A; `stop`; A releases with the four parts | no holder, `stop_state` `at-rest`, A's parts |
+| u | `stop`; then claim A | claim lost, no holder, `at-rest` |
+| v | `stop`; `stop_clear`; claim A | holder A, no stop |
+
+The fold result keys the cases read besides the first five are `interruptions`,
+`previous_holder`, `closing_by`, `closing_parts` (the four parts in the order `done`,
+`left`, `decided`, `set_aside`), `stop_state` (`requested`, `at-rest` or null) and
+`overdue`. A fold that does not compute them fails these cases, so a server that has not
+implemented the closing note, interruptions or the stop signal fails C13 until it does.
 
 The same cases are machine-readable in [fold_cases.json](../conformance/fold_cases.json).
 
@@ -186,6 +207,7 @@ both `item_ready` and `prose_check`.
 | R8 | `item_claim` returns `ready` whose `verdict`, failed rules and open blockers equal what `item_ready` returns for the issue; an explicit claim on an issue without criteria succeeds (the verdict never refuses) and a `warnings` line names `needs-refinement`; a claim on a `ready` issue has no "not ready" warning ([the ready verdict on a claim](tools.md#claims-and-reports)) |
 | R9 | `prose_check` is offered, and the [prose golden cases](../conformance/prose_cases.json), fed to the server's own prose logic (`--prose-cmd`), give the stated `verdict`, fail rules and warn rules, each in rule order |
 | R10 | `prose_check` on a sandbox issue whose title has a prefix and whose body opens with a heading is `unclear` with `title-prefix` and `summary-first`, and `item_ready` on it fails `prose`; on draft text (`title`, `body`, `kind` `epic`) with no Outcome check it returns exactly the fail rule `epic-sections` |
+| R11 | (needs a closing-note server) `item_ready` on a story whose last worker released with four parts returns `interruptions`, `previous_holder` and the same `closing_note` as `item_get` |
 
 R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,
 `pickup_sizes` is `XS`, `S`, `M`, and it is on the board unless the case says otherwise):
@@ -343,6 +365,20 @@ these ([closing finished items](tools.md#closing-finished-items)). SD2 needs a s
 | SD1 | `tools/list` has both `stale_done` (class `read`) and `item_close_done` (class `work`) |
 | SD2 | For a fresh open story with criteria and no merged PR, `stale_done(number)` returns `verdict` `keep` with `no-merged-pr`, and `item_close_done` refuses naming it and leaves the issue open; with a `needs:*` label added, `reasons` also holds `needs` |
 | SD3 | (by hand) A story whose merged PR carries an Evidence row for every criterion gets `close`, and `item_close_done` ticks the boxes, posts one signed comment and closes it `completed`; a story whose only merged PR mentions it, one with an unmet criterion, an epic, and a `standing` item each get `keep` with the matching reason |
+
+## Stop (when offered)
+
+A server that lists `item_stop` or `item_stop_clear` ([stopping an item](tools.md#stopping-an-item))
+must also pass these. ST2 needs a sandbox repo and a caller who is not the item's owner.
+
+| Id | Check |
+| --- | --- |
+| ST1 | `tools/list` has both `item_stop` and `item_stop_clear`, class `work` |
+| ST2 | A caller who is not the item's owner is refused by `item_stop` and by `item_stop_clear`, the refusal says the owner is required, and afterwards `item_get` shows `stop` null, there is no `stop` record comment and no `stop-requested` label |
+| ST3 | (by hand, owner) The owner's `item_stop` on a held item records one signed `stop` and sets the `stop-requested` label; the holder's `item_get`, `item_renew` and `item_report` each return `stop` with `state` `requested`; a second `item_stop` returns `unchanged`; the holder's `item_release` removes the label and `stop.state` is `at-rest` |
+| ST4 | (by hand, owner) With `wind_down` `5m`, `item_renew` succeeds before the limit; after it `item_get` shows `overdue` true and `item_renew` refuses naming the stop; the holder is unchanged |
+| ST5 | (by hand, owner) A stop on an item nobody holds is recorded `at-rest`, `item_claim` refuses naming the stop, and after `item_stop_clear` a claim succeeds and the label is gone |
+| ST6 | (by hand) The `stop-requested` label added by a person who is not the owner is removed and nothing is recorded; added by the owner it becomes a recorded stop and stays |
 
 ## Notifications (when offered)
 

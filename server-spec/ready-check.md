@@ -32,6 +32,7 @@ only: it never refuses on it ([the ready verdict on a claim](tools.md#claims-and
   `blocker-cycle`, the issues in the cycle).
 - `blockers` lists the issue's **open** native blockers (blocked-by links), each with
   `repo`, `number`, `title`, `state`, whatever the verdict.
+- A server that implements the [closing note](claim-records.md#the-closing-note) also returns `interruptions`, `previous_holder` and `closing_note`, as `item_get` does, so a worker sees the last worker's four parts before it claims.
 - `kind` is the issue's [Kind](repo-context-and-profiles.md#kinds) (its organisation Issue Type, else a `kind:<kind>` label), or
   null; `size` is the board's Size value, or null.
 
