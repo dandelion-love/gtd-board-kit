@@ -212,6 +212,7 @@ that offers the capability uses the name.
 | Intake | `intake_list` (read), `intake_ack` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue. See [intake](#intake) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
+| Milestone handoff | `handoff_send`, `handoff_ack`, `handoff_cancel`, `handoff_bind`, `handoff_unbind` (work); `handoff_get`, `handoff_list`, `handoff_bindings` (read) | Handing a milestone of an item to another session, with delivery state kept apart from the review verdict. See [milestone handoff](milestone-handoff.md) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).

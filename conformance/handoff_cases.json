@@ -1,0 +1,2573 @@
+{
+ "about": "Golden cases for the milestone handoff contract (server-spec/milestone-handoff.md). records: a handoff record validates against server-spec/schemas/milestone-handoff/handoff.schema.json (check MH1). head: events replay in comment order; handoff moves a milestone head only when accepted, verdict is recorded, authorize checks the verdict against the head at that moment (check MH2). routing: a handoff's recipient role resolves to one active binding or a rule refuses (MH3). bindings and authority: who may create, replace and revoke a binding, and that only a claim lets a recipient work (MH4). delivery: delivery-state events in order (MH5). retry: the bounded retry offsets and the stable deduplication key (MH6). negotiation: the mode an agent uses from a server's capabilities and tools (MH7).",
+ "records": [
+  {
+   "name": "worker-to-reviewer",
+   "what": "a worker asks a reviewer to review a milestone revision",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": true
+   }
+  },
+  {
+   "name": "reviewer-to-worker",
+   "what": "a reviewer hands findings back to the worker",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F2H",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "address-findings",
+    "request": "Two findings on the parser: see the review comment; fix both and hand back.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:checker",
+     "session": "review-1",
+     "role": "reviewer"
+    },
+    "recipient": {
+     "role": "worker",
+     "principal": "agent:builder"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "work"
+    },
+    "t": "2026-01-01T13:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": true
+   }
+  },
+  {
+   "name": "supersedes-set",
+   "what": "a successor handoff names the one it supersedes",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F2H",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G"
+   },
+   "expect": {
+    "valid": true
+   }
+  },
+  {
+   "name": "sha256-revision",
+   "what": "an artifact digest is an immutable revision too",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": true
+   }
+  },
+  {
+   "name": "no-revision",
+   "what": "a handoff must name its evidence revision",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.revision: required"
+   }
+  },
+  {
+   "name": "branch-name-revision",
+   "what": "a branch name is not immutable",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "main",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.revision: does not match"
+   }
+  },
+  {
+   "name": "short-sha",
+   "what": "an abbreviated commit is refused",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "abc1234",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.revision: does not match"
+   }
+  },
+  {
+   "name": "no-supersedes-key",
+   "what": "supersedes is always present, null for the first",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z"
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.supersedes: required"
+   }
+  },
+  {
+   "name": "unknown-action",
+   "what": "one concrete action from the fixed set",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "please-look",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.action: must be one of"
+   }
+  },
+  {
+   "name": "runtime-endpoint",
+   "what": "no runtime-specific field is allowed in the record",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null,
+    "endpoint": "https://example.com/hook"
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.endpoint: not allowed"
+   }
+  },
+  {
+   "name": "bad-id",
+   "what": "the identifier has the fixed shape",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "h-1",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.handoff_id: does not match"
+   }
+  },
+  {
+   "name": "bad-role",
+   "what": "a recipient role is one of the four roles",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "manager"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.recipient.role: must be one of"
+   }
+  },
+  {
+   "name": "no-sender-session",
+   "what": "the sender session is required",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/pr"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.sender.session: required"
+   }
+  },
+  {
+   "name": "too-much-evidence",
+   "what": "at most ten evidence links",
+   "record": {
+    "v": 1,
+    "event": "handoff",
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "source": {
+     "repo": "owner/repo",
+     "issue": 12
+    },
+    "milestone": "plan-review",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "action": "review-work",
+    "request": "Review the parser change at this revision against the criteria; reply with a verdict.",
+    "evidence": [
+     "https://example.com/evidence/na",
+     "https://example.com/evidence/nb",
+     "https://example.com/evidence/nc",
+     "https://example.com/evidence/nd",
+     "https://example.com/evidence/ne",
+     "https://example.com/evidence/nf",
+     "https://example.com/evidence/ng",
+     "https://example.com/evidence/nh",
+     "https://example.com/evidence/ni",
+     "https://example.com/evidence/nj",
+     "https://example.com/evidence/nk"
+    ],
+    "sender": {
+     "principal": "agent:builder",
+     "session": "work-1",
+     "role": "worker"
+    },
+    "recipient": {
+     "role": "reviewer"
+    },
+    "scope": {
+     "repo": "owner/repo",
+     "item": 12,
+     "purpose": "review"
+    },
+    "t": "2026-01-01T12:00:00Z",
+    "supersedes": null
+   },
+   "expect": {
+    "valid": false,
+    "problem": "$.evidence: too many items"
+   }
+  }
+ ],
+ "head": [
+  {
+   "name": "head-first",
+   "what": "the first handoff on a milestone becomes its head",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "head-supersede",
+   "what": "a successor naming the head and a new revision replaces it",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H2",
+      "revision": "r2"
+     }
+    }
+   }
+  },
+  {
+   "name": "head-stale-base",
+   "what": "a second handoff that does not name the head is refused",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": null
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": false,
+      "rule": "stale-base"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "head-same-revision",
+   "what": "a successor must change the revision",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": "H1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": false,
+      "rule": "same-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "head-unknown-base",
+   "what": "a first handoff cannot name a successor target",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": "H0"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": false,
+      "rule": "unknown-supersedes"
+     }
+    ],
+    "heads": {}
+   }
+  },
+  {
+   "name": "head-milestones-apart",
+   "what": "milestones have separate heads",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m2",
+     "revision": "r9",
+     "supersedes": null
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     },
+     "m2": {
+      "handoff_id": "H2",
+      "revision": "r9"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-current",
+   "what": "a verdict naming the head's handoff and revision is effective",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": true,
+      "rule": null
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-old-revision",
+   "what": "accepting an old revision cannot authorize a newer one",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "stale-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H2",
+      "revision": "r2"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-race-supersede",
+   "what": "a supersession that lands before the check wins over an old verdict; one that lands after leaves the earlier authorization standing for its own revision only",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m1",
+     "revision": "r2",
+     "supersedes": "H1"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "stale-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H2",
+      "revision": "r2"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-no-milestone",
+   "what": "a verdict that names no milestone is refused",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "missing-milestone"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-no-revision",
+   "what": "a verdict that names no revision is refused",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "missing-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     }
+    }
+   }
+  },
+  {
+   "name": "verdict-no-handoff",
+   "what": "a verdict on a milestone with no handoff is refused",
+   "events": [
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m1",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "no-handoff"
+     }
+    ],
+    "heads": {}
+   }
+  },
+  {
+   "name": "verdict-other-milestone",
+   "what": "a verdict is effective for its own milestone only",
+   "events": [
+    {
+     "event": "handoff",
+     "id": "H1",
+     "milestone": "m1",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "handoff",
+     "id": "H2",
+     "milestone": "m2",
+     "revision": "r1",
+     "supersedes": null
+    },
+    {
+     "event": "verdict",
+     "id": "V1",
+     "milestone": "m2",
+     "revision": "r1",
+     "handoff": "H1",
+     "verdict": "looks-ready"
+    },
+    {
+     "event": "authorize",
+     "verdict": "V1"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "id": "H1",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "H2",
+      "accepted": true,
+      "rule": null
+     },
+     {
+      "id": "V1",
+      "effective": false,
+      "rule": "stale-revision"
+     }
+    ],
+    "heads": {
+     "m1": {
+      "handoff_id": "H1",
+      "revision": "r1"
+     },
+     "m2": {
+      "handoff_id": "H2",
+      "revision": "r1"
+     }
+    }
+   }
+  }
+ ],
+ "routing": [
+  {
+   "name": "route-ok",
+   "what": "a reviewer role resolves to the one active binding",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:checker",
+     "role": "reviewer",
+     "session": "rev-1",
+     "expires": 200,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": "bd_1",
+    "rule": null
+   }
+  },
+  {
+   "name": "route-named",
+   "what": "a named principal resolves to its own binding",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer",
+     "principal": "agent:checker-2"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:checker",
+     "role": "reviewer",
+     "session": "rev-1",
+     "expires": 200,
+     "revoked": false
+    },
+    {
+     "binding_id": "bd_2",
+     "principal": "agent:checker-2",
+     "role": "reviewer",
+     "session": "rev-2",
+     "expires": 200,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": "bd_2",
+    "rule": null
+   }
+  },
+  {
+   "name": "route-expired",
+   "what": "an expired binding is not a route",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:checker",
+     "role": "reviewer",
+     "session": "rev-1",
+     "expires": 90,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": null,
+    "rule": "no-binding"
+   }
+  },
+  {
+   "name": "route-revoked",
+   "what": "a revoked binding is not a route",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:checker",
+     "role": "reviewer",
+     "session": "rev-1",
+     "expires": 200,
+     "revoked": true
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": null,
+    "rule": "no-binding"
+   }
+  },
+  {
+   "name": "route-none",
+   "what": "no binding for the role",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": null,
+    "rule": "no-binding"
+   }
+  },
+  {
+   "name": "route-ambiguous",
+   "what": "two principals bound to the role and none named",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:checker",
+     "role": "reviewer",
+     "session": "rev-1",
+     "expires": 200,
+     "revoked": false
+    },
+    {
+     "binding_id": "bd_2",
+     "principal": "agent:checker-2",
+     "role": "reviewer",
+     "session": "rev-2",
+     "expires": 200,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": null,
+    "rule": "ambiguous-recipient"
+   }
+  },
+  {
+   "name": "route-unauthorized-role",
+   "what": "a binding for a role the principal is no longer authorized for is not a route",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:intruder",
+     "role": "reviewer",
+     "session": "rev-1",
+     "expires": 200,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": null,
+    "rule": "no-binding"
+   }
+  },
+  {
+   "name": "route-named-unbound",
+   "what": "the named principal has no binding",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer",
+     "principal": "agent:checker-2"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:checker",
+     "role": "reviewer",
+     "session": "rev-1",
+     "expires": 200,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": null,
+    "rule": "no-binding"
+   }
+  },
+  {
+   "name": "route-self-review",
+   "what": "a review is never routed to the sender's own session",
+   "handoff": {
+    "recipient": {
+     "role": "reviewer"
+    },
+    "sender_session": "work-1",
+    "purpose": "review"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:checker",
+     "role": "reviewer",
+     "session": "work-1",
+     "expires": 200,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": null,
+    "rule": "self-review"
+   }
+  },
+  {
+   "name": "route-worker",
+   "what": "a worker role needs no extra authorization",
+   "handoff": {
+    "recipient": {
+     "role": "worker"
+    },
+    "sender_session": "rev-1",
+    "purpose": "work"
+   },
+   "bindings": [
+    {
+     "binding_id": "bd_1",
+     "principal": "agent:builder",
+     "role": "worker",
+     "session": "work-1",
+     "expires": 200,
+     "revoked": false
+    }
+   ],
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "now": 100,
+   "expect": {
+    "binding": "bd_1",
+    "rule": null
+   }
+  }
+ ],
+ "bindings": [
+  {
+   "name": "bind-own",
+   "what": "a principal binds its own session for an authorized role",
+   "op": "create",
+   "caller": "agent:checker",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:checker",
+    "role": "reviewer"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": true,
+    "rule": null
+   }
+  },
+  {
+   "name": "bind-replace",
+   "what": "a principal replaces its own binding",
+   "op": "replace",
+   "caller": "agent:checker",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:checker",
+    "role": "reviewer"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": true,
+    "rule": null
+   }
+  },
+  {
+   "name": "bind-worker",
+   "what": "the worker role needs no grant",
+   "op": "create",
+   "caller": "agent:builder",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:builder",
+    "role": "worker"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": true,
+    "rule": null
+   }
+  },
+  {
+   "name": "bind-for-other",
+   "what": "no principal binds another's session",
+   "op": "create",
+   "caller": "agent:builder",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:checker",
+    "role": "reviewer"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": false,
+    "rule": "others-binding"
+   }
+  },
+  {
+   "name": "bind-owner-by-agent",
+   "what": "an agent never binds the owner role",
+   "op": "create",
+   "caller": "agent:checker",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:checker",
+    "role": "owner"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": false,
+    "rule": "owner-role"
+   }
+  },
+  {
+   "name": "bind-unauthorized",
+   "what": "a role the owner has not granted the principal",
+   "op": "create",
+   "caller": "agent:builder",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:builder",
+    "role": "reviewer"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": false,
+    "rule": "role-not-authorized"
+   }
+  },
+  {
+   "name": "bind-ttl-long",
+   "what": "a binding lasts at most 24 hours",
+   "op": "create",
+   "caller": "agent:checker",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:checker",
+    "role": "reviewer"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 1441,
+   "expect": {
+    "allowed": false,
+    "rule": "ttl-out-of-range"
+   }
+  },
+  {
+   "name": "revoke-self",
+   "what": "the bound principal may revoke",
+   "op": "revoke",
+   "caller": "agent:checker",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:checker",
+    "role": "reviewer"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": true,
+    "rule": null
+   }
+  },
+  {
+   "name": "revoke-owner",
+   "what": "the owner may revoke any binding",
+   "op": "revoke",
+   "caller": "person:owner",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:checker",
+    "role": "reviewer"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": true,
+    "rule": null
+   }
+  },
+  {
+   "name": "revoke-other",
+   "what": "another agent may not revoke",
+   "op": "revoke",
+   "caller": "agent:builder",
+   "owner": "person:owner",
+   "subject": {
+    "principal": "agent:checker",
+    "role": "reviewer"
+   },
+   "roles": {
+    "reviewer": [
+     "agent:checker",
+     "agent:checker-2"
+    ]
+   },
+   "ttl_minutes": 60,
+   "expect": {
+    "allowed": false,
+    "rule": "not-allowed"
+   }
+  }
+ ],
+ "authority": [
+  {
+   "name": "work-claim-review",
+   "what": "a review claim for the handoff's item lets a reviewer work",
+   "scope_purpose": "review",
+   "work_sessions": [
+    "work-1"
+   ],
+   "claim": {
+    "purpose": "review",
+    "session": "rev-1"
+   },
+   "expect": {
+    "allowed": true,
+    "rule": null
+   }
+  },
+  {
+   "name": "work-no-claim",
+   "what": "a delivered, acknowledged handoff without a claim grants nothing",
+   "scope_purpose": "review",
+   "work_sessions": [
+    "work-1"
+   ],
+   "claim": null,
+   "expect": {
+    "allowed": false,
+    "rule": "claim-required"
+   }
+  },
+  {
+   "name": "work-comment-only",
+   "what": "a comment naming the reviewer is not authority",
+   "scope_purpose": "review",
+   "work_sessions": [
+    "work-1"
+   ],
+   "claim": {
+    "purpose": "review",
+    "session": "rev-1"
+   },
+   "via": "comment",
+   "expect": {
+    "allowed": false,
+    "rule": "no-authority"
+   }
+  },
+  {
+   "name": "work-role-name",
+   "what": "a role name alone is not authority",
+   "scope_purpose": "review",
+   "work_sessions": [
+    "work-1"
+   ],
+   "claim": null,
+   "via": "role-name",
+   "expect": {
+    "allowed": false,
+    "rule": "no-authority"
+   }
+  },
+  {
+   "name": "work-wrong-purpose",
+   "what": "a work claim does not meet a review scope",
+   "scope_purpose": "review",
+   "work_sessions": [
+    "work-1"
+   ],
+   "claim": {
+    "purpose": "work",
+    "session": "rev-1"
+   },
+   "expect": {
+    "allowed": false,
+    "rule": "scope-mismatch"
+   }
+  },
+  {
+   "name": "work-self-review",
+   "what": "a review by the session that did the work is forbidden",
+   "scope_purpose": "review",
+   "work_sessions": [
+    "work-1"
+   ],
+   "claim": {
+    "purpose": "review",
+    "session": "work-1"
+   },
+   "expect": {
+    "allowed": false,
+    "rule": "self-review"
+   }
+  }
+ ],
+ "delivery": [
+  {
+   "name": "deliver-ack",
+   "what": "delivered, then acknowledged",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "state": "acknowledged",
+    "escalated": false
+   }
+  },
+  {
+   "name": "deliver-twice",
+   "what": "a duplicate delivery changes nothing",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "deliver"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null,
+      "unchanged": true
+     }
+    ],
+    "state": "delivered",
+    "escalated": false
+   }
+  },
+  {
+   "name": "ack-twice",
+   "what": "a repeated acknowledgement is idempotent",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null,
+      "unchanged": true
+     }
+    ],
+    "state": "acknowledged",
+    "escalated": false
+   }
+  },
+  {
+   "name": "lost-ack",
+   "what": "an acknowledgement the sender never saw is safely repeated",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null,
+      "unchanged": true
+     }
+    ],
+    "state": "acknowledged",
+    "escalated": false
+   }
+  },
+  {
+   "name": "ack-before-deliver",
+   "what": "a recipient that polled can acknowledge a handoff whose delivery record was lost",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "state": "acknowledged",
+    "escalated": false
+   }
+  },
+  {
+   "name": "failed-exhausted",
+   "what": "delivery that never succeeds fails after its attempts and escalates",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "fail",
+     "attempts": 5
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "fail",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "state": "failed",
+    "escalated": true
+   }
+  },
+  {
+   "name": "fail-early",
+   "what": "failure before the attempts are used is refused",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "fail",
+     "attempts": 2
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "fail",
+      "ok": false,
+      "rule": "not-exhausted"
+     }
+    ],
+    "state": "pending",
+    "escalated": false
+   }
+  },
+  {
+   "name": "fail-after-delivery",
+   "what": "a delivered handoff cannot fail",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "fail",
+     "attempts": 5
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "fail",
+      "ok": false,
+      "rule": "delivered"
+     }
+    ],
+    "state": "delivered",
+    "escalated": false
+   }
+  },
+  {
+   "name": "ack-other-principal",
+   "what": "another principal cannot acknowledge",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:builder",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": false,
+      "rule": "wrong-recipient"
+     }
+    ],
+    "state": "delivered",
+    "escalated": false
+   }
+  },
+  {
+   "name": "ack-revoked-binding",
+   "what": "a revoked binding cannot acknowledge",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "binding_active": false
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": false,
+      "rule": "revoked-binding"
+     }
+    ],
+    "state": "delivered",
+    "escalated": false
+   }
+  },
+  {
+   "name": "ack-wrong-revision",
+   "what": "an acknowledgement names the revision it received",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": false,
+      "rule": "revision-mismatch"
+     }
+    ],
+    "state": "delivered",
+    "escalated": false
+   }
+  },
+  {
+   "name": "ack-wrong-delivery",
+   "what": "an acknowledgement names the delivery id",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_0000000000000000",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": false,
+      "rule": "delivery-mismatch"
+     }
+    ],
+    "state": "delivered",
+    "escalated": false
+   }
+  },
+  {
+   "name": "ack-after-supersede",
+   "what": "a delayed acknowledgement after supersession is recorded as stale",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "supersede"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null,
+      "stale": true
+     }
+    ],
+    "state": "acknowledged",
+    "escalated": false
+   }
+  },
+  {
+   "name": "ack-after-cancel",
+   "what": "an acknowledgement of a cancelled handoff is refused",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "cancel"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "cancel",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": false,
+      "rule": "cancelled"
+     }
+    ],
+    "state": "cancelled",
+    "escalated": false
+   }
+  },
+  {
+   "name": "cancel-pending",
+   "what": "a pending handoff may be cancelled",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "cancel"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "cancel",
+      "ok": true,
+      "rule": null
+     }
+    ],
+    "state": "cancelled",
+    "escalated": false
+   }
+  },
+  {
+   "name": "cancel-acknowledged",
+   "what": "an acknowledged handoff cannot be cancelled",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "deliver"
+    },
+    {
+     "event": "ack",
+     "by": "agent:checker",
+     "delivery_id": "dl_5b6fb2d2bffe465e",
+     "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+     "event": "cancel"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "deliver",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "ack",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "cancel",
+      "ok": false,
+      "rule": "acknowledged"
+     }
+    ],
+    "state": "acknowledged",
+    "escalated": false
+   }
+  },
+  {
+   "name": "deliver-after-cancel",
+   "what": "an in-flight delivery after a cancel changes nothing",
+   "handoff": {
+    "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recipient": "agent:checker"
+   },
+   "max_attempts": 5,
+   "events": [
+    {
+     "event": "cancel"
+    },
+    {
+     "event": "deliver"
+    }
+   ],
+   "expect": {
+    "outcomes": [
+     {
+      "event": "cancel",
+      "ok": true,
+      "rule": null
+     },
+     {
+      "event": "deliver",
+      "ok": false,
+      "rule": "terminal"
+     }
+    ],
+    "state": "cancelled",
+    "escalated": false
+   }
+  }
+ ],
+ "retry": [
+  {
+   "name": "retry-default",
+   "what": "five attempts at 0, 1, 3, 7 and 15 minutes",
+   "op": "offsets",
+   "max_attempts": 5,
+   "expect": {
+    "offsets": [
+     0,
+     1,
+     3,
+     7,
+     15
+    ]
+   }
+  },
+  {
+   "name": "retry-capped",
+   "what": "the delay doubles from one minute and stops at thirty",
+   "op": "offsets",
+   "max_attempts": 8,
+   "expect": {
+    "offsets": [
+     0,
+     1,
+     3,
+     7,
+     15,
+     31,
+     61,
+     91
+    ]
+   }
+  },
+  {
+   "name": "dedupe-stable",
+   "what": "the deduplication key is fixed by handoff, revision and recipient",
+   "op": "delivery_id",
+   "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+   "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "recipient": "agent:checker",
+   "expect": {
+    "delivery_id": "dl_5b6fb2d2bffe465e"
+   }
+  },
+  {
+   "name": "dedupe-new-revision",
+   "what": "a new revision is a new key",
+   "op": "delivery_id",
+   "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+   "revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+   "recipient": "agent:checker",
+   "expect": {
+    "delivery_id": "dl_85f04884eccf6162"
+   }
+  },
+  {
+   "name": "dedupe-other-recipient",
+   "what": "another recipient is a new key",
+   "op": "delivery_id",
+   "handoff_id": "hf_01HZXK3M8Q4V7N2B5C9D6E0F1G",
+   "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "recipient": "agent:checker-2",
+   "expect": {
+    "delivery_id": "dl_632663f9bc2481ef"
+   }
+  }
+ ],
+ "negotiation": [
+  {
+   "name": "negotiate-none",
+   "what": "a legacy server offers nothing: the sender posts the packet as a comment and says delivery is manual",
+   "tools": [
+    "item_get",
+    "issue_comment"
+   ],
+   "capabilities": [],
+   "expect": {
+    "mode": "manual"
+   }
+  },
+  {
+   "name": "negotiate-tools-only",
+   "what": "tools without the capability name are not trusted",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel"
+   ],
+   "capabilities": [],
+   "expect": {
+    "mode": "manual"
+   }
+  },
+  {
+   "name": "negotiate-poll",
+   "what": "the capability and the core tools without push: the recipient polls",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel"
+   ],
+   "capabilities": [
+    "milestone-handoff:1"
+   ],
+   "expect": {
+    "mode": "poll"
+   }
+  },
+  {
+   "name": "negotiate-push",
+   "what": "push claimed and backed by the binding tools: the server delivers to bound sessions",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel",
+    "handoff_bind",
+    "handoff_unbind",
+    "handoff_bindings"
+   ],
+   "capabilities": [
+    "milestone-handoff:1",
+    "milestone-handoff-push:1"
+   ],
+   "expect": {
+    "mode": "push"
+   }
+  },
+  {
+   "name": "negotiate-push-no-bind",
+   "what": "push claimed but the binding tools are missing: poll",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel"
+   ],
+   "capabilities": [
+    "milestone-handoff:1",
+    "milestone-handoff-push:1"
+   ],
+   "expect": {
+    "mode": "poll"
+   }
+  },
+  {
+   "name": "negotiate-no-ack",
+   "what": "the capability claimed with the acknowledgement tool missing: manual",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_cancel"
+   ],
+   "capabilities": [
+    "milestone-handoff:1"
+   ],
+   "expect": {
+    "mode": "manual"
+   }
+  },
+  {
+   "name": "negotiate-future-version",
+   "what": "only a later version named: manual",
+   "tools": [
+    "handoff_send",
+    "handoff_get",
+    "handoff_list",
+    "handoff_ack",
+    "handoff_cancel"
+   ],
+   "capabilities": [
+    "milestone-handoff:2"
+   ],
+   "expect": {
+    "mode": "manual"
+   }
+  }
+ ]
+}
