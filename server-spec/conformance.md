@@ -461,7 +461,7 @@ Cases ([record_cases.json](../conformance/record_cases.json)):
 ## Milestone handoff (when offered)
 
 A server that lists any `handoff_*` tool, or names `milestone-handoff:1` in its
-`capabilities`, must also pass these ([milestone handoff](milestone-handoff.md)). MH1 and MH2
+`capabilities`, must also pass these ([milestone handoff](milestone-handoff.md)). MH1 to MH6
 run offline against the reference ([handoff.py](../conformance/handoff.py)) or against a
 server's own code through `--handoff-cmd`.
 
@@ -469,6 +469,10 @@ server's own code through `--handoff-cmd`.
 | --- | --- |
 | MH1 | Each `records` case below, validated against [the schema](schemas/milestone-handoff/handoff.schema.json), is valid or refused with the stated problem |
 | MH2 | Each `head` case below, replayed in order, gives the stated outcomes (a handoff accepted or refused with its rule, a verdict effective or refused with its rule) and the stated heads, including a supersession racing an old verdict |
+| MH3 | Each `routing` case resolves a recipient role to the stated binding or is refused with the stated rule: unauthorized role, self-review, ambiguity, expired and revoked bindings |
+| MH4 | Each `bindings` case allows or refuses who may create, replace and revoke a binding, and each `authority` case shows that a claim is still required, that a comment or role name grants nothing, and that self-review is refused |
+| MH5 | Each `delivery` case, replayed in order, gives the stated outcomes and final state: duplicate delivery, lost acknowledgement, failed delivery with escalation, acknowledgement by another principal or on a revoked binding, and a delayed acknowledgement after supersession |
+| MH6 | Each `retry` case gives the stated attempt offsets or deduplication key |
 
 MH1 cases ([handoff_cases.json](../conformance/handoff_cases.json), group `records`):
 
@@ -506,6 +510,79 @@ MH2 cases (group `head`; events are replayed in comment order):
 | `verdict-no-revision` | a verdict that names no revision is refused | H1 accepted; verdict V1 refused `missing-revision` |
 | `verdict-no-handoff` | a verdict on a milestone with no handoff is refused | verdict V1 refused `no-handoff` |
 | `verdict-other-milestone` | a verdict is effective for its own milestone only | H1 accepted; H2 accepted; verdict V1 refused `stale-revision` |
+
+MH3 cases (group `routing`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `route-ok` | a reviewer role resolves to the one active binding | binding `bd_1` |
+| `route-named` | a named principal resolves to its own binding | binding `bd_2` |
+| `route-expired` | an expired binding is not a route | refused `no-binding` |
+| `route-revoked` | a revoked binding is not a route | refused `no-binding` |
+| `route-none` | no binding for the role | refused `no-binding` |
+| `route-ambiguous` | two principals bound to the role and none named | refused `ambiguous-recipient` |
+| `route-unauthorized-role` | a binding for a role the principal is no longer authorized for is not a route | refused `no-binding` |
+| `route-named-unbound` | the named principal has no binding | refused `no-binding` |
+| `route-self-review` | a review is never routed to the sender's own session | refused `self-review` |
+| `route-worker` | a worker role needs no extra authorization | binding `bd_1` |
+
+MH4 cases (group `bindings`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `bind-own` | a principal binds its own session for an authorized role | allowed |
+| `bind-replace` | a principal replaces its own binding | allowed |
+| `bind-worker` | the worker role needs no grant | allowed |
+| `bind-for-other` | no principal binds another's session | refused `others-binding` |
+| `bind-owner-by-agent` | an agent never binds the owner role | refused `owner-role` |
+| `bind-unauthorized` | a role the owner has not granted the principal | refused `role-not-authorized` |
+| `bind-ttl-long` | a binding lasts at most 24 hours | refused `ttl-out-of-range` |
+| `revoke-self` | the bound principal may revoke | allowed |
+| `revoke-owner` | the owner may revoke any binding | allowed |
+| `revoke-other` | another agent may not revoke | refused `not-allowed` |
+
+MH4 cases (group `authority`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `work-claim-review` | a review claim for the handoff's item lets a reviewer work | allowed |
+| `work-no-claim` | a delivered, acknowledged handoff without a claim grants nothing | refused `claim-required` |
+| `work-comment-only` | a comment naming the reviewer is not authority | refused `no-authority` |
+| `work-role-name` | a role name alone is not authority | refused `no-authority` |
+| `work-wrong-purpose` | a work claim does not meet a review scope | refused `scope-mismatch` |
+| `work-self-review` | a review by the session that did the work is forbidden | refused `self-review` |
+
+MH5 cases (group `delivery`; events are replayed in order):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `deliver-ack` | delivered, then acknowledged | deliver; ack; state `acknowledged` |
+| `deliver-twice` | a duplicate delivery changes nothing | deliver; deliver unchanged; state `delivered` |
+| `ack-twice` | a repeated acknowledgement is idempotent | deliver; ack; ack unchanged; state `acknowledged` |
+| `lost-ack` | an acknowledgement the sender never saw is safely repeated | deliver; ack; ack unchanged; state `acknowledged` |
+| `ack-before-deliver` | a recipient that polled can acknowledge a handoff whose delivery record was lost | ack; state `acknowledged` |
+| `failed-exhausted` | delivery that never succeeds fails after its attempts and escalates | fail; state `failed`; escalated |
+| `fail-early` | failure before the attempts are used is refused | fail refused `not-exhausted`; state `pending` |
+| `fail-after-delivery` | a delivered handoff cannot fail | deliver; fail refused `delivered`; state `delivered` |
+| `ack-other-principal` | another principal cannot acknowledge | deliver; ack refused `wrong-recipient`; state `delivered` |
+| `ack-revoked-binding` | a revoked binding cannot acknowledge | deliver; ack refused `revoked-binding`; state `delivered` |
+| `ack-wrong-revision` | an acknowledgement names the revision it received | deliver; ack refused `revision-mismatch`; state `delivered` |
+| `ack-wrong-delivery` | an acknowledgement names the delivery id | deliver; ack refused `delivery-mismatch`; state `delivered` |
+| `ack-after-supersede` | a delayed acknowledgement after supersession is recorded as stale | deliver; ack stale; state `acknowledged` |
+| `ack-after-cancel` | an acknowledgement of a cancelled handoff is refused | cancel; ack refused `cancelled`; state `cancelled` |
+| `cancel-pending` | a pending handoff may be cancelled | cancel; state `cancelled` |
+| `cancel-acknowledged` | an acknowledged handoff cannot be cancelled | deliver; ack; cancel refused `acknowledged`; state `acknowledged` |
+| `deliver-after-cancel` | an in-flight delivery after a cancel changes nothing | cancel; deliver refused `terminal`; state `cancelled` |
+
+MH6 cases (group `retry`):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `retry-default` | five attempts at 0, 1, 3, 7 and 15 minutes | offsets 0, 1, 3, 7, 15 |
+| `retry-capped` | the delay doubles from one minute and stops at thirty | offsets 0, 1, 3, 7, 15, 31, 61, 91 |
+| `dedupe-stable` | the deduplication key is fixed by handoff, revision and recipient | `dl_5b6fb2d2bffe465e` |
+| `dedupe-new-revision` | a new revision is a new key | `dl_85f04884eccf6162` |
+| `dedupe-other-recipient` | another recipient is a new key | `dl_632663f9bc2481ef` |
 
 ## Security (all levels)
 

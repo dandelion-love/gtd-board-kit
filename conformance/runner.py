@@ -195,6 +195,8 @@ SPEC_FULL = frozenset((
     "org_issue_types", "org_issue_type_set", "repo_variables", "repo_variable_set",
     "repo_variable_delete"))
 SPEC_FULL_PREFIXES = ("webhook_",)
+CLASS.update(dict.fromkeys(("handoff_send", "handoff_ack", "handoff_cancel", "handoff_bind", "handoff_unbind"), "work"))
+CLASS.update(dict.fromkeys(("handoff_get", "handoff_list", "handoff_bindings"), "read"))
 
 
 def spec_class(name: str) -> str | None:
@@ -2157,11 +2159,28 @@ def _handoff_case_result(case: dict, group: str, cmd: str | None) -> dict:
     import handoff as ho
     if group == "records":
         return {"problems": ho.validate(case["record"])}
-    return ho.run_head(case["events"])
+    if group == "head":
+        return ho.run_head(case["events"])
+    if group == "routing":
+        return ho.route(case)
+    if group == "bindings":
+        return ho.bind_op(case)
+    if group == "authority":
+        return ho.may_work(case)
+    if group == "delivery":
+        return ho.run_delivery(case)
+    if case["op"] == "offsets":
+        return {"offsets": ho.attempt_offsets(case["max_attempts"])}
+    return {"delivery_id": ho.delivery_id(case["handoff_id"], case["revision"], case["recipient"])}
+
+
+#: The check each group of handoff_cases.json belongs to.
+HANDOFF_GROUPS = {"MH2": ("head",), "MH3": ("routing",), "MH4": ("bindings", "authority"),
+                  "MH5": ("delivery",), "MH6": ("retry",)}
 
 
 def check_handoff_cases(rep: Report, cmd: str | None) -> None:
-    """MH1 and MH2: the golden handoff cases, against the reference or a server's own code."""
+    """MH1 to MH6: the golden handoff cases, against the reference or a server's own code."""
     cases = json.loads((HERE / "handoff_cases.json").read_text(encoding="utf-8"))
     who = "--handoff-cmd" if cmd else "the reference handoff rules"
     bad = []
@@ -2172,12 +2191,14 @@ def check_handoff_cases(rep: Report, cmd: str | None) -> None:
                 (not want["valid"] and not any(want["problem"] in p for p in problems)):
             bad.append(f"{c['name']}: {problems}")
     rep.check("MH1", not bad, "; ".join(bad[:4]), f"{len(cases['records'])} cases, {who}")
-    bad = [c["name"] for c in cases["head"]
-           if any(_handoff_case_result(c, "head", cmd).get(k) != v for k, v in c["expect"].items())]
-    rep.check("MH2", not bad, "; ".join(bad[:4]), f"{len(cases['head'])} cases, {who}")
+    for cid, groups in HANDOFF_GROUPS.items():
+        total = [(g, c) for g in groups for c in cases[g]]
+        bad = [c["name"] for g, c in total
+               if any(_handoff_case_result(c, g, cmd).get(k) != v for k, v in c["expect"].items())]
+        rep.check(cid, not bad, "; ".join(bad[:4]), f"{len(total)} cases, {who}")
 
 
-HANDOFF_IDS = ("MH1", "MH2")
+HANDOFF_IDS = ("MH1", "MH2", "MH3", "MH4", "MH5", "MH6")
 
 
 def check_handoff(rep: Report, tools: dict, cmd: str | None) -> None:
@@ -2189,7 +2210,7 @@ def check_handoff(rep: Report, tools: dict, cmd: str | None) -> None:
     if cmd:
         check_handoff_cases(rep, cmd)
     else:
-        for cid in ("MH1", "MH2"):
+        for cid in HANDOFF_IDS:
             rep.manual(cid, "run the golden handoff cases against the server's own code: --handoff-cmd CMD")
 
 

@@ -1,9 +1,14 @@
 """Reference for the milestone handoff contract (server-spec/milestone-handoff.md), for checks
-MH1 to MH2 (and the later groups). Standard library only. A server copies this file and holds
-its copy to conformance/handoff_cases.json.
+MH1 to MH6. Standard library only. A server copies this file and holds its copy to
+conformance/handoff_cases.json.
 
     validate(record)            -> list of problems ([] = a valid handoff record)
     run_head(events)            -> {"outcomes": [...], "heads": {milestone: {handoff_id, revision}}}
+    route(case)                 -> {"binding": id or None, "rule": refusal or None}
+    bind_op(case)               -> {"allowed": bool, "rule": refusal or None}
+    may_work(case)              -> {"allowed": bool, "rule": refusal or None}
+    run_delivery(case)          -> {"outcomes": [...], "state": ..., "escalated": bool}
+    delivery_id(...), attempt_offsets(...)
 
 `run_head` replays handoff, verdict and authorize events in comment order: the milestone head
 moves only by an accepted handoff, and a verdict is effective only when an authorize event
@@ -11,6 +16,7 @@ finds the verdict's handoff and revision current.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -129,3 +135,132 @@ def run_head(events: list[dict]) -> dict:
                 rule = None
             outcomes.append({"id": ev["verdict"], "effective": rule is None, "rule": rule})
     return {"outcomes": outcomes, "heads": heads}
+
+
+# ---------------------------------------------------------------------------
+# Routing and bindings
+# ---------------------------------------------------------------------------
+
+MAX_TTL_MINUTES = 24 * 60
+
+
+def route(case: dict) -> dict:
+    """Resolve a recipient role to one active session binding, or the rule that refuses."""
+    h, now = case["handoff"], case["now"]
+    role, named = h["recipient"]["role"], h["recipient"].get("principal")
+    roles = case.get("roles") or {}
+    live = [b for b in case["bindings"]
+            if b["role"] == role and (named is None or b["principal"] == named)
+            and (role == "worker" or b["principal"] in roles.get(role, []))
+            and not b.get("revoked") and b["expires"] > now]
+    if not live:
+        return {"binding": None, "rule": "no-binding"}
+    if len({b["principal"] for b in live}) > 1:
+        return {"binding": None, "rule": "ambiguous-recipient"}
+    pick = max(live, key=lambda b: b["expires"])
+    if h.get("purpose") == "review" and pick["session"] == h["sender_session"]:
+        return {"binding": None, "rule": "self-review"}
+    return {"binding": pick["binding_id"], "rule": None}
+
+
+def bind_op(case: dict) -> dict:
+    """May the caller create, replace or revoke this binding?"""
+    op, caller, owner, sub = case["op"], case["caller"], case["owner"], case["subject"]
+    if op == "revoke":
+        ok = caller in (sub["principal"], owner)
+        return {"allowed": ok, "rule": None if ok else "not-allowed"}
+    if caller != sub["principal"]:
+        return {"allowed": False, "rule": "others-binding"}
+    if sub["role"] == "owner":
+        return {"allowed": False, "rule": "owner-role"}
+    if sub["role"] != "worker" and caller not in (case.get("roles") or {}).get(sub["role"], []):
+        return {"allowed": False, "rule": "role-not-authorized"}
+    if case.get("ttl_minutes", 0) > MAX_TTL_MINUTES or case.get("ttl_minutes", 1) <= 0:
+        return {"allowed": False, "rule": "ttl-out-of-range"}
+    return {"allowed": True, "rule": None}
+
+
+def may_work(case: dict) -> dict:
+    """Does a handoff (delivered or acknowledged) let the recipient work? Only a claim does."""
+    claim = case.get("claim")
+    if case.get("via") in ("comment", "role-name"):
+        rule = "no-authority"
+    elif claim is None:
+        rule = "claim-required"
+    elif claim["purpose"] != case["scope_purpose"]:
+        rule = "scope-mismatch"
+    elif claim["purpose"] == "review" and claim["session"] in case.get("work_sessions", []):
+        rule = "self-review"
+    else:
+        rule = None
+    return {"allowed": rule is None, "rule": rule}
+
+
+# ---------------------------------------------------------------------------
+# Delivery
+# ---------------------------------------------------------------------------
+
+def delivery_id(handoff_id: str, revision: str, recipient: str) -> str:
+    """The stable deduplication key: the same across retries, new for another recipient."""
+    return "dl_" + hashlib.sha256(f"{handoff_id}|{revision}|{recipient}".encode()).hexdigest()[:16]
+
+
+def attempt_offsets(max_attempts: int = 5) -> list[int]:
+    """Minutes after the first attempt at which each attempt is made: the delay doubles
+    from one minute and stops growing at thirty."""
+    out, delay = [0], 1
+    for _ in range(max_attempts - 1):
+        out.append(out[-1] + delay)
+        delay = min(delay * 2, 30)
+    return out
+
+
+TERMINAL = ("acknowledged", "failed", "cancelled")
+
+
+def run_delivery(case: dict) -> dict:
+    h = case["handoff"]
+    want_id = delivery_id(h["handoff_id"], h["revision"], h["recipient"])
+    state, superseded, escalated = "pending", False, False
+    outcomes = []
+    for ev in case["events"]:
+        kind, out = ev["event"], {"event": ev["event"], "ok": True, "rule": None}
+        if kind == "supersede":
+            superseded = True
+        elif kind == "deliver":
+            if state == "pending":
+                state = "delivered"
+            elif state == "delivered":
+                out["unchanged"] = True
+            else:
+                out.update(ok=False, rule="terminal")
+        elif kind == "ack":
+            if state in ("cancelled", "failed"):
+                out.update(ok=False, rule=state)
+            elif ev["by"] != h["recipient"]:
+                out.update(ok=False, rule="wrong-recipient")
+            elif not ev.get("binding_active", True):
+                out.update(ok=False, rule="revoked-binding")
+            elif ev.get("delivery_id") != want_id:
+                out.update(ok=False, rule="delivery-mismatch")
+            elif ev.get("revision") != h["revision"]:
+                out.update(ok=False, rule="revision-mismatch")
+            elif state == "acknowledged":
+                out["unchanged"] = True
+            else:
+                state = "acknowledged"
+            if out["ok"] and superseded:
+                out["stale"] = True
+        elif kind == "fail":
+            if state == "pending" and ev.get("attempts", 0) >= case.get("max_attempts", 5):
+                state, escalated = "failed", True
+            else:
+                out.update(ok=False, rule="not-exhausted" if state == "pending" else state)
+        elif kind == "cancel":
+            if state in ("pending", "delivered"):
+                state = "cancelled"
+            else:
+                out.update(ok=False, rule=state)
+        if kind != "supersede":
+            outcomes.append(out)
+    return {"outcomes": outcomes, "state": state, "escalated": escalated}

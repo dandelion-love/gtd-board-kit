@@ -149,3 +149,102 @@ refuses a `session` equal to the worker's. A comment, a role name or a handoff n
 role is not authority either. `scope` records what the sender asked and is checked against
 the recipient's claim (`scope.item` is the claimed item; `scope.purpose` equals the claim's
 `purpose`); a mismatch refuses the work, it never widens a claim.
+
+## Routing and delivery
+
+### Bindings
+
+A handoff names a **role**, and a role is not a place. A **binding** connects an authorized
+principal in a role to a runtime **session** the server can reach: `{binding_id, principal,
+role, session, created_by, created_at, expires_at, revoked_at}`. The binding holds a
+session **name** only: never an address, URL or credential ([privacy](#instructions-and-privacy)).
+
+| Act | Who may | Rule |
+| --- | --- | --- |
+| Create | the principal, for **its own** session | the role is `worker`, or the owner granted that principal the role in the repo's context (`handoff.roles`, a map from role to principals); never `owner`; the call is authenticated, the principal comes from the token and never from an argument |
+| Replace | the same principal | a new binding for the same principal and role revokes the old one at once |
+| Revoke | the bound principal, or the owner | takes effect immediately; nobody else may revoke |
+| Expire | the clock | every binding has `expires_at`, at most 24 hours after creation (default 8); rebinding is how it is extended |
+
+An expired or revoked binding is not a route. A server MAY keep bindings in any store; it
+MUST be able to list them to the owner and to the bound principal (`handoff_bindings`).
+
+**Resolving a role.** Given the handoff's `recipient`, the server takes the active bindings
+(not revoked, not expired) of principals authorized for the role, limited to the named
+principal if the handoff names one:
+
+- none: `no-binding`; the handoff stays `pending`, and polling still reaches it;
+- more than one distinct principal and none named: `ambiguous-recipient`; the sender names
+  one;
+- a review whose binding's session equals the sender's: `self-review`; it is never routed.
+
+A binding routes a message. It grants **nothing else**: a claim is still needed before work
+([authority](#authority)), a comment or a role name alone grants no authority, and
+self-review stays forbidden. The cases `route-*`, `bind-*`, `revoke-*` and `work-*`
+([handoff_cases.json](../conformance/handoff_cases.json)) fix all of this, including the
+rejection of unauthorized routing, self-review and an expired or revoked binding.
+
+### Delivery
+
+- **At least once.** The server tries to reach the recipient session until it records
+  `deliver` or runs out of attempts. A recipient MUST treat a repeat as the same handoff.
+- **A stable deduplication key.** `delivery_id` is `dl_` and the first 16 hex characters of
+  the SHA-256 of `handoff_id|revision|recipient_principal`: the same on every retry, a new
+  one for a new revision or another recipient. Every message carries it.
+- **Acknowledgement is idempotent and bound.** `handoff_ack` names the `delivery_id`, the
+  `revision` and the caller's principal; it is accepted only when the caller is the
+  recipient (the named principal, or the one the role resolved to) **and** holds an active
+  binding. Another principal, or a revoked or expired binding, is refused
+  (`wrong-recipient`, `revoked-binding`); a wrong id or revision is refused
+  (`delivery-mismatch`, `revision-mismatch`). The same acknowledgement again returns
+  `unchanged` and changes nothing, so a lost acknowledgement is safely repeated.
+- **After supersession.** An acknowledgement that arrives after the handoff was superseded
+  is **recorded**, because the recipient did receive it, but marked `stale` with the head
+  named; it authorizes nothing, and the recipient reads the new head before it acts. A
+  repeat of an old acknowledgement is `unchanged`.
+- **Bounded retry.** At most `max_attempts` (default 5) attempts; attempt *k+1* follows
+  attempt *k* after a delay that starts at one minute, doubles and stops growing at thirty
+  (offsets 0, 1, 3, 7 and 15 minutes for five attempts).
+- **Escalation.** When the attempts are used up with no delivery, the server records `fail`
+  (terminal) and escalates once: an ordinary ask on the source issue (the `needs:` label for
+  the profile's `owner_needs`, with the one-line question "handoff `<id>` could not be
+  delivered to `<role>`"), which is the existing way a person is told when a person must act
+  ([notifications](notifications.md)). A handoff delivered but not acknowledged within
+  `ack_within` (default 24 hours) reads `overdue` in `handoff_list`; its state does not
+  change.
+- **In flight.** A message already sent cannot be unsent. Cancelling or superseding stops
+  further attempts and marks the record; a recipient that gets a stale or cancelled message
+  reads `handoff_get` and finds the state and the head. **A stale message authorizes no
+  work.**
+- **Transport success is not receipt, and receipt is not completion.** `deliver` only says the
+  transport reached a session; only `ack` says the recipient took it; the work is complete
+  only when the item says so.
+
+The cases `deliver-*`, `ack-*`, `lost-ack`, `failed-exhausted`, `cancel-*`, `retry-*` and
+`dedupe-*` fix the states, including a duplicate delivery, a lost acknowledgement, a failed
+delivery and an acknowledgement after supersession.
+
+### Tools
+
+The optional **Milestone handoff** group ([tools](tools.md#optional-groups)). `repo` and
+`number` name the source issue; none of these takes an identity argument.
+
+| Tool | Class | Arguments | Returns |
+| --- | --- | --- | --- |
+| `handoff_send` | work | `repo`, `number`, `milestone`, `revision`, `action`, `request`, `recipient_role`, `recipient_principal?`, `evidence?`, `supersedes?`, `session?` | the record, `handoff_id`, `delivery_id`, `state`, `head`, `route` (`bound` or the refusal rule), `warnings` |
+| `handoff_get` | read | `repo`, `handoff_id` | the record, `state`, `superseded_by`, `head` (the milestone's current `{handoff_id, revision}`), `stale`, `verdicts` (each `{url, verdict, revision, effective}`) |
+| `handoff_list` | read | `repo`, `number?`, `role?`, `state?`, `since?`, `limit?`, `cursor?` | handoffs with `state`, `overdue`, `stale`; for a recipient to poll |
+| `handoff_ack` | work | `repo`, `handoff_id`, `delivery_id`, `revision`, `session?` | `state`, `unchanged`, `stale`, `head` |
+| `handoff_cancel` | work | `repo`, `handoff_id`, `reason?` | `state` |
+| `handoff_bind` | work | `role`, `session`, `expires_in?` (at most `24h`) | the binding |
+| `handoff_unbind` | work | `binding_id` | the binding, revoked |
+| `handoff_bindings` | read | `principal?` | the caller's bindings (the owner sees all) |
+
+`handoff_send` refuses: a caller who holds no claim on the item (a worker's `purpose` `work`
+claim, or a reviewer's `review` claim: the sender must be the item's current holder); a
+pull request or a closed issue; a `revision` that is not a commit or digest; a refused head
+(`stale-base`, `same-revision`, `unknown-supersedes`); a recipient routed to the sender's own
+session (`self-review`); a `request` holding a record, `gtd-pr`, sign-off or handoff marker.
+A refused send writes nothing. `no-binding` is **not** a refusal: the handoff is written
+`pending` and retried.
+
