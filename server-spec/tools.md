@@ -250,6 +250,7 @@ that offers the capability uses the name.
 | Comment edits | `comment_update` (work): `repo`, `comment_id`, `body`, `session?`; `comment_redact` (work): `repo`, `comment_id`, `find`, `replace`, `session?` | Correcting a comment the server wrote, through the server, so the edit is signed instead of made with `gh` under a person's credentials. See [editing comments](#editing-comments) |
 | Stop | `item_stop` (work): `repo`, `number`, `reason?`, `wind_down?`, `session?`; `item_stop_clear` (work): `repo`, `number`, `note?`, `session?` | The owner asks a worker to wind down, as a signed record the server checks the owner for, mirrored by a label. See [stopping an item](#stopping-an-item) |
 | Stale done | `stale_done` (read): `repo`, `number?`, `branches?`, `limit?`; `item_close_done` (work): `repo`, `number`, `branches?`, `session?` | Finding open items whose merged work meets every acceptance criterion, and closing one only when the server's own check says so. See [closing finished items](#closing-finished-items) |
+| Stall check | `stall_check` (read): `repo?`, `mode?`, `silent_after?`, `handoff_after?`, `limit?`, `project?` | Listing the open items nobody is moving: a live claim with no recent report, and a handoff nobody holds, and saying when a person must act. Started by hand, never by a scheduler. See [checking for work that stands still](#checking-for-work-that-stands-still) |
 | Intake | `intake_list` (read), `intake_ack` (work); optional `intake_check` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue; and the clear, small, fits check a new item gets before it is ordered. See [intake](#intake) and [the intake check](#the-intake-check) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
@@ -257,6 +258,43 @@ that offers the capability uses the name.
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
+
+## Checking for work that stands still
+
+Nothing looks for work that has stopped moving: an item is marked stale only when someone
+reads it. `stall_check` is that look, as one read. It runs **when the owner or an agent asks
+for it**. It is not a lane and has no scheduler entry; a scheduled run needs the owner's own
+grant ([standing lanes](../knowledge/decisions/standing-lanes.md)).
+
+Arguments: `repo?`; `mode?` (`watch`, the default, or `speak`); `silent_after?` (a duration
+from `15m` to `72h`, default `4h`); `handoff_after?` (same range, default `2h`); `limit?`
+(default 30, 100 max); `project?`. It refuses another `mode`, and a duration outside the range.
+
+It lists open issues, never pull requests, of two kinds, with `kind`:
+
+| Kind | Listed when |
+| --- | --- |
+| `silent-claim` | the claim is live (its lease has not run out) and the holder's latest `claim` or `report` record is older than `silent_after`. A renew is a heartbeat, not a report |
+| `unheld-handoff` | nobody holds it, the latest release names a worker (`handoff_to` is a principal, a role or `any`), and that release is older than `handoff_after` |
+
+An item with no claim and no release is never listed. A lease that has run out is already
+`stale` in `item_get` and is not listed here. This differs from the `handoff` entry of
+`activity_since`: that shows a handoff to the principal it names, at that principal's own
+read; `stall_check` sweeps one repo for whoever runs it and also finds claims gone quiet.
+
+Each finding carries `number`, `title`, `url`, `kind`, `holder` (silent claim) or
+`handed_to` (handoff), `since` (the time of the report or release), `quiet_seconds` and
+`needs_person`. `needs_person` is true when the quiet time is at least **three times** the
+limit for its kind: the worker or the named worker has had three windows. The result adds
+`mode`, `checked` (the open issues read), `truncated` and `limits`.
+
+**Watch and speak.** In `watch` mode the result records what it would do in `would` (one
+line for each finding with `needs_person`: whom it would ask about which item) and
+`speak` is empty. In `speak` mode `speak` lists one question for each such finding
+(`number`, `needs`, `question`), where `needs` is the profile's owner value. The tool
+writes nothing in either mode: the caller sends each question with `item_report`
+`attention`, so the usual ping and the one-ping-per-ask rule apply. It speaks only when
+a person must act: with no finding past three windows, `speak` is empty.
 
 ## Stopping an item
 
