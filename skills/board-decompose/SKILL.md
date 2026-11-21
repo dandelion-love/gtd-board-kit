@@ -3,7 +3,7 @@ name: board-decompose
 description: Decompose an epic or outcome into stories, or a story into steps, through the gtd MCP server. Proposes work for a person to promote; never makes work agent-ready.
 metadata:
   author: gtd-board-kit
-  version: 0.4.0
+  version: 0.5.0
 ---
 
 # Decompose work into stories and steps
@@ -41,7 +41,7 @@ issue: steps have no PR and no claim. A step that needs its own PR is a `chore`:
 
 Titles and summaries follow `templates.md` (next to this file), Titles and summaries;
 `prose_check` each when offered. The epic body has its sections: Problem, Outcome
-check, Scope, Out of scope, Stories, Decisions, Risks and open questions, Gates. The
+check, Scope, Out of scope, Stories, Decisions, Risks and open questions, Release, Gates. The
 outcome check is one or two checkable criteria, beyond "every child is closed". Append each missing section as a draft with
 `issue_update`, keep the person's text, and say so in your report. Fill the Stories
 table in step 5.

@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-21
+
+* **Added**: release and repin (kit 0.47.0). Nothing said when a slice ships, what deploy it needs or who repins, so live workers could meet a server or skill they did not match. New model page `release-and-repin`: kit first with no repin, server accepting old and new calls, the owner deploys, a standard live check (version, old-argument round trip, the new field or tool, an old-client call), repin last; expand then contract; rollback; certify when the spec version changes; release trains. The epic template and `board-decompose` gain a `## Release` table (Slice, Kit change, Server change, Config or secret, Breaking, Live check), and `board-review` reports an epic with no Release table as missing. Skills: board-decompose 0.5.0, board-review 0.8.0. Docs and templates only: no server behaviour or conformance check changes.
+
 ## 2026-11-15
 
 * **Added**: closing finished items (kit 0.46.0). Items stayed open after their work merged into an integration branch, where GitHub never closes them, so a lab and a sibling repo held about 167 stale open issues. New optional Stale done group in `server-spec/tools.md`: `stale_done` (read) gives each open item with merged work a verdict `close` or `keep` with fixed reasons; `item_close_done` (work) re-checks, ticks the evidence boxes, posts one signed comment and closes, and refuses otherwise. A criterion is met only by its own evidence, so a PR that merely mentions an item closes nothing; epics, standing, `needs:*`, `agent:human`, `agent-proposed`, held items and mirrors are never closed. A repo turns the sweep off or narrows landed branches in `.gtd/BOARD.local.md`. Conformance gains SD1, SD2 and SD3 by hand. Skills: board-claim 0.9.0, board-lane 0.7.0.

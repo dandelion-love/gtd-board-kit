@@ -37,6 +37,14 @@ type: Epic
 
 - <!-- Risk or question; who answers it. -->
 
+## Release
+
+<!-- One row per slice that changes the kit or the server. See knowledge/model/release-and-repin.md. None. if nothing ships. -->
+
+| Slice | Kit change | Server change | Config or secret | Breaking | Live check |
+| --- | --- | --- | --- | --- | --- |
+| | | | | | |
+
 ## Gates
 
 - G1 epic intent: <!-- needed (four stories or more) or skipped -->
