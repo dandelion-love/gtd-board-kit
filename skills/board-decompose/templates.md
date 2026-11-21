@@ -70,6 +70,11 @@ For <who>, <the outcome>. Today <what is wrong>. <One more line if needed.>
 ## Risks and open questions
 - <Risk or question; who answers it (a needs:* label on the item it blocks).>
 
+## Release
+| Slice | Kit change | Server change | Config or secret | Breaking | Live check |
+| --- | --- | --- | --- | --- | --- |
+| #<n> | <what changes in the kit, or none> | <what changes in the server, or none> | <setting or credential the owner adds, or none> | <no, or why not additive> | <old-client call and new field or tool to check> |
+
 ## Gates
 - G1 epic intent: <needed (four stories or more) or skipped>
 - G3 walking skeleton: <#n, or skipped (changes an existing, working system)>
@@ -84,6 +89,10 @@ For <who>, <the outcome>. Today <what is wrong>. <One more line if needed.>
   (`issue_artifact_create`, when offered), so what the person approved stays on record.
 - Keep the person's text. A missing section is appended as a draft under its heading,
   marked `_Draft by an agent; edit freely._`, and named in your report.
+- The **Release** table says how each slice ships
+  ([release and repin](../../knowledge/model/release-and-repin.md)). A slice that changes
+  neither the kit nor the server says `none` in both columns; an epic with no such slice
+  says `None.` under the heading.
 - Every section is present. One with nothing in it says `None.` so a reader knows it
   was considered.
 
