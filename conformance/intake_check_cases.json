@@ -1,0 +1,378 @@
+{
+  "about": "Golden cases for the intake check's status and write rules (server-spec/tools.md, The intake check; check I6). Times are minutes; records are in comment order; a null mode reads as watch. op status: derive the item's status; op write: may the call be written (expect.refused is the rule it breaks, or null).",
+  "cases": [
+    {
+      "name": "pass-watch",
+      "what": "a pass in watch mode",
+      "op": "status",
+      "records": [
+        {
+          "result": "pass"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": "watch",
+      "expect": {
+        "status": "pass",
+        "grandfathered": false,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "needs-more-watch",
+      "what": "needs-more in watch mode blocks nothing",
+      "op": "status",
+      "records": [
+        {
+          "result": "needs-more"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": "watch",
+      "expect": {
+        "status": "needs-more",
+        "grandfathered": false,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "decline-watch",
+      "what": "decline in watch mode blocks nothing",
+      "op": "status",
+      "records": [
+        {
+          "result": "decline"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": "watch",
+      "expect": {
+        "status": "decline",
+        "grandfathered": false,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "needs-more-enforce",
+      "what": "needs-more in enforce mode is held",
+      "op": "status",
+      "records": [
+        {
+          "result": "needs-more"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": "enforce",
+      "expect": {
+        "status": "needs-more",
+        "grandfathered": false,
+        "held": true,
+        "pickable": false
+      }
+    },
+    {
+      "name": "decline-enforce",
+      "what": "decline in enforce mode is held",
+      "op": "status",
+      "records": [
+        {
+          "result": "decline"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": "enforce",
+      "expect": {
+        "status": "decline",
+        "grandfathered": false,
+        "held": true,
+        "pickable": false
+      }
+    },
+    {
+      "name": "pass-enforce",
+      "what": "a pass in enforce mode is pickable",
+      "op": "status",
+      "records": [
+        {
+          "result": "pass"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": "enforce",
+      "expect": {
+        "status": "pass",
+        "grandfathered": false,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "unchecked-watch",
+      "what": "no record reads unchecked, never pass",
+      "op": "status",
+      "records": [],
+      "created": 10,
+      "since": 5,
+      "mode": "watch",
+      "expect": {
+        "status": "unchecked",
+        "grandfathered": false,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "unchecked-enforce",
+      "what": "no record in enforce mode reads unchecked and is not held",
+      "op": "status",
+      "records": [],
+      "created": 10,
+      "since": 5,
+      "mode": "enforce",
+      "expect": {
+        "status": "unchecked",
+        "grandfathered": false,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "grandfathered-enforce",
+      "what": "an item older than since with no record is grandfathered and never held",
+      "op": "status",
+      "records": [],
+      "created": 3,
+      "since": 5,
+      "mode": "enforce",
+      "expect": {
+        "status": "unchecked",
+        "grandfathered": true,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "grandfathered-watch",
+      "what": "the same in watch mode",
+      "op": "status",
+      "records": [],
+      "created": 3,
+      "since": 5,
+      "mode": "watch",
+      "expect": {
+        "status": "unchecked",
+        "grandfathered": true,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "recheck-supersedes",
+      "what": "the latest record wins: needs-more then pass is a pass",
+      "op": "status",
+      "records": [
+        {
+          "result": "needs-more"
+        },
+        {
+          "result": "pass"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": "enforce",
+      "expect": {
+        "status": "pass",
+        "grandfathered": false,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "recheck-holds",
+      "what": "the latest record wins: pass then decline is held in enforce",
+      "op": "status",
+      "records": [
+        {
+          "result": "pass"
+        },
+        {
+          "result": "decline"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": "enforce",
+      "expect": {
+        "status": "decline",
+        "grandfathered": false,
+        "held": true,
+        "pickable": false
+      }
+    },
+    {
+      "name": "mode-default",
+      "what": "an unset or unknown mode reads as watch",
+      "op": "status",
+      "records": [
+        {
+          "result": "decline"
+        }
+      ],
+      "created": 10,
+      "since": 5,
+      "mode": null,
+      "expect": {
+        "status": "decline",
+        "grandfathered": false,
+        "held": false,
+        "pickable": true
+      }
+    },
+    {
+      "name": "old-recorded",
+      "what": "an old item with a record is not grandfathered",
+      "op": "status",
+      "records": [
+        {
+          "result": "needs-more"
+        }
+      ],
+      "created": 3,
+      "since": 5,
+      "mode": "enforce",
+      "expect": {
+        "status": "needs-more",
+        "grandfathered": false,
+        "held": true,
+        "pickable": false
+      }
+    },
+    {
+      "name": "write-pass",
+      "what": "all three yes is a pass",
+      "op": "write",
+      "result": "pass",
+      "clear": true,
+      "small": true,
+      "fits": true,
+      "note": null,
+      "expect": {
+        "refused": null
+      }
+    },
+    {
+      "name": "write-pass-no",
+      "what": "a pass with one no is refused",
+      "op": "write",
+      "result": "pass",
+      "clear": true,
+      "small": false,
+      "fits": true,
+      "note": null,
+      "expect": {
+        "refused": "pass-needs-all-three"
+      }
+    },
+    {
+      "name": "write-needs-more",
+      "what": "small is no, fits yes, with a note",
+      "op": "write",
+      "result": "needs-more",
+      "clear": true,
+      "small": false,
+      "fits": true,
+      "note": "split it",
+      "expect": {
+        "refused": null
+      }
+    },
+    {
+      "name": "write-needs-more-bare",
+      "what": "needs-more with no note is refused",
+      "op": "write",
+      "result": "needs-more",
+      "clear": true,
+      "small": false,
+      "fits": true,
+      "note": null,
+      "expect": {
+        "refused": "note-required"
+      }
+    },
+    {
+      "name": "write-needs-more-all-yes",
+      "what": "needs-more with every answer yes is refused",
+      "op": "write",
+      "result": "needs-more",
+      "clear": true,
+      "small": true,
+      "fits": true,
+      "note": "x",
+      "expect": {
+        "refused": "needs-more-shape"
+      }
+    },
+    {
+      "name": "write-needs-more-no-fit",
+      "what": "needs-more when it does not fit is refused",
+      "op": "write",
+      "result": "needs-more",
+      "clear": true,
+      "small": true,
+      "fits": false,
+      "note": "x",
+      "expect": {
+        "refused": "needs-more-shape"
+      }
+    },
+    {
+      "name": "write-decline",
+      "what": "decline when it does not fit, with a note",
+      "op": "write",
+      "result": "decline",
+      "clear": true,
+      "small": true,
+      "fits": false,
+      "note": "not this board's work",
+      "expect": {
+        "refused": null
+      }
+    },
+    {
+      "name": "write-decline-fits",
+      "what": "decline when it fits is refused",
+      "op": "write",
+      "result": "decline",
+      "clear": true,
+      "small": true,
+      "fits": true,
+      "note": "x",
+      "expect": {
+        "refused": "decline-needs-no-fit"
+      }
+    },
+    {
+      "name": "write-bad-result",
+      "what": "a result outside the three is refused",
+      "op": "write",
+      "result": "maybe",
+      "clear": true,
+      "small": true,
+      "fits": true,
+      "note": "x",
+      "expect": {
+        "refused": "result"
+      }
+    }
+  ]
+}

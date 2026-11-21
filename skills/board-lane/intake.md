@@ -37,6 +37,59 @@ One tick:
 The lane never sets `taken` on its own, never adds `agent-ready`, and never builds a
 request: that is a new item, pointed by a person.
 
+## The intake check: clear, small, fits
+
+The intake lane also checks each new item before it is ordered. This **reuses** the lane
+above: same lane, same `intake_list` read, same owner line. What changes, and what does not:
+
+| Part | Changes? |
+| --- | --- |
+| The lane block, its switch (`observe` first, then `auto`) and its `may` | no; add "check new items" to `may` |
+| `intake_list`, `intake_ack` and the ack states | no; `intake_list` rows gain `check` (below) |
+| One tick's order | the check comes after the ack of step 2 |
+| `intake_check` (new) | records the result on the item |
+| Pickup | in `enforce` mode, `list_next_actions` omits an item whose result is `needs-more` or `decline` |
+
+Three questions, answered from the item alone:
+
+1. **Clear**: does it say who it helps, what is wrong today and what changes, with
+   criteria a person could tick? (The ready check's `acceptance-criteria` and `prose`
+   rules answer most of this: `item_ready`, `prose_check`.)
+2. **Small enough**: can one agent finish it in one pull request? Size XL, or an epic's
+   whole plan, is not small enough.
+3. **Fits**: is it work this board exists for (its purpose in `.gtd/BOARD.local.md`)?
+
+Record the answer with `intake_check(repo, number, result, clear, small, fits, note)`:
+
+| `result` | When | `note` |
+| --- | --- | --- |
+| `pass` | all three are yes | optional |
+| `needs-more` | clear or small is no, and it fits | required: what to add or split |
+| `decline` | it does not fit | required: why, in one line |
+
+A sample record (the visible line a person reads; the marker follows it):
+
+```text
+Intake check: needs-more. clear: yes. small: no. fits: yes.
+Note: covers three outcomes; split the export and the import.
+<!-- gtd-intake-check v1 {"by": "agent:example", "clear": true, "fits": true, "note": "covers three outcomes; split the export and the import", "result": "needs-more", "small": false, "t": "2026-01-01T12:00:00Z", "v": 1} -->
+```
+
+An item with **no record reads `unchecked`**, never `pass`. A new check replaces the
+last one. Never touch the item's text, labels or `agent-ready`: the check only records;
+a person decides what to do with `needs-more` and `decline`.
+
+**Mode.** The server's check mode is `watch` or `enforce`, and `item_get` shows it as
+`intake_check.mode`. It starts in **`watch`** (the default; a server setting named
+`INTAKE_CHECK_MODE`, changed only by the owner): the check records a result and blocks
+nothing. In `enforce`, a `needs-more` or `decline` result also adds the owner's `needs:*`
+label and keeps the item out of the pickup queue. Enforcing starts only after the owner
+has read the watch record. Items that existed before the server began checking are
+**grandfathered**: they read `unchecked` with `grandfathered` true and are never held in
+either mode.
+
+A tick under `observe` reports "would record needs-more on item n" and writes nothing.
+
 ## The filing end: liveness
 
 1. File the request with `capture` in the other project's intake repo, with its label.
