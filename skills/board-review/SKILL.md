@@ -43,8 +43,11 @@ Read the issue, its parent, its sub-issues and its blockers (`item_get`,
 
 - **Shape.** The body has every section of its Kind in
   `.gtd/kit/skills/board-decompose/templates.md`. An epic: Problem, Outcome check,
-  Scope, Out of scope, Stories, Decisions, Risks and open questions, Gates. A story: one
+  Scope, Out of scope, Stories, Decisions, Risks and open questions, Release, Gates. A story: one
   `## Acceptance criteria` heading, `Steps`, `Blocked by` lines.
+- **Release.** `None.` or a well-formed table under `## Release`, as
+  `.gtd/kit/knowledge/model/release-and-repin.md` (Review) says. Otherwise report it as
+  **missing** or malformed; for a section that is absent, suggest appending it as a draft.
 - **Title and summary.** `prose_check(repo, number)` when offered (epics too): each
   `fail` is a finding, each `warn` one when you agree. Suggest the rewritten title and
   summary (`templates.md`, Titles and summaries).

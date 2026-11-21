@@ -14,3 +14,4 @@
 * [Grants that widen rule 9](grants.md) - A merged, named BOARD.local grant lets an agent merge a PR whose every file it lists, or edit a named workflow
 * [Milestone handoff](milestone-handoff.md) - An optional packet naming an immutable revision and one next action; delivery, verdict and completion stay apart, and a verdict counts only for the revision it names
 * [Typed links between items](typed-links.md) - A fixed set of link kinds; only depends-on is a native blocked-by, the rest are Related lines on both ends, and one fold feeds the issues and the OKF graph
+* [Release and repin](release-and-repin.md) - A slice ships in a fixed order, stays additive, passes a live check, and rides a release train
