@@ -2507,6 +2507,28 @@ def check_stop(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
               f"stop {item.get('stop')!r}; labels {labels}")
 
 
+def check_interruption_limit(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """C23: the interruption limit is visible and `decision` is validated (claim-records.md). C24 is by hand."""
+    props = ((tools.get("item_report") or {}).get("inputSchema") or {}).get("properties") or {}
+    if "decision" not in props:
+        rep.na("C23", "item_report does not take decision")
+        return
+    if sb is None:
+        rep.skip("C23", "needs --repo")
+        return
+    n = sb.issue("interruption limit")
+    _, got, _ = c.call("item_get", sb.args(n))
+    item = (got or {}).get("item") or {}
+    limit = item.get("interruption_limit")
+    lone, _, t_lone = c.call("item_report", sb.args(n, note="x", decision="retry"))
+    word, _, t_word = c.call("item_report", sb.args(n, answering=1, note="x", decision="maybe"))
+    rep.check("C23", isinstance(limit, int) and not isinstance(limit, bool) and limit >= 1
+              and "escalation" in item and item["escalation"] is None
+              and not lone and "answering" in t_lone.lower() and not word,
+              f"limit {limit!r}; escalation {item.get('escalation', 'absent')!r}; decision alone refused {not lone} "
+              f"({t_lone[:50]}); unknown word refused {not word}")
+
+
 def check_stale_done(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """SD1 and SD2: the stale-done tools, when either is offered. SD3 is by hand."""
     have = [t for t in ("stale_done", "item_close_done") if t in tools]
@@ -3648,6 +3670,10 @@ MANUAL = {
     "C21": "claim with lease 1m, wait two minutes: item_get shows stale and interruptions 1; a takeover by a "
            "second principal keeps interruptions at 1, names previous_holder and shows the abandoned "
            "worker's last four parts, or none recorded",
+    "C24": "with the interruption limit reached by abandoned leases, the next claim refuses interruption-limit "
+           "and posts one question for the owner; a second claim refuses and posts nothing; answering with "
+           "decision retry resets interruptions to 0, clears escalation and a claim succeeds; another "
+           "answer leaves escalation held and claims still refuse",
     "C18": "review a PR opened through pr_open, and comment on a channel issue: activity_since for the "
            "PR's by principal lists a pr review with its review_state, and a channel comment",
     "J1": "remove every approver: /join/start and joined tokens are refused",
@@ -3774,6 +3800,7 @@ def main(argv: list[str]) -> int:
                 check_comment_edits(rep, c, _tools, sb)
                 check_stale_done(rep, c, _tools, sb)
                 check_stop(rep, c, _tools, sb)
+                check_interruption_limit(rep, c, _tools, sb)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)
