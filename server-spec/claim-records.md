@@ -105,15 +105,19 @@ of the four parts is accepted with a warning that names the four.
 
 ## Interruptions
 
-An **interruption** is a lease that ended without its holder letting go. It is counted
-once, by this rule: **one for each takeover, and one for a lease that has run out and is
-still held by its holder** (stale). A takeover is how a stale lease stops being stale, so
-the same lease is never counted twice. A release, a `dropped` report and a hand-off to a
-fresh claim are not interruptions. The count is a pure fold of the records:
+An **interruption** is counted for each lease that ended without its holder letting go: a
+takeover of it, or a lease that has run out and is still held. **Never twice for one
+lease**: a takeover is how a stale lease stops being stale, so the same lease moves from
+one reading to the other. A release, a `dropped` report and a fresh claim after a release
+(a handoff) are not interruptions. The count is a pure fold of the records:
 
 ```
 interruptions = (valid takeover claims) + (1 if the holder's lease has run out)
 ```
+
+**The count is not monotonic.** The `+1` is a reading of the clock. A holder whose lease
+lapsed and who then renews (the fold lets the holder renew) is live again, and the count
+falls by that one. Takeovers never fall.
 
 The fold also keeps `previous_holder`: the holder a valid takeover replaced, or the one
 who last released; never cleared by a later claim. A `claim` record MAY carry
@@ -132,6 +136,9 @@ in progress shows the note of the lease before it, until it ends.
 
 `stop` and `stop_clear` are written only by `item_stop` and `item_stop_clear` for a caller
 the server has checked as the item's owner ([the stop signal](../knowledge/model/stop-signal.md)).
+**The fold re-checks that**: it ignores a `stop` or `stop_clear` whose `by` is not the owner
+or a principal the profile names as an owner, so a marker pasted into a comment by anyone
+else is conversation, even where every record counts.
 The fold keeps one **stop** while it is in effect: the first `stop` after the last
 `stop_clear` (a later `stop` changes nothing). A stop in effect has a state:
 `requested` while someone holds the item, and `at-rest` when nobody does (no worker, or
@@ -165,6 +172,12 @@ records (normally the server's own App bot). When configured, a record in a comm
 anyone else is ignored and treated as conversation, so nobody can forge a claim by pasting
 a marker. When not configured, every record counts; a deployment should configure it
 before more than one person or tool writes to its repos.
+
+This holds for **every** record type (claims, releases, reports, stop, and the optional
+records of other groups). A deployment with more than one writer MUST configure record
+authors, and a server that offers the Stop group or enforces the intake check MUST: without
+them any commenter could pose as a holder or an owner.
+
 
 ## The fold
 

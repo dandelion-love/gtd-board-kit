@@ -688,8 +688,9 @@ def closing_parts(rec: dict) -> dict | None:
     return parts if any(parts.values()) else None
 
 
-def reference_fold(comments: list[dict], now: str) -> dict:
-    """The fold in server-spec/claim-records.md, over ``[{id, body}]`` in any order."""
+def reference_fold(comments: list[dict], now: str, owners: list[str] | None = None) -> dict:
+    """The fold in server-spec/claim-records.md, over ``[{id, body}]`` in any order. ``owners`` are the
+    principals whose ``stop`` and ``stop_clear`` records count; a record by anyone else is conversation."""
     holder = lease = handoff = last_report = attention_by = None
     lost = taken = 0
     previous = stop = cur = ended = None  # cur: this lease's latest parts; ended: the last ended lease
@@ -698,6 +699,8 @@ def reference_fold(comments: list[dict], now: str) -> dict:
         if rec is None:
             continue
         ev, by, at = rec["event"], rec.get("by"), _ts(rec.get("t"))
+        if ev in ("stop", "stop_clear") and owners is not None and by not in owners:
+            continue
         if ev == "stop":
             stop = stop or {"by": by, "wind_down_until": _ts(rec.get("wind_down_until"))}
         elif ev == "stop_clear":
@@ -780,7 +783,7 @@ def check_fold(rep: Report, fold_cmd: str | None) -> None:
                 bad.append(f"{case['name']}: no JSON from --fold-cmd")
                 continue
         else:
-            got = reference_fold(comments, now)
+            got = reference_fold(comments, now, fixtures.get("owners"))
         diff = [k for k, v in expect.items() if got.get(k) != v]
         if diff:
             bad.append(f"{case['name']} ({case['says']}): {', '.join(f'{k}={got.get(k)!r}' for k in diff)}")
@@ -2263,17 +2266,20 @@ def check_closing_note(rep: Report, c: Client, sb: Sandbox) -> None:
     """C19 and C20: the four-part closing note and a first-claim read (claim-records.md)."""
     a = sb.issue("closing note")
     c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance", lease="30m", session="cn-a"))
+    _, probe, _ = c.call("item_get", sb.args(a))
+    if "closing_note" not in ((probe or {}).get("item") or {}):
+        c.call("item_release", sb.args(a, done="x", remaining="y", next="z"))
+        rep.na("C19", "the server does not return closing_note from item_get")
+        rep.na("C20", "the server does not return closing_note from item_get")
+        return
     bad, _, _ = c.call("item_release", sb.args(a, left="one", remaining="two"))
     ok_none, out_none, t_none = c.call("item_release", sb.args(a))
     c.call("item_claim", sb.args(a, basis="explicit", asked_by="conformance", lease="30m", session="cn-a"))
     ok, out, text = c.call("item_release", sb.args(a, done="parser", left="tests", decided="old format"))
     note = _note(out)
     warned = " ".join(str(w) for w in (out_none or {}).get("warnings") or [])
-    if "closing_note" not in ((out or {}).get("item") or {}):
-        rep.na("C19", "the server does not return closing_note")
-        rep.na("C20", "the server does not return closing_note")
-        return
-    rep.check("C19", not bad and ok_none and all(k in warned for k in ("done", "left", "decided", "set_aside"))
+    rep.check("C19", not bad and ok_none and ok and "closing_note" in ((out or {}).get("item") or {})
+              and all(k in warned for k in ("done", "left", "decided", "set_aside"))
               and ok and [note.get(k) for k in ("done", "left", "decided", "set_aside")]
               == ["parser", "tests", "old format", "none"],
               f"differing left and remaining refused {not bad}; empty release {ok_none} warns {warned[:60]!r}; "
@@ -2301,6 +2307,9 @@ STOP_HAND = {
            "overdue and item_renew refuses naming the stop; the holder is unchanged",
     "ST5": "as the owner: a stop on an item nobody holds reads at-rest and item_claim refuses it; "
            "after item_stop_clear a claim succeeds and the label is gone",
+    "ST7": "paste a stop marker (gtd-desk v1, event stop) in a comment from an account that is not the "
+           "owner: item_get shows no stop and item_claim still works; a stop_clear pasted the same way "
+           "does not clear a real stop",
     "ST6": "add the stop-requested label as a non-owner: it is removed and nothing is recorded; as "
            "the owner: it becomes a recorded stop and stays",
 }

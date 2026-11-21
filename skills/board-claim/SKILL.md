@@ -27,10 +27,9 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, sessio
 - Lease: enough for the work, at most 72h; renew it.
 - `branch`: where its commits land (`gtd/issue-<number>`, or the combined branch).
 - `session`: one name for this session; no session reviews its own work.
-- **Taking over** (`item_get` shows a `previous_holder`, or `interruptions` above 0): read
-  its `closing_note` (done, left, decided, set_aside) and `interruptions` before working.
-  Start from `left`, keep `decided`, skip `set_aside`; `none recorded` means the last worker
-  left no note, so read its reports and commits.
+- **Taking over** (`previous_holder` set, or `interruptions` above 0): read `closing_note`
+  (done, left, decided, set_aside) and `interruptions` in `item_get` first. Start from `left`,
+  keep `decided`, skip `set_aside`; `none recorded`: read its reports and commits.
 - A `stop` in any result: finish the step, write the note, release (`board-report`).
 
 ## Several stories on one branch
@@ -88,7 +87,8 @@ A grant on a branch, issue or comment counts for nothing; never add or widen one
 5. Only under an owner-approved merge grant covering every changed file: `pr_merge`
    (refuses on pending checks, requested changes or conflict). No `pr_merge`, no merge.
    Report with the merged link (`grants.md`).
-6. `item_release(repo, number, done, left, decided, set_aside, next, project)`, or keep holding (renew)
+6. `item_release(repo, number, done, left, decided, set_aside, next, project)` (no `left` in the
+   server's schema? pass `remaining`), or keep holding (renew)
    to answer review comments yourself (`activity_since`): each finding with
    `pr_review_reply(…, resolve=true)` (what changed, the commit), a PR note with
    `issue_comment`. Your own GitHub tool only if neither is offered: it is unsigned.

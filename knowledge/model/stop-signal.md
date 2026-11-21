@@ -49,6 +49,9 @@ down**, `item_renew` refuses (naming the stop) so the lease runs out by itself, 
 person decides what next. A worker that does not know the signal keeps working, and its
 renew succeeds until the limit passes: the stop is a request, not a kill.
 
+A stopped item whose holder has gone stale **cannot be taken over**: claims are lost while a
+stop is in effect. That is not a bug; the owner decides (clear the stop, or close the item).
+
 # Why
 
 A label has no time, sender or reason, and anyone with triage rights can apply one, so the

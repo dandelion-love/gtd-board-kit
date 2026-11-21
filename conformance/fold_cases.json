@@ -2,6 +2,7 @@
   "about": "Golden cases for the claim fold (server-spec conformance C13). Times are minutes after base; 'now' is when the fold runs. Each record becomes one comment in this order, carrying the marker from server-spec/claim-records.md.",
   "base": "2026-01-01T00:00:00Z",
   "now": 200,
+  "owners": ["person:owner"],
   "cases": [
     {
       "name": "a",
@@ -206,6 +207,34 @@
         {"event": "claim", "by": "agent:a", "t": 20, "lease_until": 300}
       ],
       "expect": {"holder": "agent:a", "stop_state": null, "lost_claims": 0}
+    },
+    {
+      "name": "w",
+      "says": "a stop pasted by an account that is not the owner is ignored: the claim wins",
+      "records": [
+        {"event": "stop", "by": "person:stranger", "t": 10, "wind_down_until": 40},
+        {"event": "claim", "by": "agent:a", "t": 20, "lease_until": 300}
+      ],
+      "expect": {"holder": "agent:a", "stop_state": null, "lost_claims": 0}
+    },
+    {
+      "name": "x",
+      "says": "a stop_clear by a non-owner does not clear the owner's stop",
+      "records": [
+        {"event": "stop", "by": "person:owner", "t": 10, "wind_down_until": 40},
+        {"event": "stop_clear", "by": "person:stranger", "t": 15},
+        {"event": "claim", "by": "agent:a", "t": 20, "lease_until": 300}
+      ],
+      "expect": {"holder": null, "stop_state": "at-rest", "lost_claims": 1}
+    },
+    {
+      "name": "y",
+      "says": "a late renew of a lapsed lease brings it back to live, and the count falls: it is not monotonic",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 60},
+        {"event": "renew", "by": "agent:a", "t": 90, "lease_until": 300}
+      ],
+      "expect": {"holder": "agent:a", "stale": false, "interruptions": 0}
     }
   ]
 }

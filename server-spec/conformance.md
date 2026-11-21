@@ -93,8 +93,11 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 | t | claim A; `stop`; A releases with the four parts | no holder, `stop_state` `at-rest`, A's parts |
 | u | `stop`; then claim A | claim lost, no holder, `at-rest` |
 | v | `stop`; `stop_clear`; claim A | holder A, no stop |
+| w | `stop` by an account that is not the owner; claim A | the stop is ignored: holder A, no stop |
+| x | `stop` by the owner; `stop_clear` by a non-owner; claim A | the clear is ignored: claim lost, `at-rest` |
+| y | claim A to 60; A renews at 90 to 300; now is 200 | holder A, not stale, `interruptions` 0 (the count is not monotonic) |
 
-The fold result keys the cases read besides the first five are `interruptions`,
+The fixtures name `owners` (the principals whose `stop` and `stop_clear` count); a fold gets them as a second input. The fold result keys the cases read besides the first five are `interruptions`,
 `previous_holder`, `closing_by`, `closing_parts` (the four parts in the order `done`,
 `left`, `decided`, `set_aside`), `stop_state` (`requested`, `at-rest` or null) and
 `overdue`. A fold that does not compute them fails these cases, so a server that has not
@@ -369,7 +372,7 @@ these ([closing finished items](tools.md#closing-finished-items)). SD2 needs a s
 ## Stop (when offered)
 
 A server that lists `item_stop` or `item_stop_clear` ([stopping an item](tools.md#stopping-an-item))
-must also pass these. ST2 needs a sandbox repo and a caller who is not the item's owner.
+must also pass these, and must have record authors configured. ST2 needs a sandbox repo and a caller who is not the item's owner.
 
 | Id | Check |
 | --- | --- |
@@ -379,6 +382,7 @@ must also pass these. ST2 needs a sandbox repo and a caller who is not the item'
 | ST4 | (by hand, owner) With `wind_down` `5m`, `item_renew` succeeds before the limit; after it `item_get` shows `overdue` true and `item_renew` refuses naming the stop; the holder is unchanged |
 | ST5 | (by hand, owner) A stop on an item nobody holds is recorded `at-rest`, `item_claim` refuses naming the stop, and after `item_stop_clear` a claim succeeds and the label is gone |
 | ST6 | (by hand) The `stop-requested` label added by a person who is not the owner is removed and nothing is recorded; added by the owner it becomes a recorded stop and stays |
+| ST7 | (by hand) A `stop` marker pasted in a comment by an account that is not the owner is ignored: `item_get` shows no stop and `item_claim` still works; a `stop_clear` pasted the same way does not clear a real stop |
 
 ## Notifications (when offered)
 

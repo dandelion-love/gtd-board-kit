@@ -69,7 +69,7 @@ item's `follow_ups` (`item_get`) and each channel (`channel_comments_read`).
   set_aside, next, handoff_to, project)`: the four-part closing note
   (`.gtd/kit/knowledge/model/report-vocabulary.md`): what is done, what is left, what you
   decided (each with its undo) and what you set aside. Write `none` for an empty part.
-  `remaining` still works as `left`. `handoff_to` is a principal, a role, `any`, or omitted.
+  On a server whose `item_release` schema has no `left`, pass `remaining` for it. `handoff_to` is a principal, a role, `any`, or omitted.
   An item left held by a session that has ended blocks everyone until the lease expires.
 - **A stop.** `stop` in any `item_get`, `item_renew` or `item_report` result is the
   owner's request (`.gtd/kit/knowledge/model/stop-signal.md`): finish the current step,
