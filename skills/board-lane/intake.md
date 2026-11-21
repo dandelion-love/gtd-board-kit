@@ -75,6 +75,8 @@ Note: covers three outcomes; split the export and the import.
 <!-- gtd-intake-check v1 {"by": "agent:example", "clear": true, "fits": true, "note": "covers three outcomes; split the export and the import", "result": "needs-more", "small": false, "t": "2026-01-01T12:00:00Z", "v": 1} -->
 ```
 
+Only the lane's principal (a checker the repo names) or the owner records a check; a worker never records one on its own item, and a later `pass` lifts the hold the server added.
+
 An item with **no record reads `unchecked`**, never `pass`. A new check replaces the
 last one. Never touch the item's text, labels or `agent-ready`: the check only records;
 a person decides what to do with `needs-more` and `decline`.

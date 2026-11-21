@@ -1403,6 +1403,15 @@ def check_activity(rep: Report, c: Client, c2: Client | None, sb: Sandbox, n: in
               f"page 1 {t1[:60] if not ok1 else len(first)} next {bool(cur)}; page 2 {len(second)}")
 
 
+def next_action_rows(res: tuple) -> list[dict]:
+    """The rows of a ``list_next_actions`` result ``(ok, out, text)``, whichever envelope the
+    server uses: a bare list, or ``result``, ``items`` or ``issues``."""
+    out = res[1]
+    if isinstance(out, list):
+        return out
+    return (out or {}).get("result") or (out or {}).get("items") or (out or {}).get("issues") or []
+
+
 def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: dict,
                who: dict | None = None) -> None:
     repo = sb.repo
@@ -1428,9 +1437,7 @@ def check_repo(rep: Report, c: Client, c2: Client | None, sb: Sandbox, profile: 
     # P6 next actions
     tag = sb.issue("next action", labels=["agent-ready"])
 
-    def next_rows(res):
-        out = res[1]
-        return out if isinstance(out, list) else (out or {}).get("result") or (out or {}).get("items") or []
+    next_rows = next_action_rows
 
     ok, out, text = settle(
         lambda: c.call("list_next_actions", {"repo": repo, "context": "agent-ready", "limit": 100}),
@@ -2172,14 +2179,12 @@ def check_intake_check_cases(rep: Report, cmd: str | None) -> None:
 
 
 INTAKE_CHECK_MANUAL = {
-    "I10": "with INTAKE_CHECK_MODE=enforce on a scratch repo: a needs-more or decline item gets the "
+    "I10": "with record authors configured and INTAKE_CHECK_MODE=enforce on a scratch repo: a needs-more or decline item gets the "
            "owner's needs label (held true), is absent from list_next_actions, and an inferred "
-           "claim of it refuses; an unchecked item and a grandfathered one stay pickable",
+           "claim of it refuses; an unchecked item and a grandfathered one stay pickable; a later pass by "
+           "the checker removes the label the server added; with no record authors configured the mode "
+           "reads watch whatever the setting; a call by the item's holder is refused not-the-checker",
 }
-
-
-def _rows(out: Any) -> list[dict]:
-    return (out or {}).get("issues") or (out or {}).get("items") or []
 
 
 def check_intake_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None, cmd: str | None) -> None:
@@ -2228,8 +2233,8 @@ def check_intake_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None, 
     c.call("intake_check", sb.args(d, clear=True, small=True, fits=False, result="decline",
                                    note="Conformance run: not this board's work."))
     lbl = settle(lambda: c.call("list_next_actions", {"repo": sb.repo, "context": "agent-ready", "limit": 100}),
-                 lambda res: not res[0] or any(i.get("number") == d for i in _rows(res[1])))
-    listed = any(i.get("number") == d for i in _rows(lbl[1]))
+                 lambda res: not res[0] or any(i.get("number") == d for i in next_action_rows(res)))
+    listed = any(i.get("number") == d for i in next_action_rows(lbl))
     _, held, _ = c.call("issue_get", sb.args(d))
     labels = [l if isinstance(l, str) else l.get("name") for l in (held or {}).get("labels") or []]
     rep.check("I9", listed and not any(str(l).startswith("needs:") for l in labels),

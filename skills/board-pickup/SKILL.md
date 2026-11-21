@@ -39,8 +39,9 @@ through the gtd MCP server; if its tools are missing, stop and say so (BOARD.md 
   label.
 - For a pull (`agent-ready` without `run-agent`): board Size is XS, S or M. No Size, no
   pull.
-- Its intake check, if `item_get` shows `intake_check`, is not `needs-more` or `decline`
-  (`unchecked` is fine: never read it as `pass`).
+- Intake check: only when `item_get` shows `intake_check.mode` `enforce`, skip a `needs-more`
+  or `decline` item. In `watch` mode it blocks nothing. `unchecked` is pickable; never read it
+  as `pass`.
 - Nothing open blocks it: `issue_blocked_by_list`.
 - Nobody holds it: `item_get(repo, number)` shows no live claim.
 - Ready, when the server offers `item_ready` (in `tools/list`): for a pull it must answer
@@ -50,7 +51,7 @@ through the gtd MCP server; if its tools are missing, stop and say so (BOARD.md 
 
 ## 4. Choose and hand off
 
-Prefer `run-agent` over `agent-ready`, then higher Priority, then board order (the
+Prefer `run-agent` over `agent-ready`, then higher Priority (none ranks after `P3`), then board order (the
 queue view a person arranged), then smaller Size, then the oldest. Tell your person which item you picked and why in one line, then use
 `board-claim`. With `run-agent` the basis is `explicit` (`asked_by` is whoever added the
 label, or your person); with only `agent-ready` it is `inferred`.

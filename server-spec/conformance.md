@@ -331,7 +331,7 @@ these. I7 to I9 need a sandbox repo, and I9 runs only while the server is in `wa
 | I7 | `intake_check` is class `work`; a `result` outside `pass`, `needs-more`, `decline` refuses and lists the three; `needs-more` with no `note`, and `pass` with a no, refuse; a valid `needs-more` writes a record and `item_get` shows `intake_check` with that `status`, the three answers and `by`; the same call again returns `unchanged` true |
 | I8 | An item with no record reads `intake_check.status` `unchecked`, never `pass` |
 | I9 | In `watch` mode, an item with a `decline` record is still in `list_next_actions` and carries no `needs:*` label |
-| I10 | (by hand) In `enforce` mode, a `needs-more` or `decline` item gets the owner's `needs:*` label, is absent from `list_next_actions` and refuses an `inferred` claim; an `unchecked` item and a grandfathered one (opened before `since`) stay pickable |
+| I10 | (by hand) With record authors configured and `INTAKE_CHECK_MODE=enforce`, a `needs-more` or `decline` item gets the owner's `needs:*` label, is absent from `list_next_actions` and refuses an `inferred` claim; an `unchecked` item and a grandfathered one (opened before `since`) stay pickable; a later `pass` by the checker removes the label the server added; with no record authors configured, `item_get` reports `mode` `watch` whatever the setting; a call by the item's holder is refused `not-the-checker` |
 
 I6 cases ([intake_check_cases.json](../conformance/intake_check_cases.json); times in the file
 are minutes, and a status case gives the records in comment order, the item's age against

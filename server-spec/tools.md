@@ -637,8 +637,15 @@ label nor an ack). It records the answer to three questions about one open issue
   false, and `fits` true. `decline` needs `fits` false. `needs-more` and `decline` need a
   `note` (at most 2000 characters). A refusal says which rule failed and, for a bad
   `result`, lists the three values.
-- It refuses a pull request, a closed issue, an epic, a `standing` item, or a `note` holding a
-  record, `gtd-pr`, sign-off or ack marker.
+- It refuses a pull request, a closed issue, an epic, a `standing` item, a caller who is not
+  allowed to record (below), or a `note` holding a record, `gtd-pr`, sign-off or ack marker.
+- **Who may record a result.** The repo's checker (a principal the repo names for the intake
+  lane in `.github/gtd-context.json` under `intake.checkers`, or the owner), and nobody else.
+  A caller who holds the item, or who filed it, is refused unless it is the owner
+  (`not-the-checker`), so a worker cannot replace a lane's `decline` with `pass`. A later
+  record by an allowed caller replaces the earlier one; a later `pass` (or any result with
+  `held` false) also **removes** the owner's `needs:*` label that `enforce` added (only that
+  label, which the server marks as its own), so the item is pickable again.
 - **The record** is a comment with a visible line, the sign-off (`act` `intake-check`,
   `role` `coordinator` unless the caller passes another) and one marker last:
   `<!-- gtd-intake-check v1 {"v": 1, "by": "agent:x", "t": "...", "result": "pass", "clear": true, "small": true, "fits": true, "note": "..."} -->`.
@@ -659,6 +666,10 @@ label nor an ack). It records the answer to three questions about one open issue
   `list_next_actions` omits the item, and an `inferred` `item_claim` refuses naming the
   result. An `explicit` claim still works: a person who points an agent at an item has made
   the call. `unchecked` and grandfathered items are never held, in either mode.
+- **Enforce needs record authors.** A pasted marker would count as a record when record
+  authors are not configured ([which comments count](claim-records.md#which-comments-count)),
+  so a server with none configured MUST run in `watch` whatever its setting says, and report
+  `mode` `watch`. `enforce` is honoured only when record authors are configured.
 - Switching to `enforce` is the owner's act, after reading the watch record; no tool does
   it.
 
