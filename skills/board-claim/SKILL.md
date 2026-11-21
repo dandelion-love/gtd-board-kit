@@ -3,19 +3,19 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.10.0
+  version: 0.11.0
 ---
 
 # Claim an item and work it
 
 Read `.gtd/kit/BOARD.md`, then `.gtd/BOARD.local.md` if it exists, first if you have not
-this session; the local file's labels, columns and rules win over anything below. `repo`, `profile` and
+this session; the local file wins over anything below. `repo`, `profile` and
 `project` come from `.github/gtd-context.json` and the origin remote (see `board-pickup`).
 
 ## 1. Claim before touching anything
 
 ```
-item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, session, project)
+item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, session, model, reasoning, project)
 ```
 
 - `explicit`: you were pointed at it. `asked_by` is who pointed you (your person's
@@ -24,9 +24,10 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, sessio
   XS, S or M and no `agent:<x>` names someone else. **On refusal, do not retry as
   `explicit`** unless someone really pointed you at it: pick another item or ask.
 - Held: leave it.
-- Lease: enough for the work, at most 72h; renew it.
+- Lease: enough for the work, up to 72h; renew it.
 - `branch`: where its commits land (`gtd/issue-<number>`, or the combined branch).
 - `session`: one name for this session; no session reviews its own work.
+- `model`, `reasoning`: self-reported, unverified; omit when unknown.
 - **Taking over** (`previous_holder` set, or `interruptions` above 0): read `closing_note`
   (done, left, decided, set_aside) and `interruptions` in `item_get` first. Start from `left`,
   keep `decided`, skip `set_aside`; `none recorded`: read its reports and commits.
@@ -44,8 +45,7 @@ own lease, reports and release. The PR lists them all in `pr_open`'s `issues`. D
    repo, profile)`. The label-to-Status bridge moves the card to the profile's running
    column. No `.github/workflows/project-sync.yml` in this repo? Also call
    `project_set_status` with the column `.gtd/BOARD.local.md` gives.
-2. `item_report(repo, number, state="progress", note="Claimed; starting: <plan in one
-   line>", project)`. Fields a profile sync `owns` (`profile_get`; e.g. an experiment's
+2. `item_report(repo, number, state="progress", note="Claimed; starting: <plan>", project)`. Fields a profile sync `owns` (`profile_get`; e.g. an experiment's
    Agent, Start date, Last report) are never set by hand: record through its register.
 
 ## 3. Do the work
@@ -54,7 +54,7 @@ own lease, reports and release. The PR lists them all in `pr_open`'s `issues`. D
   secrets.
 - `.github/workflows/**` stays untouched unless a workflow grant covers it (below).
 - The repo's own skill for the work and the PR body, if any, wins.
-- Scope is the issue as claimed (in a lane too). A new ask outside it: `capture` it with
+- Scope is the issue as claimed. A new ask outside it: `capture` it with
   `agent-proposed`; never widen this item.
 - Stuck on something only a person can settle: `board-needs-person`.
 
