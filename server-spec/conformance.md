@@ -322,6 +322,47 @@ second files one request issue, the first acks it (a project never acks its own 
 | I4 | `intake_ack` refuses and says why: an issue without the label; `state` `done` (the refusal lists the four); a `note` holding a record marker |
 | I5 | (by hand) An ack marker pasted in a comment by a login that is not a record author is ignored: `intake_list` still shows the trusted ack, or null |
 
+A server that lists `intake_check` ([the intake check](tools.md#the-intake-check)) also passes
+these. I7 to I9 need a sandbox repo, and I9 runs only while the server is in `watch` mode.
+
+| Id | Check |
+| --- | --- |
+| I6 | The golden cases below, fed to the server's own status and write rules (`--intake-cmd`), give the stated answer |
+| I7 | `intake_check` is class `work`; a `result` outside `pass`, `needs-more`, `decline` refuses and lists the three; `needs-more` with no `note`, and `pass` with a no, refuse; a valid `needs-more` writes a record and `item_get` shows `intake_check` with that `status`, the three answers and `by`; the same call again returns `unchanged` true |
+| I8 | An item with no record reads `intake_check.status` `unchecked`, never `pass` |
+| I9 | In `watch` mode, an item with a `decline` record is still in `list_next_actions` and carries no `needs:*` label |
+| I10 | (by hand) In `enforce` mode, a `needs-more` or `decline` item gets the owner's `needs:*` label, is absent from `list_next_actions` and refuses an `inferred` claim; an `unchecked` item and a grandfathered one (opened before `since`) stay pickable |
+
+I6 cases ([intake_check_cases.json](../conformance/intake_check_cases.json); times in the file
+are minutes, and a status case gives the records in comment order, the item's age against
+`since` and the mode):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `pass-watch` | a pass in watch mode | status `pass`, pickable |
+| `needs-more-watch` | needs-more in watch mode blocks nothing | status `needs-more`, pickable |
+| `decline-watch` | decline in watch mode blocks nothing | status `decline`, pickable |
+| `needs-more-enforce` | needs-more in enforce mode is held | status `needs-more`, held |
+| `decline-enforce` | decline in enforce mode is held | status `decline`, held |
+| `pass-enforce` | a pass in enforce mode is pickable | status `pass`, pickable |
+| `unchecked-watch` | no record reads unchecked, never pass | status `unchecked`, pickable |
+| `unchecked-enforce` | no record in enforce mode reads unchecked and is not held | status `unchecked`, pickable |
+| `grandfathered-enforce` | an item older than since with no record is grandfathered and never held | status `unchecked`, grandfathered, pickable |
+| `grandfathered-watch` | the same in watch mode | status `unchecked`, grandfathered, pickable |
+| `recheck-supersedes` | the latest record wins: needs-more then pass is a pass | status `pass`, pickable |
+| `recheck-holds` | the latest record wins: pass then decline is held in enforce | status `decline`, held |
+| `mode-default` | an unset or unknown mode reads as watch | status `decline`, pickable |
+| `old-recorded` | an old item with a record is not grandfathered | status `needs-more`, held |
+| `write-pass` | all three yes is a pass | written |
+| `write-pass-no` | a pass with one no is refused | refused: `pass-needs-all-three` |
+| `write-needs-more` | small is no, fits yes, with a note | written |
+| `write-needs-more-bare` | needs-more with no note is refused | refused: `note-required` |
+| `write-needs-more-all-yes` | needs-more with every answer yes is refused | refused: `needs-more-shape` |
+| `write-needs-more-no-fit` | needs-more when it does not fit is refused | refused: `needs-more-shape` |
+| `write-decline` | decline when it does not fit, with a note | written |
+| `write-decline-fits` | decline when it fits is refused | refused: `decline-needs-no-fit` |
+| `write-bad-result` | a result outside the three is refused | refused: `result` |
+
 ## Comment edits (when offered)
 
 A server that lists `comment_update` or `comment_redact` in `tools/list` must also pass
