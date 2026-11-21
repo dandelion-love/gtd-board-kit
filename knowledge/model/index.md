@@ -12,3 +12,4 @@
 * [Who said what](who-said-what.md) - The server signs every comment, record and PR body it writes for an agent with principal, role, act and session; search for the gtd-sign word
 * [Grants that widen rule 9](grants.md) - A merged, named BOARD.local grant lets an agent merge a PR whose every file it lists, or edit a named workflow
 * [Typed links between items](typed-links.md) - A fixed set of link kinds; only depends-on is a native blocked-by, the rest are Related lines on both ends, and one fold feeds the issues and the OKF graph
+* [Release and repin](release-and-repin.md) - A slice ships in a fixed order, stays additive, passes a live check, and rides a release train
