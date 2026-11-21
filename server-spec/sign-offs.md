@@ -16,8 +16,8 @@ writes it; the caller never does.
 | A pull request review, and each inline comment it posts | `pr_review` (when offered) | `pr-review` |
 | A reply on a pull request's review thread | `pr_review_reply` (when offered) | `pr-reply` |
 | An edit to a comment the server wrote | `comment_update`, `comment_redact` (when offered) | the comment's own `act`, plus an `edits` entry ([editing comments](tools.md#editing-comments)) |
-| A ping comment | `item_report` (Notifications group, [notifications](notifications.md)) | `ping` |
 | A milestone handoff | `handoff_send` (Milestone handoff capability, [milestone handoff](milestone-handoff.md)) | `handoff` |
+| A ping comment | `item_report` (Notifications group, [notifications](notifications.md)) | `ping` |
 | A comment from an optional tool (a channel post, a run-state event, ...) | that tool | a name the server chooses, lower case with hyphens (`channel`, `run-state`) |
 
 The `issue_comment`, claim and `pr_open` rows are required (Core, and PR4 when `pr_open`

@@ -265,12 +265,6 @@ link_json = [c["name"] for c in json.loads((ROOT / "conformance" / "link_cases.j
 if link_table != link_json:
     fail(f"L1 case table {link_table} differs from link_cases.json {link_json}")
 
-handoff_cases = json.loads((ROOT / "conformance" / "handoff_cases.json").read_text())
-handoff_table = re.findall(r"^\| `([a-z][a-z0-9-]+)` \|", section("Milestone handoff"), re.M)
-handoff_json = [c["name"] for g in ("records", "head", "routing", "bindings", "authority", "delivery", "retry", "negotiation") for c in handoff_cases[g]]
-if handoff_table != handoff_json:
-    fail(f"MH case tables {handoff_table} differ from handoff_cases.json {handoff_json}")
-
 # Every check id in the table belongs to a Family, and the report sorts by family order.
 for cid in spec_ids:
     try:
@@ -284,6 +278,12 @@ for fam in Family:
 if sorted(["X1", "JC2", "T10", "O1", "T2", "J1", "RUN"], key=report_order) != \
         ["T2", "T10", "O1", "J1", "JC2", "X1", "RUN"]:
     fail("conformance/runner.py report_order does not follow Family order")
+
+handoff_cases = json.loads((ROOT / "conformance" / "handoff_cases.json").read_text())
+handoff_table = re.findall(r"^\| `([a-z][a-z0-9-]+)` \|", section("Milestone handoff"), re.M)
+handoff_json = [c["name"] for g in ("records", "head", "routing", "bindings", "authority", "delivery", "retry", "negotiation") for c in handoff_cases[g]]
+if handoff_table != handoff_json:
+    fail(f"MH case tables {handoff_table} differ from handoff_cases.json {handoff_json}")
 
 # The runner's fingerprint gives the golden values server-spec states.
 spec_md = (ROOT / "server-spec" / "repo-context-and-profiles.md").read_text()
