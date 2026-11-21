@@ -95,8 +95,7 @@ Never edit the person's text, never add `agent-ready` or `run-agent`, never star
 build, never close the issue. A finding that is new work: `capture` it with
 `agent-proposed` and link it.
 
-A review that arrives as a milestone handoff: read `handoff.md` first, and name its milestone
-and revision in the verdict (`review_milestone`, `review_revision`).
+A review of a milestone handoff: read `handoff.md` first.
 
 ## 4. Hand back
 
