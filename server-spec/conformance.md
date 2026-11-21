@@ -426,6 +426,18 @@ must also pass these. SC2 needs a sandbox repo.
 | SC2 | With no `mode`, the result's `mode` is `watch` and `speak` is empty; a fresh item with no claim and no release is not in `findings`; a `mode` other than `watch` or `speak` refuses, and so does `silent_after` of `1m` |
 | SC3 | (by hand) A live claim with no report for longer than `silent_after` is listed as `silent-claim`, and one reported since is not; an unheld item whose latest release names a worker, older than `handoff_after`, is listed as `unheld-handoff`, and one held by someone else is not; in `watch` mode `would` has a line for each finding past three windows and `speak` is empty; in `speak` mode `speak` has one question for each, and nothing is written to the repo in either mode |
 
+## Backlog review (when offered)
+
+A server that lists `backlog_review` or `backlog_decide` ([backlog review](tools.md#backlog-review))
+must also pass these. BR2 and BR3 need a sandbox repo; BR3 needs a caller who is not the item's owner.
+
+| Id | Check |
+| --- | --- |
+| BR1 | `tools/list` has both `backlog_review` (class `read`) and `backlog_decide` (class `work`) |
+| BR2 | `backlog_review` with no `mode` returns `mode` `watch`; a fresh open issue with no Priority is in the `unset` group of `digest`; `counts` add up to the entries in `digest`; the issue is still open afterwards; a `mode` other than `watch` refuses |
+| BR3 | `backlog_decide` from a caller who is not the item's owner refuses naming the owner, and `item_get` shows `backlog` null |
+| BR4 | (by hand, owner) Each of `promote`, `park` and `drop` through `backlog_decide` posts one signed record with the date, `item_get` shows the latest as `backlog`, and the issue is still open, with no label or Priority changed |
+
 ## Stop (when offered)
 
 A server that lists `item_stop` or `item_stop_clear` ([stopping an item](tools.md#stopping-an-item))

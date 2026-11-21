@@ -5,6 +5,7 @@
 * [Claims and leases](claims-and-leases.md) - One holder per item, recorded by the server, for a limited time
 * [Queue and ETA](queue-and-eta.md) - Card order is the queue, a date field is the ETA, a person's edit wins
 * [Report vocabulary](report-vocabulary.md) - Six report states, the four-part closing note and the question for a person
+* [Backlog review](backlog-review.md) - A named owner role reviews open items by Priority and age on a stated cadence, started by hand; the owner's promote, park or drop is recorded with its date, and the review never closes an idle item
 * [The stop signal](stop-signal.md) - A signed stop record the owner writes through the server; the worker winds down and releases; a label only mirrors it
 * [Server version and levels](server-version.md) - The server declares its spec version and honest levels; agents run only skills whose level is claimed
 * [Where evidence goes](evidence-places.md) - The PR's evidence table is the gate; issue artifacts keep plans and evidence on the issue; sub-issues are never evidence

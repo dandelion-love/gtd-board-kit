@@ -251,6 +251,7 @@ that offers the capability uses the name.
 | Stop | `item_stop` (work): `repo`, `number`, `reason?`, `wind_down?`, `session?`; `item_stop_clear` (work): `repo`, `number`, `note?`, `session?` | The owner asks a worker to wind down, as a signed record the server checks the owner for, mirrored by a label. See [stopping an item](#stopping-an-item) |
 | Stale done | `stale_done` (read): `repo`, `number?`, `branches?`, `limit?`; `item_close_done` (work): `repo`, `number`, `branches?`, `session?` | Finding open items whose merged work meets every acceptance criterion, and closing one only when the server's own check says so. See [closing finished items](#closing-finished-items) |
 | Stall check | `stall_check` (read): `repo?`, `mode?`, `silent_after?`, `handoff_after?`, `limit?`, `project?` | Listing the open items nobody is moving: a live claim with no recent report, and a handoff nobody holds, and saying when a person must act. Started by hand, never by a scheduler. See [checking for work that stands still](#checking-for-work-that-stands-still) |
+| Backlog review | `backlog_review` (read): `repo?`, `mode?`, `limit?`, `project?`; `backlog_decide` (work): `repo`, `number`, `decision`, `note?`, `session?` | A regular review of open items by Priority and age, and the owner's promote, park or drop recorded on the item with its date. Started by hand, never by a scheduler. See [backlog review](#backlog-review) |
 | Intake | `intake_list` (read), `intake_ack` (work); optional `intake_check` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue; and the clear, small, fits check a new item gets before it is ordered. See [intake](#intake) and [the intake check](#the-intake-check) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
@@ -295,6 +296,46 @@ line for each finding with `needs_person`: whom it would ask about which item) a
 writes nothing in either mode: the caller sends each question with `item_report`
 `attention`, so the usual ping and the one-ping-per-ask rule apply. It speaks only when
 a person must act: with no finding past three windows, `speak` is empty.
+
+## Backlog review
+
+Work should leave the backlog on purpose, not only age in it. The
+[backlog review](../knowledge/model/backlog-review.md) is run by a named role, the **backlog
+owner**: the board steward holds it and a person decides. It runs on a stated cadence (a
+proposal: weekly), **started by hand** by the owner or the steward. It is not a lane and has
+no scheduler entry; a scheduled run needs the owner's own grant.
+
+### `backlog_review`
+
+Read. Arguments: `repo?`; `mode?` (only `watch`, the default; any other value refuses, because
+an acting mode waits until the owner has reviewed what watch recorded); `limit?` (default 100,
+200 max); `project?` (the board whose `Priority` field is read). It reads the open issues of the
+repo, never pull requests, and leaves out any with a live claim or `standing`. It returns:
+
+- `digest`: one group for each of `P0`, `P1`, `P2`, `P3` and `unset`, in that order. An item
+  with no Priority, or with no board to read it from, is in `unset`; it is never left out.
+  Each entry has `number`, `title`, `url`, `priority`, `age_days` and `last_decision` (below,
+  or null); entries are oldest first.
+- `counts`: items in each group, which add up to the number of open issues read.
+- `would`: in `watch` mode, one line for each change the review would propose and does not
+  make: an `unset` item "would ask for a Priority" (a person sets it), and an item older than
+  60 days with no decision in that time "would ask the owner to promote, park or drop".
+- `mode`, `truncated`.
+
+It writes nothing and **never closes, labels or re-ranks an item**: an idle item stays open
+until a person says otherwise.
+
+### `backlog_decide`
+
+Work. The item's owner records one decision on an open issue: `decision` is `promote`,
+`park` or `drop`; `note` is at most 500 characters. The server checks the caller as it does for
+[a stop](claim-records.md#a-stop): an agent, a worker of the item or anyone else is refused
+(`owner-required`) and nothing is recorded. It posts one signed `backlog` record carrying
+`decision`, `note` and the date, and returns `number`, `url`, `decision`, `at`, `comment_url`
+and `signoff`. Recording a decision changes nothing else: `promote` does not set a Priority
+or `agent-ready`, `park` does not label, and `drop` does not close. The owner does those, and
+the record says why. `item_get` returns the latest `backlog` record of an owner as
+`backlog` (`{decision, at, by, note}`) or null.
 
 ## Stopping an item
 
