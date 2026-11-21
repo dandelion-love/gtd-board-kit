@@ -3,7 +3,7 @@ name: board-report
 description: Report progress on a claimed board item, renew or release its claim, or record a failure, through the gtd MCP server. Use at each milestone of work on a claimed issue, before a lease runs out, when work stops for any reason, and when handing an item to someone else.
 metadata:
   author: gtd-board-kit
-  version: 0.9.0
+  version: 0.10.0
 ---
 
 # Report on a claimed item
@@ -65,35 +65,21 @@ item's `follow_ups` (`item_get`) and each channel (`channel_comments_read`).
 - Report at every milestone and at least once per lease.
 - `item_renew(repo, number, lease, project)` before the lease ends if you still hold it.
   A standing lane's item is renewed every tick: its lease is the lane's heartbeat.
-- When you stop, for any reason, end with `item_release(repo, number, done, remaining,
-  next, handoff_to, project)`. `handoff_to` is a principal, a role, `any`, or omitted.
+- When you stop, for any reason, end with `item_release(repo, number, done, left, decided,
+  set_aside, next, handoff_to, project)`: the four-part closing note
+  (`.gtd/kit/knowledge/model/report-vocabulary.md`): what is done, what is left, what you
+  decided (each with its undo) and what you set aside. Write `none` for an empty part.
+  On a server whose `item_release` schema has no `left`, pass `remaining` for it. `handoff_to` is a principal, a role, `any`, or omitted.
   An item left held by a session that has ended blocks everyone until the lease expires.
+- **A stop.** `stop` in any `item_get`, `item_renew` or `item_report` result is the
+  owner's request (`.gtd/kit/knowledge/model/stop-signal.md`): finish the current step,
+  start nothing new, write the four parts and release, before `stop.wind_down_until`.
+  Never ignore it; never clear it; the server will not take the claim from you.
 
 ## Queue order and ETA
 
-Both are native board constructs, so a person changes them in the GitHub UI or API and
-you follow on your next read. `.gtd/BOARD.local.md` names the view and fields; the
-defaults are below.
-
-- **Queue:** the card order in the queue view (a view with no sort, since a sort hides
-  manual order). `project_items` returns items in board order; take the first one you
-  may claim. Move a card only to put work you capture or hand back where the repo says,
-  with `project_item_move`; never reorder what a person ordered.
-- **ETA:** the `Target date` field (start: `Start date`), set with
-  `project_set_field(field="Target date", value="YYYY-MM-DD")`. Put the same date in
-  the `item_report` note. Before changing it, read it with `project_item_find`: if it
-  differs from the date you last reported, a person set it. Keep theirs, and if you
-  can't make it, say so in a report instead of moving it.
-- **Order between items:** native blocked-by links (`issue_blocked_by_list`), never a
-  note in the body.
-- **Other fields:** `.gtd/kit/knowledge/model/board-fields.md` says who writes each
-  field and when. Waiting on a person's gate: `Gates` names it and the report note is
-  the one-line ask; once it passes, update `Gates` and clear the `needs:*` label.
-- **Sync-owned fields:** a field a profile sync `owns` (`profile_get`; in ml-lab an
-  experiment's Agent, Start date and Last report) is written by the sync from its
-  register. Never set it by hand, not even for an ETA or a note: record the event
-  (`experiment_record`) and let the sync write the card. A Status stuck after a run
-  ended means its register event or PR never landed: land it, never move the card.
+The queue is the board's card order and the ETA is `Target date`; a person's edit wins.
+Read `queue-and-fields.md` before you move a card, set a date or write a field.
 
 ## Long runs on compute hosts
 

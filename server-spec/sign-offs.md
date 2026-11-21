@@ -12,6 +12,7 @@ writes it; the caller never does.
 | --- | --- | --- |
 | A comment on an issue or PR | `issue_comment` | `comment`, or `review` when the call carries a review verdict |
 | A claim record | `item_claim`, `item_renew`, `item_release`, `item_report` | `claim`, `renew`, `release`, `report` |
+| A stop or a clear of one | `item_stop`, `item_stop_clear` (Stop group) | `stop`, `stop-clear`, role `owner` |
 | A pull request body | `pr_open` (when offered) | `pr` |
 | A pull request review, and each inline comment it posts | `pr_review` (when offered) | `pr-review` |
 | A reply on a pull request's review thread | `pr_review_reply` (when offered) | `pr-reply` |
