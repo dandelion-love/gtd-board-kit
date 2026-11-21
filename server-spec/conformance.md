@@ -137,6 +137,8 @@ session or a long wait (marked *manual*) may be run by hand.
 | B2 | `project_set_field` sets and clears text, number, date and single-select fields by name |
 | B3 | `project_item_move` with no `after_*` puts the item first; with one, right after it. GitHub Projects can serve the old order for a while after a move, so the runner re-reads `project_items` for up to 30 seconds before failing, as in P6 |
 | B4 | Writes to an issue not yet on the board add it first |
+| B5 | (needs a board whose `Priority` options are `P0` to `P3`) `project_set_field` with `Priority` `P0` sets it, and with `P4` refuses and the refusal names `P0`, `P1`, `P2` and `P3`; the item keeps `P0` |
+| B6 | (agent principal) `Priority` on an item with none is set once as a suggestion; a second write by the agent refuses and says the field is set, and the value is unchanged |
 
 ## Customization (when offered)
 

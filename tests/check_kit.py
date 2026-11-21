@@ -302,6 +302,16 @@ views = {"board": {"views": [
 if [x.split("'")[1] for x in deprecated_filters_in(views)] != ["Old", "Caps", "Negated"]:
     fail(f"deprecated_filters_in got {deprecated_filters_in(views)}")
 
+# Priority: the board-fields page, the profile spec and the runner name the same four levels.
+from runner import PRIORITY_LEVELS  # noqa: E402
+fields_md = (ROOT / "knowledge" / "model" / "board-fields.md").read_text()
+levels_md = re.findall(r"^\| `(P\d)` \|", fields_md.split("# Priority levels", 1)[-1].split("# A card waiting", 1)[0], re.M)
+if tuple(levels_md) != PRIORITY_LEVELS:
+    fail(f"board-fields.md Priority levels {levels_md} differ from the runner's {list(PRIORITY_LEVELS)}")
+profile_md = (ROOT / "server-spec" / "repo-context-and-profiles.md").read_text()
+if not all(f"`{level}`" in profile_md.split("| `Priority` |", 1)[-1].split("\n", 1)[0] for level in PRIORITY_LEVELS):
+    fail("repo-context-and-profiles.md does not list the Priority levels the runner accepts")
+
 # tools/spec_pair.py: a spec change needs a conformance change or a Conformance-unchanged trailer.
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "tools"))

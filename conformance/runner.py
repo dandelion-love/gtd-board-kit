@@ -2553,8 +2553,48 @@ def check_size(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
     rep.check("C5", not wrong, f"Size part: {'; '.join(wrong)}", f"Size part: {len(cases)} cases")
 
 
-def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict) -> None:
+#: The closed set of Priority levels (knowledge/model/board-fields.md, tools.md Priority).
+PRIORITY_LEVELS = tuple(f"P{i}" for i in range(4))  # built, so no quoted level reads as a check id
+
+
+def check_priority(rep: Report, c: Client, sb: Sandbox, who: dict | None) -> None:
+    """B5 and B6: the closed Priority set, and one agent suggestion into an empty field."""
     proj = sb.project
+    ok, got, _ = c.call("project_get", {"project": proj})
+    fields = {f.get("name"): f for f in ((got or {}).get("fields") or [])}
+    options = [o.get("name") if isinstance(o, dict) else o for o in (fields.get("Priority") or {}).get("options") or []]
+    if not ok or "Priority" not in fields:
+        rep.skip("B5", "the board has no Priority field")
+        rep.skip("B6", "the board has no Priority field")
+        return
+    if not all(level in options for level in PRIORITY_LEVELS):
+        rep.fail("B5", f"the board's Priority options are {options}, not {list(PRIORITY_LEVELS)}")
+        rep.skip("B6", "needs the four Priority options")
+        return
+    base = {"repo": sb.repo, "number": sb.issue("priority"), "project": proj, "field": "Priority"}
+    ok0, _, t0 = c.call("project_set_field", {**base, "value": PRIORITY_LEVELS[0]})
+    bad, _, tb = c.call("project_set_field", {**base, "value": "P" + "4"})
+    _, found, _ = c.call("project_item_find", {k: base[k] for k in ("repo", "number", "project")})
+    kept = ((found or {}).get("fields") or {}).get("Priority")
+    rep.check("B5", ok0 and not bad and all(level in tb for level in PRIORITY_LEVELS) and kept == PRIORITY_LEVELS[0],
+              f"P0 {'set' if ok0 else t0[:60]}; P4 refused {not bad}, names the four "
+              f"{all(level in tb for level in PRIORITY_LEVELS)}; kept {kept!r}")
+    principal = (who or {}).get("principal") or ""
+    if not principal.startswith("agent:"):
+        rep.skip("B6", "needs an agent principal")
+        return
+    n2 = sb.issue("priority suggestion")
+    first, _, _ = c.call("project_set_field", {**base, "number": n2, "value": PRIORITY_LEVELS[2]})
+    again, _, ta = c.call("project_set_field", {**base, "number": n2, "value": PRIORITY_LEVELS[1]})
+    _, found2, _ = c.call("project_item_find", {"repo": sb.repo, "number": n2, "project": proj})
+    rep.check("B6", first and not again and "set" in ta.lower()
+              and ((found2 or {}).get("fields") or {}).get("Priority") == PRIORITY_LEVELS[2],
+              f"first {first}; second refused {not again} ({ta[:60]})")
+
+
+def check_board(rep: Report, c: Client, sb: Sandbox, profile: dict, who: dict | None = None) -> None:
+    proj = sb.project
+    check_priority(rep, c, sb, who)
     check_size(rep, c, sb, profile)
     ok, out, text = c.call("project_items", {"project": proj, "limit": 2})
     pages = ok and "has_next_page" in (out or {}) and "next_cursor" in (out or {})
@@ -3305,7 +3345,7 @@ def main(argv: list[str]) -> int:
                     check_repo(rep, c, c2, sb, profiles.get(name) or {}, who)
                     check_signoffs(rep, c, sb, who)
                     if a.project:
-                        check_board(rep, c, sb, profiles.get(name) or {})
+                        check_board(rep, c, sb, profiles.get(name) or {}, who)
                     check_prs(rep, c, sb, _tools, who, a.pr_head, token(a.github_token_env))
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd, a.prose_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)

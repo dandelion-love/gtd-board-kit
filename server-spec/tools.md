@@ -187,6 +187,14 @@ All take `project`. Writes to an issue's item add the issue to the board first i
 | `project_status_update` | work | `body` (at most 2048 bytes), `state?`, `project` | Posts a board-level status update |
 | `project_draft_add`, `project_draft_update`, `project_draft_convert` | work | draft `title`, `body`; `item_id`; target `repo` | Draft items and turning one into an issue |
 
+**Priority.** `Priority` is a closed single select: `P0`, `P1`, `P2`, `P3`, meaning what
+[priority levels](../knowledge/model/board-fields.md#priority-levels) says. A server
+accepts exactly those four (never fewer than it accepted before: a server that took `P1`
+to `P3` now also takes `P0`). `project_set_field` on `Priority` refuses any other value
+and the refusal lists the four. A caller that is an agent principal may write `Priority`
+only into an empty field (one suggestion), and a refusal on a field that already holds a
+value says it is set; a person's principal may change it.
+
 ## Optional groups
 
 A server MAY offer any of these. A repo that relies on one says so in its
