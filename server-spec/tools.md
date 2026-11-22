@@ -65,10 +65,10 @@ can still let go of an item a person closed to stop it (a standing lane's fast s
 | Tool | Class | Further arguments | Refuses when |
 | --- | --- | --- | --- |
 | `item_get` | read | none | never, for an allowlisted issue |
-| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `handoff?`, `project?` | someone else holds an unexpired lease (a `review` claim naming `handoff`, the head review handoff addressed to the caller, is the one exception: it sits beside the holder's claim, [milestone handoff](milestone-handoff.md#authority), and is refused `self-review` from the holder's session); `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
+| `item_claim` | work | `basis` (`explicit` or `inferred`, default `explicit`), `asked_by` (required for `explicit`), `pointed_in?`, `lease?` (default `2h`, max `72h`), `branch?`, `purpose?` (`work` or `review`, default `work`), `session?`, `handoff?`, `project?` | someone else holds an unexpired lease (a `review` claim naming `handoff`, the head review handoff addressed to the caller, is the one exception: it sits beside the holder's claim, [milestone handoff](milestone-handoff.md#authority), and is refused `self-review` from the holder's session); `session` longer than 200 characters; `review` and **any** of: `inferred`; no `session`; `session` equal to the `mandate.session` of an earlier `work` claim on the issue (below); `branch` is not a valid branch name (below); the caller already holds it ("use item_renew"); the item has reached the [interruption limit](claim-records.md#the-interruption-limit) and its owner has not answered `retry` (`interruption-limit`, naming the open question); `inferred` and **any** of: no `agent-ready` label; an `agent:<x>` label names a runtime other than the caller's (`agent:any` is fine; `agent:human` always refuses); a `needs:*`, `blocked` or `agent-proposed` label; the board (when `project` is given and readable) has a `Size` that is not in the profile's `pickup_sizes`, or no Size at all |
 | `item_renew` | work | `lease?`, `project?` | the caller is not the holder |
 | `item_release` | work | `done?`, `left?`, `decided?`, `set_aside?`, `remaining?` (alias of `left`), `next?`, `handoff_to?`, `project?` | the caller is not the holder; `left` and `remaining` both given with different values |
-| `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `done?`, `left?`, `decided?`, `set_aside?`, `project?` | none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile |
+| `item_report` | work | `state?`, `note?`, `attention?`, `needs?`, `links?` (URL list), `done?`, `left?`, `decided?`, `set_aside?`, `answering?`, `decision?` (`retry` or `hold`), `project?` | `decision` without `answering`, or not one of the two words; `decision` (`retry` or `hold`) from a principal that is not an owner (`owner-required`, checked after the two refusals before it, nothing recorded; a server with no owners configured refuses every one); none of `state`, `attention`, `note` given; `state` not in the six words; `state` from a non-holder; `attention` without `needs`, or `needs` not a `needs:*` value of the repo's profile; `answering` with no `note`, with `attention`, or naming a comment that is not the item's open attention (`not-open-attention`, listing the open one's id, or saying there is none), except `decision` `retry` naming the item's escalation when its attention is no longer open, held or cleared by an unrelated report ([interruption limit](claim-records.md#the-interruption-limit)) |
 
 `branch` names the branch the caller's commits for this item land on: the item's own
 `gtd/issue-<n>` branch, or an integration (release-candidate) branch that combines
@@ -118,6 +118,23 @@ three. A claim record carries `interruptions` for people reading the comment.
 
 Every record these tools post ends with a [sign-off](sign-offs.md) carrying the claim's
 `session`, and each result returns it as `signoff`.
+
+**Answering a question.** `item_report` with `answering` (the comment id of the item's open
+`attention`, which `item_get` returns as `attention.comment_id`) records that a person
+answered it, from **any** principal: the person's own words go in `note`, quoted, with the
+time and where they said it (a session chat, the answer page, a call). The record clears
+that attention, so the folded `status` is what it would be had no question been asked: the
+holder's last report from before the question (a question asked with `state` such as
+`waiting` does not outlive its answer; the report it replaced returns, see the fold in
+[claim records](claim-records.md)), else claimed, blocked, handoff or open. A server that writes the
+board's Status writes that derived Status, in the profile's own column names, in the same
+call. It never removes the `needs:*` label: taking it off is the person's call, and the
+result warns while the label is still on. The record is the reporter's quote, not the
+person's own act; the answer page writes this record for the person who answered there.
+`decision` goes with `answering` on an interruption question ([interruption
+limit](claim-records.md#the-interruption-limit)): `retry` resets the count and offers the item
+again. Both words are an owner's: a `decision` from any other principal refuses `owner-required` and records nothing, the same rule as the backlog decision. An older client that never sends `answering` is unaffected: a later report of any kind
+still clears the attention, as before.
 
 `item_report` with `attention` also adds the label `needs:<needs>` to the issue (adding is
 idempotent; it never removes one). A failed label write is a warning, the record stands.
@@ -235,6 +252,8 @@ that offers the capability uses the name.
 | Comment edits | `comment_update` (work): `repo`, `comment_id`, `body`, `session?`; `comment_redact` (work): `repo`, `comment_id`, `find`, `replace`, `session?` | Correcting a comment the server wrote, through the server, so the edit is signed instead of made with `gh` under a person's credentials. See [editing comments](#editing-comments) |
 | Stop | `item_stop` (work): `repo`, `number`, `reason?`, `wind_down?`, `session?`; `item_stop_clear` (work): `repo`, `number`, `note?`, `session?` | The owner asks a worker to wind down, as a signed record the server checks the owner for, mirrored by a label. See [stopping an item](#stopping-an-item) |
 | Stale done | `stale_done` (read): `repo`, `number?`, `branches?`, `limit?`; `item_close_done` (work): `repo`, `number`, `branches?`, `session?` | Finding open items whose merged work meets every acceptance criterion, and closing one only when the server's own check says so. See [closing finished items](#closing-finished-items) |
+| Stall check | `stall_check` (read): `repo?`, `mode?`, `silent_after?`, `handoff_after?`, `limit?`, `project?` | Listing the open items nobody is moving: a live claim with no recent report, and a handoff nobody holds, and saying when a person must act. Started by hand, never by a scheduler. See [checking for work that stands still](#checking-for-work-that-stands-still) |
+| Backlog review | `backlog_review` (read): `repo?`, `mode?`, `limit?`, `project?`; `backlog_decide` (work): `repo`, `number`, `decision`, `note?`, `session?` | A regular review of open items by Priority and age, and the owner's promote, park or drop recorded on the item with its date. Started by hand, never by a scheduler. See [backlog review](#backlog-review) |
 | Intake | `intake_list` (read), `intake_ack` (work); optional `intake_check` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue; and the clear, small, fits check a new item gets before it is ordered. See [intake](#intake) and [the intake check](#the-intake-check) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
@@ -242,6 +261,83 @@ that offers the capability uses the name.
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only
 need to **read** views use `project_views_list` (read).
+
+## Checking for work that stands still
+
+Nothing looks for work that has stopped moving: an item is marked stale only when someone
+reads it. `stall_check` is that look, as one read. It runs **when the owner or an agent asks
+for it**. It is not a lane and has no scheduler entry; a scheduled run needs the owner's own
+grant ([standing lanes](../knowledge/decisions/standing-lanes.md)).
+
+Arguments: `repo?`; `mode?` (`watch`, the default, or `speak`); `silent_after?` (a duration
+from `15m` to `72h`, default `4h`); `handoff_after?` (same range, default `2h`); `limit?`
+(default 30, 100 max); `project?`. It refuses another `mode`, and a duration outside the range.
+
+It lists open issues, never pull requests, of two kinds, with `kind`:
+
+| Kind | Listed when |
+| --- | --- |
+| `silent-claim` | the claim is live (its lease has not run out) and the holder's latest `claim` or `report` record is older than `silent_after`. A renew is a heartbeat, not a report |
+| `unheld-handoff` | nobody holds it, the latest release names a worker (`handoff_to` is a principal, a role or `any`), and that release is older than `handoff_after` |
+
+An item with no claim and no release is never listed. A lease that has run out is already
+`stale` in `item_get` and is not listed here. This differs from the `handoff` entry of
+`activity_since`: that shows a handoff to the principal it names, at that principal's own
+read; `stall_check` sweeps one repo for whoever runs it and also finds claims gone quiet.
+
+Each finding carries `number`, `title`, `url`, `kind`, `holder` (silent claim) or
+`handed_to` (handoff), `since` (the time of the report or release), `quiet_seconds` and
+`needs_person`. `needs_person` is true when the quiet time is at least **three times** the
+limit for its kind: the worker or the named worker has had three windows. The result adds
+`mode`, `checked` (the open issues read), `truncated` and `limits`.
+
+**Watch and speak.** In `watch` mode the result records what it would do in `would` (one
+line for each finding with `needs_person`: whom it would ask about which item) and
+`speak` is empty. In `speak` mode `speak` lists one question for each such finding
+(`number`, `needs`, `question`), where `needs` is the profile's owner value. The tool
+writes nothing in either mode: the caller sends each question with `item_report`
+`attention`, so the usual ping and the one-ping-per-ask rule apply. It speaks only when
+a person must act: with no finding past three windows, `speak` is empty.
+
+## Backlog review
+
+Work should leave the backlog on purpose, not only age in it. The
+[backlog review](../knowledge/model/backlog-review.md) is run by a named role, the **backlog
+owner**: the board steward holds it and a person decides. It runs on a stated cadence (a
+proposal: weekly), **started by hand** by the owner or the steward. It is not a lane and has
+no scheduler entry; a scheduled run needs the owner's own grant.
+
+### `backlog_review`
+
+Read. Arguments: `repo?`; `mode?` (only `watch`, the default; any other value refuses, because
+an acting mode waits until the owner has reviewed what watch recorded); `limit?` (default 100,
+200 max); `project?` (the board whose `Priority` field is read). It reads the open issues of the
+repo, never pull requests, and leaves out any with a live claim or `standing`. It returns:
+
+- `digest`: one group for each of `P0`, `P1`, `P2`, `P3` and `unset`, in that order. An item
+  with no Priority, or with no board to read it from, is in `unset`; it is never left out.
+  Each entry has `number`, `title`, `url`, `priority`, `age_days` and `last_decision` (below,
+  or null); entries are oldest first.
+- `counts`: items in each group, which add up to the number of open issues read.
+- `would`: in `watch` mode, one line for each change the review would propose and does not
+  make: an `unset` item "would ask for a Priority" (a person sets it), and an item older than
+  60 days with no decision in that time "would ask the owner to promote, park or drop".
+- `mode`, `truncated`.
+
+It writes nothing and **never closes, labels or re-ranks an item**: an idle item stays open
+until a person says otherwise.
+
+### `backlog_decide`
+
+Work. The item's owner records one decision on an open issue: `decision` is `promote`,
+`park` or `drop`; `note` is at most 500 characters. The server checks the caller as it does for
+[a stop](claim-records.md#a-stop): an agent, a worker of the item or anyone else is refused
+(`owner-required`) and nothing is recorded. It posts one signed `backlog` record carrying
+`decision`, `note` and the date, and returns `number`, `url`, `decision`, `at`, `comment_url`
+and `signoff`. Recording a decision changes nothing else: `promote` does not set a Priority
+or `agent-ready`, `park` does not label, and `drop` does not close. The owner does those, and
+the record says why. `item_get` returns the latest `backlog` record of an owner as
+`backlog` (`{decision, at, by, note}`) or null.
 
 ## Stopping an item
 

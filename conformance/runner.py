@@ -80,6 +80,8 @@ class Family(Enum):
     NOTIFY = "N"            # Notifications (when notify_get is offered)
     EDITS = "CE"            # Comment edits (when comment_update or comment_redact is offered)
     STALE = "SD"            # Stale done (when stale_done or item_close_done is offered)
+    STALL = "SC"            # Stall check (when stall_check is offered)
+    BACKLOG = "BR"          # Backlog review (when backlog_review or backlog_decide is offered)
     STOP = "ST"             # Stop (when item_stop or item_stop_clear is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
@@ -99,6 +101,8 @@ HEADINGS = {
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
     Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.STALE: "Stale done", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
     Family.STOP: "Stop",
+    Family.STALL: "Stall check",
+    Family.BACKLOG: "Backlog review",
     Family.RECORDS: "Register records",
     Family.HANDOFF: "Milestone handoff",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
@@ -126,6 +130,8 @@ LEVEL_OF = {
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
     Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.STALE: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
     Family.STOP: Level.EXTENDED,
+    Family.STALL: Level.EXTENDED,
+    Family.BACKLOG: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
     Family.HANDOFF: Level.EXTENDED,
 }
@@ -181,7 +187,8 @@ CLASS.update(dict.fromkeys((
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
-    "issue_artifact_get", "activity_since", "intake_list", "notify_get", "stale_done"), "read"))
+    "issue_artifact_get", "activity_since", "intake_list", "notify_get", "stale_done",
+                "stall_check", "backlog_review"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -192,6 +199,7 @@ CLASS.update(dict.fromkeys((
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
     "issue_artifact_update", "intake_ack", "comment_update", "comment_redact", "item_close_done"), "work"))
 CLASS["intake_check"] = "work"
+CLASS["backlog_decide"] = "work"
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -696,12 +704,16 @@ def closing_parts(rec: dict) -> dict | None:
     return parts if any(parts.values()) else None
 
 
+_KEEP = object()  # the question's report set no state, so it replaced nothing
+
+
 def reference_fold(comments: list[dict], now: str, owners: list[str] | None = None) -> dict:
     """The fold in server-spec/claim-records.md, over ``[{id, body}]`` in any order. ``owners`` are the
     principals whose ``stop`` and ``stop_clear`` records count; a record by anyone else is conversation."""
     holder = lease = handoff = last_report = attention_by = None
     lost = taken = 0
     previous = stop = cur = ended = None  # cur: this lease's latest parts; ended: the last ended lease
+    asked: dict | None = None  # the open question's id and the report its state replaced
     for c in sorted(comments, key=lambda c: c["id"]):
         rec = parse_record(c["body"])
         if rec is None:
@@ -721,6 +733,7 @@ def reference_fold(comments: list[dict], now: str, owners: list[str] | None = No
                     previous, ended = holder, {"by": holder, "parts": cur}
                 holder, lease, cur = by, _ts(rec.get("lease_until")), None
                 handoff = last_report = None
+                asked = None
             else:
                 lost += 1
         elif ev == "renew" and by == holder:
@@ -728,11 +741,21 @@ def reference_fold(comments: list[dict], now: str, owners: list[str] | None = No
         elif ev == "release" and by == holder:
             previous, ended = holder, {"by": holder, "parts": closing_parts(rec) or cur}
             holder = lease = last_report = cur = None
+            asked = None
             handoff = rec.get("handoff_to")
         elif ev == "report":
             attention_by = by if rec.get("attention") else None
+            if rec.get("answering") is not None and asked and str(rec["answering"]) == str(asked["id"]):
+                if asked["replaced"] is not _KEEP and last_report == asked["state"]:
+                    last_report = asked["replaced"]
+                asked = None
+            elif not rec.get("attention"):
+                asked = None
             if by == holder and closing_parts(rec):
                 cur = closing_parts(rec)
+            if rec.get("attention"):
+                asked = {"id": c["id"], "state": rec.get("state") if by == holder else None,
+                         "replaced": last_report if by == holder and rec.get("state") else _KEEP}
             if by == holder and rec.get("state"):
                 last_report = rec["state"]
                 if last_report == "dropped":
@@ -1403,6 +1426,13 @@ class Sandbox:
 
     def args(self, number: int, **more: Any) -> dict:
         a = {"repo": self.repo, "number": number, **more}
+        if self.project:
+            a.setdefault("project", self.project)
+        return a
+
+    def repo_args(self, **more: Any) -> dict:
+        """Arguments for a repository-wide tool: the repo and project, never an issue number."""
+        a = {"repo": self.repo, **more}
         if self.project:
             a.setdefault("project", self.project)
         return a
@@ -2375,8 +2405,9 @@ def check_comment_edits(rep: Report, c: Client, tools: dict, sb: Sandbox | None)
     ok_x, out_x, t_x = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="secret-name",
                                                          replace="[redacted]"))
     _, got, _ = c.call("item_get", sb.args(g))
-    last = str((((got or {}).get("last_report") or {}).get("note")) or "")
-    still = (((got or {}).get("holder")) == (who_principal(out_k) or (got or {}).get("holder")))
+    got_item = (got or {}).get("item") or got or {}
+    last = str(got_item.get("last_note") or "")
+    still = got_item.get("holder") == (who_principal(out_k) or got_item.get("holder"))
     ok_b, _, t_b = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="agent:", replace="agent-x:"))
     ok_n, _, _ = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="no-such-text-xyz", replace="y"))
     ok_h, _, _ = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="[redacted]", replace="<!-- x -->"))
@@ -2446,6 +2477,45 @@ STOP_HAND = {
 }
 
 
+def check_answering(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict) -> None:
+    """C22: `answering` on `item_report` clears the open attention it names (tools.md)."""
+    props = ((tools.get("item_report") or {}).get("inputSchema") or {}).get("properties") or {}
+    if "answering" not in props:
+        rep.na("C22", "item_report does not take answering")
+        return
+    if sb is None:
+        rep.skip("C22", "needs --repo")
+        return
+    needs = profile.get("owner_needs") or "triage"
+    n = sb.issue("answering")
+    ok_c, _, t_c = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
+    ok_p, _, t_p = c.call("item_report", sb.args(n, state="progress", note="before the question"))
+    ok, out, text = c.call("item_report", sb.args(n, attention="Which way?", needs=needs,
+                                                  state="waiting", note="asked"))
+    # The id is the folded item's attention.comment_id; a write may also not return it, so read it back.
+    cid = (((out or {}).get("item") or {}).get("attention") or {}).get("comment_id")
+    if ok and not cid:
+        _, got0, _ = c.call("item_get", sb.args(n))
+        cid = (((got0 or {}).get("item") or {}).get("attention") or {}).get("comment_id")
+    if not (ok_c and ok_p and ok and cid):
+        rep.check("C22", False, f"could not ask the question (claim {ok_c} {t_c[:40]}; progress {ok_p} "
+                  f"{t_p[:40]}; ask {ok} {text[:60]}; attention.comment_id {cid!r})")
+        return
+    no_note, _, t_note = c.call("item_report", sb.args(n, answering=cid))
+    unknown, _, t_unknown = c.call("item_report", sb.args(n, answering=int(cid) + 7, note="Yes."))
+    ok1, _, t1 = c.call("item_report", sb.args(n, answering=cid, note="Yes, go ahead (said in chat)."))
+    _, got, _ = c.call("item_get", sb.args(n))
+    again, _, t_again = c.call("item_report", sb.args(n, answering=cid, note="Yes."))
+    item = (got or {}).get("item") or {}
+    back = str(item.get("last_note") or "")
+    named = all("answering" in t.lower() for t in (t_note, t_unknown, t_again))
+    rep.check("C22", ok1 and item.get("attention") is None and not no_note and not unknown
+              and not again and named and "before the question" in back,
+              f"answer {ok1} {t1[:60]}; attention after {item.get('attention')!r}; last report back to "
+              f"{back!r}; no note refused {not no_note}; unknown id refused {not unknown}; "
+              f"second answer refused {not again}; refusals name answering {named}")
+
+
 def check_stop(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """ST1 and ST2: the stop tools, when either is offered; ST3 to ST6 need the owner's token."""
     have = [t for t in ("item_stop", "item_stop_clear") if t in tools]
@@ -2476,6 +2546,108 @@ def check_stop(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
               and "stop-requested" not in labels,
               f"item_stop refused {not ok1} ({t1[:50]}); item_stop_clear refused {not ok2}; "
               f"stop {item.get('stop')!r}; labels {labels}")
+
+
+def check_interruption_limit(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """C23: the interruption limit is visible and `decision` is validated (claim-records.md). C24 is by hand."""
+    props = ((tools.get("item_report") or {}).get("inputSchema") or {}).get("properties") or {}
+    if "decision" not in props:
+        rep.na("C23", "item_report does not take decision")
+        return
+    if sb is None:
+        rep.skip("C23", "needs --repo")
+        return
+    n = sb.issue("interruption limit")
+    _, got, _ = c.call("item_get", sb.args(n))
+    item = (got or {}).get("item") or {}
+    limit = item.get("interruption_limit")
+    lone, _, t_lone = c.call("item_report", sb.args(n, note="x", decision="retry"))
+    word, _, t_word = c.call("item_report", sb.args(n, answering=1, note="x", decision="maybe"))
+    rep.check("C23", isinstance(limit, int) and not isinstance(limit, bool) and limit >= 1
+              and "escalation" in item and item["escalation"] is None
+              and not lone and "answering" in t_lone.lower() and not word,
+              f"limit {limit!r}; escalation {item.get('escalation', 'absent')!r}; decision alone refused {not lone} "
+              f"({t_lone[:50]}); unknown word refused {not word}")
+    # C24, the part a sandbox can run: `decision` is an owner's. The rest of C24 is by hand.
+    seen_words = []
+    for word_ in ("retry", "hold"):
+        ok_d, _, t_d = c.call("item_report", sb.args(n, answering=1, note="x", decision=word_))
+        low = t_d.lower()
+        seen_words.append("owner-required" if "owner-required" in low else "not-open-attention"
+                          if "not-open-attention" in low else None)
+        if ok_d or seen_words[-1] is None:
+            rep.fail("C24", f"decision {word_} was not refused owner-required (an owner token: "
+                            f"not-open-attention): accepted {ok_d}, {t_d[:80]}")
+            return
+    if set(seen_words) == {"owner-required"}:
+        rep.ok("C24", "decision retry and hold refused owner-required for this non-owner token; the "
+                      "retry-path assertions (limit reached, retry resets, held, second retry) were "
+                      "skipped, not failed: they need an owner token and abandoned leases, by hand")
+    else:
+        rep.ok("C24", "this token is an owner: decision with no open question refused not-open-attention; "
+                      "the rest of C24 is by hand")
+
+
+def check_stall_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """SC1 and SC2: the stall check, when offered. SC3 is by hand."""
+    if "stall_check" not in tools:
+        for cid in ("SC1", "SC2", "SC3"):
+            rep.na(cid, "stall_check is not offered")
+        return
+    klass = tool_class(tools["stall_check"])[0]
+    rep.check("SC1", klass == "read", f"offered as {klass}", "stall_check, class read")
+    rep.manual("SC3", "a silent live claim and an unheld handoff past their limits are listed, a recent report "
+                      "and a held handoff are not; watch mode fills would and leaves speak empty; speak mode "
+                      "fills speak; neither writes to the repo")
+    if sb is None:
+        rep.skip("SC2", "needs --repo")
+        return
+    n = sb.issue("stall check")
+    ok, out, text = c.call("stall_check", sb.repo_args())
+    bad_mode, _, _ = c.call("stall_check", sb.repo_args(mode="loud"))
+    bad_limit, _, _ = c.call("stall_check", sb.repo_args(silent_after="1m"))
+    listed = [f.get("number") for f in (out or {}).get("findings") or []]
+    rep.check("SC2", ok and (out or {}).get("mode") == "watch" and not (out or {}).get("speak")
+              and n not in listed and not bad_mode and not bad_limit,
+              f"mode {(out or {}).get('mode')!r}; speak {(out or {}).get('speak')!r}; fresh item listed {n in listed}; "
+              f"bad mode refused {not bad_mode}; 1m refused {not bad_limit} {text[:50]}")
+
+
+def check_backlog_review(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """BR1 to BR3: the backlog review tools, when either is offered. BR4 is by hand (the owner)."""
+    have = [t for t in ("backlog_review", "backlog_decide") if t in tools]
+    if not have:
+        for cid in ("BR1", "BR2", "BR3", "BR4"):
+            rep.na(cid, "the backlog review tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("BR1", classes == {"backlog_review": "read", "backlog_decide": "work"},
+              f"offered {classes}", "backlog_review read, backlog_decide work")
+    rep.manual("BR4", "as the owner: promote, park and drop each post one signed record with the date; item_get "
+                      "shows the latest as backlog; the issue stays open, with no label or Priority changed")
+    if sb is None or len(have) < 2:
+        rep.skip("BR2", "needs --repo and both tools")
+        rep.skip("BR3", "needs --repo and both tools")
+        return
+    n = sb.issue("backlog review")
+    ok, out, text = c.call("backlog_review", sb.repo_args())
+    bad_mode, _, _ = c.call("backlog_review", sb.repo_args(mode="act"))
+    digest = (out or {}).get("digest") or {}
+    unset = [e.get("number") for e in digest.get("unset") or []]
+    total = sum(len(v) for v in digest.values())
+    counts = sum((out or {}).get("counts", {}).values()) if isinstance((out or {}).get("counts"), dict) else -1
+    _, got, _ = c.call("issue_get", sb.args(n))
+    rep.check("BR2", ok and (out or {}).get("mode") == "watch" and n in unset and counts == total
+              and (got or {}).get("state") == "open" and not bad_mode,
+              f"mode {(out or {}).get('mode')!r}; unset has the new issue {n in unset}; counts {counts} vs entries {total}; "
+              f"bad mode refused {not bad_mode} {text[:50]}")
+    ok3, _, t3 = c.call("backlog_decide", sb.args(n, decision="park"))
+    _, got3, _ = c.call("item_get", sb.args(n))
+    if ok3:
+        rep.skip("BR3", "this token is the item's owner, so the decision was recorded; use a non-owner token")
+        return
+    rep.check("BR3", "owner" in t3.lower() and ((got3 or {}).get("item") or {}).get("backlog") is None,
+              f"refused {not ok3} ({t3[:60]}); backlog {((got3 or {}).get('item') or {}).get('backlog')!r}")
 
 
 def check_stale_done(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
@@ -3619,6 +3791,12 @@ MANUAL = {
     "C21": "claim with lease 1m, wait two minutes: item_get shows stale and interruptions 1; a takeover by a "
            "second principal keeps interruptions at 1, names previous_holder and shows the abandoned "
            "worker's last four parts, or none recorded",
+    "C24": "(an owner's token; any other is refused owner-required, which the runner checks) with the "
+           "interruption limit reached by abandoned leases, the next claim refuses interruption-limit "
+           "and posts one question for the owner; a second claim refuses and posts nothing; answering with "
+           "decision retry resets interruptions to 0, clears escalation and a claim succeeds; another "
+           "answer leaves escalation held and claims still refuse; a later retry naming the held escalation's "
+           "comment id succeeds and offers the item again, and a second retry of it refuses",
     "C18": "review a PR opened through pr_open, and comment on a channel issue: activity_since for the "
            "PR's by principal lists a pr review with its review_state, and a channel comment",
     "J1": "remove every approver: /join/start and joined tokens are refused",
@@ -3741,13 +3919,17 @@ def main(argv: list[str]) -> int:
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_intake_check(rep, c, _tools, sb, a.intake_cmd, c2)
+                check_answering(rep, c, _tools, sb, profiles.get(name) or {})
                 check_comment_edits(rep, c, _tools, sb)
                 check_stale_done(rep, c, _tools, sb)
                 check_stop(rep, c, _tools, sb)
+                check_interruption_limit(rep, c, _tools, sb)
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)
                 check_handoff(rep, _tools, a.handoff_cmd, who)
+                check_stall_check(rep, c, _tools, sb)
+                check_backlog_review(rep, c, _tools, sb)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
@@ -3770,8 +3952,10 @@ def main(argv: list[str]) -> int:
             check_connector(rep, base, entrances, a.connector, a.connector_wait, seen, secrets)
         except CheckError as e:
             rep.fail("JC1", f"stopped: {e}")
+    ran = {r["id"] for r in rep.rows}
     for cid, how in MANUAL.items():
-        rep.manual(cid, how)
+        if cid not in ran:  # a check the run did in part (C24) already has its row
+            rep.manual(cid, how)
     if secrets:
         leaked = [s for s in secrets if any(s in body for body in seen)]
         rep.check("X1", not leaked, "a token the runner sent came back in a response body",

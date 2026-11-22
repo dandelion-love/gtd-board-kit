@@ -66,6 +66,9 @@ reports pass, fail, skip or manual for every id below.
 | C19 | (needs a closing-note server) `item_release` with `done`, `left`, `decided` and no `set_aside` succeeds and `item_get` shows `closing_note` with those parts and `set_aside` `none`; a release with none of the four succeeds with a `warnings` entry naming `done`, `left`, `decided` and `set_aside`; `left` and `remaining` given with different values refuse |
 | C20 | A fresh item with no earlier worker shows `interruptions` 0, `previous_holder` null and `closing_note` with all four parts `none recorded`; after one claim and release with a `handoff_to` the second caller's `item_get` shows `previous_holder` the first caller, `interruptions` 0 and the first caller's four parts |
 | C21 | (by hand) Claim with lease `1m`, wait two minutes: `item_get` shows `stale` and `interruptions` 1; a takeover by a second principal keeps `interruptions` at 1, names `previous_holder`, and shows the abandoned worker's last four parts, or `none recorded` |
+| C22 | (needs `answering` on `item_report`) After `item_report` with `attention`, `item_report` with `answering` = that record's comment id and a `note` succeeds from any caller; `item_get` then shows `attention` null. A second `answering` of the same id, an `answering` of an unknown id, and an `answering` with no `note` each refuse with a message naming `answering`. When the question was asked by the holder with `state` `waiting` after a `progress` report, the answer also returns `last_report` to that `progress` report |
+| C23 | (needs `interruption_limit` in `item_get`) A fresh item shows `interruption_limit` as a whole number of 1 or more and `escalation` null. `item_report` with `decision` and no `answering` refuses naming `answering`, and `decision` other than `retry` or `hold` refuses |
+| C24 | (the runner checks the first sentence; the rest is by hand, with an owner's token) `item_report` with `decision` `retry` or `hold` and an `answering` from a token that is not an owner refuses `owner-required` and records nothing; the runner passes the check on that refusal and reports the retry-path steps below as skipped, not failed. With the limit reached by abandoned leases, the next claim refuses `interruption-limit` and posts one question for the owner; a second claim refuses and posts nothing; the item is not offered to an unpointed pickup; `answering` with `decision` `retry` resets `interruptions` to 0, clears `escalation` and a claim succeeds; a different answer leaves `escalation` `held` and claims still refuse; a later `answering` with `decision` `retry` naming the held `escalation.comment_id` succeeds, resets `interruptions` and offers the item again; a second `retry` of the same id then refuses |
 
 C13 fixtures (records in comment order, times in minutes from zero, "now" is minute 200):
 
@@ -96,6 +99,7 @@ C13 fixtures (records in comment order, times in minutes from zero, "now" is min
 | w | `stop` by an account that is not the owner; claim A | the stop is ignored: holder A, no stop |
 | x | `stop` by the owner; `stop_clear` by a non-owner; claim A | the clear is ignored: claim lost, `at-rest` |
 | y | claim A to 60; A renews at 90 to 300; now is 200 | holder A, not stale, `interruptions` 0 (the count is not monotonic) |
+| z | claim A; A reports `progress`; A asks with `state` `waiting` (comment 3); B reports `answering` 3 | holder A, `last_report` `progress`, no attention |
 
 The fixtures name `owners` (the principals whose `stop` and `stop_clear` count); a fold gets them as a second input. The fold result keys the cases read besides the first five are `interruptions`,
 `previous_holder`, `closing_by`, `closing_parts` (the four parts in the order `done`,
@@ -411,6 +415,29 @@ these ([closing finished items](tools.md#closing-finished-items)). SD2 needs a s
 | SD1 | `tools/list` has both `stale_done` (class `read`) and `item_close_done` (class `work`) |
 | SD2 | For a fresh open story with criteria and no merged PR, `stale_done(number)` returns `verdict` `keep` with `no-merged-pr`, and `item_close_done` refuses naming it and leaves the issue open; with a `needs:*` label added, `reasons` also holds `needs` |
 | SD3 | (by hand) A story whose merged PR carries an Evidence row for every criterion gets `close`, and `item_close_done` ticks the boxes, posts one signed comment and closes it `completed`; a story whose only merged PR mentions it, one with an unmet criterion, an epic, and a `standing` item each get `keep` with the matching reason |
+
+## Stall check (when offered)
+
+A server that lists `stall_check` ([checking for work that stands still](tools.md#checking-for-work-that-stands-still))
+must also pass these. SC2 needs a sandbox repo.
+
+| Id | Check |
+| --- | --- |
+| SC1 | `tools/list` has `stall_check`, class `read` |
+| SC2 | With no `mode`, the result's `mode` is `watch` and `speak` is empty; a fresh item with no claim and no release is not in `findings`; a `mode` other than `watch` or `speak` refuses, and so does `silent_after` of `1m` |
+| SC3 | (by hand) A live claim with no report for longer than `silent_after` is listed as `silent-claim`, and one reported since is not; an unheld item whose latest release names a worker, older than `handoff_after`, is listed as `unheld-handoff`, and one held by someone else is not; in `watch` mode `would` has a line for each finding past three windows and `speak` is empty; in `speak` mode `speak` has one question for each, and nothing is written to the repo in either mode |
+
+## Backlog review (when offered)
+
+A server that lists `backlog_review` or `backlog_decide` ([backlog review](tools.md#backlog-review))
+must also pass these. BR2 and BR3 need a sandbox repo; BR3 needs a caller who is not the item's owner.
+
+| Id | Check |
+| --- | --- |
+| BR1 | `tools/list` has both `backlog_review` (class `read`) and `backlog_decide` (class `work`) |
+| BR2 | `backlog_review` with no `mode` returns `mode` `watch`; a fresh open issue with no Priority is in the `unset` group of `digest`; `counts` add up to the entries in `digest`; the issue is still open afterwards; a `mode` other than `watch` refuses |
+| BR3 | `backlog_decide` from a caller who is not the item's owner refuses naming the owner, and `item_get` shows `backlog` null |
+| BR4 | (by hand, owner) Each of `promote`, `park` and `drop` through `backlog_decide` posts one signed record with the date, `item_get` shows the latest as `backlog`, and the issue is still open, with no label or Priority changed |
 
 ## Stop (when offered)
 
