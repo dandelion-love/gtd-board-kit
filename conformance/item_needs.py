@@ -24,28 +24,35 @@ FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 def prose_lines(text: str) -> list[str]:
     """The lines that are neither inside a fenced code block nor inside an HTML comment, in
     one pass, so a fence marker inside a comment and a comment marker inside a fence are each
-    ignored. An unclosed fence or comment runs to the end."""
-    out, fence, in_comment = [], None, False  # the open fence's character and length
+    ignored. The text before a comment that spans lines and the text after it are one line.
+    An unclosed fence or comment runs to the end."""
+    out, fence, carry = [], None, None  # the open fence's character and length; text before an open comment
     for line in text.splitlines():
-        if in_comment:
+        joined = False
+        if carry is not None:
             end = line.find("-->")
             if end < 0:
                 continue
-            in_comment, line = False, line[end + 3:]
+            line, carry, joined = carry + line[end + 3:], None, True
         if fence is not None:
             m = FENCE.match(line)
             if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= fence[1] and not m.group(2).strip():
                 fence = None
             continue
-        m = FENCE.match(line)
+        m = None if joined else FENCE.match(line)
         if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):
             fence = (m.group(1)[0], len(m.group(1)))
             continue
-        line = re.sub(r"<!--.*?-->", "", line)
-        start = line.find("<!--")
-        if start >= 0:
-            in_comment, line = True, line[:start]
-        out.append(line)
+        while True:
+            line = re.sub(r"<!--.*?-->", "", line)
+            start = line.find("<!--")
+            if start < 0:
+                out.append(line)
+                break
+            carry = line[:start]
+            break
+    if carry is not None:
+        out.append(carry)
     return out
 
 

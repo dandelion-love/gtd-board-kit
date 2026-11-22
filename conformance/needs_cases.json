@@ -142,6 +142,24 @@
       }
     },
     {
+      "name": "comment-across-lines",
+      "what": "the text before a comment that spans lines and the text after it are one line",
+      "body": "Summary.\n\n## Needs\n- Tools: ffmpeg<!-- explanation\ncontinued -->, voice\n",
+      "size": null,
+      "expect": {
+        "declared": true,
+        "graphics_gb": null,
+        "tools": [
+          "ffmpeg",
+          "voice"
+        ],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": false,
+        "errors": []
+      }
+    },
+    {
       "name": "size-default",
       "what": "a Size supplies the longest run when none is declared",
       "body": "Summary.",
