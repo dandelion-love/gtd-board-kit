@@ -30,7 +30,7 @@ What it needs, and which checks each unlocks:
                             the first, which must be an accepted checker, checks it)
     work_items_plan/_sync   L1 (with --link-cmd, which runs it whatever the token sees);
     offered                 L2 is manual
-    no --server             C13, R1, R9, K1 and L1, against the reference fold, ready check,
+    no --server             C13, R1, R9, R12, K1 and L1, against the reference fold, ready check,
                             prose check, Kind rules and link fold
 
 Tokens are read from environment variables, never from the command line, and are never
@@ -1703,11 +1703,45 @@ READY_AC = "## Acceptance criteria\n\n- AC1: the conformance runner sees this cr
 READY_SUMMARY = "When the conformance runner reads this story, it finds it clear, so the ready check is shown.\n\n"
 
 
+NEEDS_KEYS = ("graphics_gb", "tools", "longest_run_minutes", "longest_run_source", "runs_anywhere", "declared")
+
+
+def check_needs_cases(rep: Report, needs_cmd: str | None) -> None:
+    """R12: the golden item-needs cases, against the reference or a server's own parser
+    (--needs-cmd). A case answers every field; ``errors`` is compared as present or absent,
+    because its wording is the server's own."""
+    cases = json.loads((HERE / "needs_cases.json").read_text(encoding="utf-8"))["cases"]
+    bad = []
+    for case in cases:
+        inp = {"body": case["body"], "size": case.get("size")}
+        if needs_cmd:
+            proc = subprocess.run(needs_cmd, shell=True, input=json.dumps(inp), capture_output=True,
+                                  text=True, timeout=60, check=False)
+            try:
+                got = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                bad.append(f"{case['name']}: no JSON from --needs-cmd")
+                continue
+        else:
+            sys.path.insert(0, str(HERE))
+            import item_needs
+            got = item_needs.parse(inp["body"], inp["size"])
+        want = case["expect"]
+        diff = [k for k in NEEDS_KEYS if got.get(k) != want[k]]
+        if bool(got.get("errors")) != bool(want["errors"]):
+            diff.append("errors")
+        if diff:
+            bad.append(f"{case['name']} ({case['what']}): differs in {', '.join(diff)}")
+    who = "--needs-cmd" if needs_cmd else "the reference needs parser"
+    rep.check("R12", not bad, "; ".join(bad[:4]), f"{len(cases)} cases, {who}")
+
+
 def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
-                    ready_cmd: str | None, prose_cmd: str | None = None) -> None:
+                    ready_cmd: str | None, prose_cmd: str | None = None,
+                    needs_cmd: str | None = None) -> None:
     """R1 to R10: item_ready and prose_check, when the server offers them
     (server-spec/ready-check.md, server-spec/prose-check.md)."""
-    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11")
+    ids = ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11", "R12")
     if "item_ready" not in tools:
         for cid in ids:
             rep.na(cid, "item_ready is not offered")
@@ -1716,6 +1750,10 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         check_ready_cases(rep, ready_cmd)
     else:
         rep.manual("R1", "run the golden cases against the server's own rules: --ready-cmd CMD")
+    if needs_cmd:
+        check_needs_cases(rep, needs_cmd)
+    else:
+        rep.manual("R12", "run the golden item-needs cases against the server's own parser: --needs-cmd CMD")
     rep.manual("R11", "item_ready on a story whose last worker released with four parts returns "
                       "interruptions, previous_holder and the same closing_note as item_get")
     if "prose_check" not in tools:
@@ -1726,7 +1764,7 @@ def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
         rep.manual("R9", "run the golden prose cases against the server's own rules: --prose-cmd CMD")
     if sb is None:
         for cid in ids[1:]:
-            if cid not in ("R9", "R11"):
+            if cid not in ("R9", "R11", "R12"):
                 rep.skip(cid, "needs --repo")
         return
     owner_needs = profile.get("owner_needs") or "triage"
@@ -3840,6 +3878,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--fold-cmd", help="a command that folds {now, comments} from stdin to JSON on stdout")
     ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
     ap.add_argument("--prose-cmd", help="a command that runs the prose check on one case from stdin (R9)")
+    ap.add_argument("--needs-cmd", help="a command that parses one item's declared needs from stdin (R12)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
     ap.add_argument("--intake-cmd", help="a command that answers one intake-check case from stdin (I6)")
@@ -3860,6 +3899,7 @@ def main(argv: list[str]) -> int:
     if not a.server:
         check_ready_cases(rep, a.ready_cmd)
         check_prose_cases(rep, a.prose_cmd)
+        check_needs_cases(rep, a.needs_cmd)
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
         check_intake_check_cases(rep, a.intake_cmd)
@@ -3914,7 +3954,7 @@ def main(argv: list[str]) -> int:
                     if a.project:
                         check_board(rep, c, sb, profiles.get(name) or {}, who)
                     check_prs(rep, c, sb, _tools, who, a.pr_head, token(a.github_token_env))
-                check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd, a.prose_cmd)
+                check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd, a.prose_cmd, a.needs_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)

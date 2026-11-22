@@ -111,6 +111,35 @@ release that carries none of the four parts (and no `remaining`), and a report w
 names the four. The result's `closing_note` shows the stored parts with `none` for an empty
 one.
 
+**Item needs.** A story may declare what a machine must have to finish it, in a `## Needs`
+section of its body, one `- Name: value` line each, every line optional:
+
+```
+## Needs
+
+- Graphics memory: 20 GB
+- Tools: voice, ffmpeg
+- Longest run: 2 hours
+```
+
+`Graphics memory` is a positive number of GB. `Tools` is a comma-separated list of names
+of lowercase letters, digits, `.`, `_` and `-` (at most 40 characters, read as lowercase,
+repeats listed once). `Longest run` is a positive number with a unit: minutes (`m`, `min`,
+`minutes`), hours (`h`, `hours`) or days (`d`, `days`), read as minutes. The section ends at the next heading or at a line of three or more dashes (a server's sign-off starts with one). A section inside an HTML comment or a fenced code block is not read. Comments and fences are read in one pass, so a marker of one inside the other is ignored. A line that names
+none of the three, or repeats one, is an error. `item_get` returns `needs` for the item:
+`{declared, graphics_gb, tools, longest_run_minutes, longest_run_source, runs_anywhere,
+errors}`. An item with no `## Needs` section, or one with no valid line, has
+`runs_anywhere` true and `declared` false; nothing declared never refuses and never hides the
+item. When no `Longest run` is declared and the board Size is known, `longest_run_minutes`
+is the Size default and `longest_run_source` is `size`: `XS` 15, `S` 60, `M` 240, `L` 1440,
+`XL` 4320 minutes (proposal; a person may change the table in a pull request). With a
+declared run the source is `declared`; with neither it is null. A server that writes an
+issue body (`issue_update`, `issue_create`) **refuses** a body whose `## Needs` section has
+an error and names the offending line or value; a body with no section is never refused. A
+server that does not read the board has no Size and returns no default. The field is
+additive: a client that does not read `needs` is unaffected. Check R12 holds a server's
+parser to [needs_cases.json](../conformance/needs_cases.json).
+
 **Interruptions and the last worker's note.** `item_get`, and so every result that returns
 the folded item, shows `interruptions`, `previous_holder` and `closing_note` as
 [claim records](claim-records.md#interruptions) define them; `item_ready` returns the same
