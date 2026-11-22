@@ -279,6 +279,8 @@ only as empty or not, because its wording is the server's own). The reference is
 | `in-open-fence` | a Needs section after a fence that is never closed is not read | parsed |
 | `signoff-after` | a server's sign-off after the section (a rule, then a sub line) is not part of it | parsed |
 | `comment-marker-in-fence` | a comment marker inside a fenced example does not swallow the real section after it | parsed |
+| `fence-marker-in-comment` | a fence marker inside an HTML comment does not hide the real section after the comment | parsed |
+| `comment-across-lines` | the text before a comment that spans lines and the text after it are one line | parsed |
 | `size-default` | a Size supplies the longest run when none is declared | parsed |
 | `declared-over-size` | a declared longest run wins over the Size default | parsed |
 | `unit-days` | days convert to minutes | parsed |

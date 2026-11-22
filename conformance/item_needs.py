@@ -22,25 +22,43 @@ FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 
 
 def prose_lines(text: str) -> list[str]:
-    """The lines outside fenced code blocks; an unclosed fence runs to the end."""
-    out, fence = [], None  # the open fence's character and length
+    """The lines that are neither inside a fenced code block nor inside an HTML comment, in
+    one pass, so a fence marker inside a comment and a comment marker inside a fence are each
+    ignored. The text before a comment that spans lines and the text after it are one line.
+    An unclosed fence or comment runs to the end."""
+    out, fence, carry = [], None, None  # the open fence's character and length; text before an open comment
     for line in text.splitlines():
-        m = FENCE.match(line)
-        if fence is None:
-            if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):
-                fence = (m.group(1)[0], len(m.group(1)))
+        joined = False
+        if carry is not None:
+            end = line.find("-->")
+            if end < 0:
                 continue
-            out.append(line)
-        elif m and m.group(1)[0] == fence[0] and len(m.group(1)) >= fence[1] and not m.group(2).strip():
-            fence = None
+            line, carry, joined = carry + line[end + 3:], None, True
+        if fence is not None:
+            m = FENCE.match(line)
+            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= fence[1] and not m.group(2).strip():
+                fence = None
+            continue
+        m = None if joined else FENCE.match(line)
+        if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):
+            fence = (m.group(1)[0], len(m.group(1)))
+            continue
+        while True:
+            line = re.sub(r"<!--.*?-->", "", line)
+            start = line.find("<!--")
+            if start < 0:
+                out.append(line)
+                break
+            carry = line[:start]
+            break
+    if carry is not None:
+        out.append(carry)
     return out
 
 
 def section(body: str) -> list[str] | None:
     """The lines under the first ``## Needs`` heading, up to the next heading or rule; None if absent."""
-    # Fences first, so a comment marker inside a code example cannot swallow real text.
-    text = re.sub(r"<!--.*?-->", "", "\n".join(prose_lines(body or "")), flags=re.S)  # not a comment
-    lines = text.splitlines()
+    lines = prose_lines(body or "")
     for i, line in enumerate(lines):
         if re.fullmatch(r"##\s+Needs\s*", line):
             out = []
