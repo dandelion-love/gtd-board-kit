@@ -54,4 +54,6 @@ call is exactly what it was. With it:
 
 The rule is not a reservation: it does not choose between machines, order work or hold a
 machine. Check MF2 holds a server's rule to the fit cases; MF3 and MF4 are the live checks.
-The result adds `resource` (the id) and `held_back` only when `resource` was given.
+Without `resource` the result is the plain list. With it the result is an object
+`{resource, items, held_back}`, where `items` are the rows the plain call would give, so a client
+that sends `resource` reads `items`.

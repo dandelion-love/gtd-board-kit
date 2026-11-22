@@ -31,7 +31,7 @@ Common rules for every tool:
 
 | Tool | Class | Arguments | Returns |
 | --- | --- | --- | --- |
-| `list_next_actions` | read | `repo`, `context?` (one label; empty for all open), `limit?` (default 30), `resource?` (a registered resource id; see [machine fit](machine-fit.md)) | open **issues** (never PRs) with `number`, `title`, `labels`, `url`; with `resource`, only the items that fit its card, plus `resource` and `held_back` |
+| `list_next_actions` | read | `repo`, `context?` (one label; empty for all open), `limit?` (default 30), `resource?` (a registered resource id; see [machine fit](machine-fit.md)) | open **issues** (never PRs) with `number`, `title`, `labels`, `url`; with `resource`, an object `{resource, items, held_back}`: `items` are the open issues that fit its card (the same rows) |
 | `issue_list` | read | `repo`, `state?` (`open`, `closed`, `all`), `labels?` (all must match), `limit?`, `query?` | the same shape; query results also report `truncated`, `incomplete`, and `search_warning` |
 | `issue_blocked_by_list` | read | `repo`, `number` | the issues blocking it (native blocked-by links), each with `repo`, `number`, `title`, `state` |
 | `project_get` | read | `project` | board `id`, `title`, `url`, `fields` (name, type, options), `status_options` (the live column names) |
