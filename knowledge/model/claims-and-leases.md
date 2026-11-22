@@ -31,7 +31,9 @@ generated: { by: claude-code/cloud, at: 2026-11-01T04:00:00Z }
   `interruptions` in `item_get` first. One interruption is counted for each takeover and for
   each lease that has run out and is still held; a release and a fresh claim are a handoff,
   not an interruption. A last worker who recorded no note reads `none recorded`; the item
-  still opens.
+  still opens. When the count reaches the limit (default 3), the next claim refuses and the
+  owner is asked once; the item waits for the answer, and an answer of `retry` resets the
+  count ([claim records](../../server-spec/claim-records.md#the-interruption-limit)).
 - **A stop** from the owner ([the stop signal](stop-signal.md)): finish the step, write the
   note, release. The server never revokes the claim itself.
 

@@ -3,7 +3,7 @@ name: board-claim
 description: Claim a board item, work it on a gtd/issue-N branch and hand it back as a PR, keeping the board current through the gtd MCP server. Use when starting work on a GitHub issue in a repo that has gtd-board-kit, whether you were pointed at it or picked it with board-pickup.
 metadata:
   author: gtd-board-kit
-  version: 0.11.0
+  version: 0.12.0
 ---
 
 # Claim an item and work it
@@ -29,15 +29,16 @@ item_claim(repo, number, basis, asked_by, pointed_in, lease="2h", branch, sessio
 - `session`: one name for this session; no session reviews its own work.
 - `model`, `reasoning`: self-reported, unverified; omit when unknown.
 - **Taking over** (`previous_holder` set, or `interruptions` above 0): read `closing_note`
-  (done, left, decided, set_aside) and `interruptions` in `item_get` first. Start from `left`,
-  keep `decided`, skip `set_aside`; `none recorded`: read its reports and commits.
+  and `interruptions` in `item_get` first. Start from `left`, keep `decided`, skip
+  `set_aside`; `none recorded`: read its reports and commits. At `interruption_limit`
+  (3) the claim refuses and the owner is asked once: wait.
 - A `stop` in any result: finish the step, write the note, release (`board-report`).
 
 ## Several stories on one branch
 
 Claim every story you work, one `item_claim` each, before its first commit; each has its
-own lease, reports and release. The PR lists them all in `pr_open`'s `issues`. Details in
-`branches.md`; read it before combining stories.
+own lease, reports and release. The PR lists them all in `pr_open`'s `issues`. Read
+`branches.md`.
 
 ## 2. Show it on the board
 
@@ -53,9 +54,9 @@ own lease, reports and release. The PR lists them all in `pr_open`'s `issues`. D
 - Branch `gtd/issue-<number>` from the default branch; never commit to it or print
   secrets.
 - `.github/workflows/**` stays untouched unless a workflow grant covers it (below).
-- The repo's own skill for the work and the PR body, if any, wins.
-- Scope is the issue as claimed. A new ask outside it: `capture` it with
-  `agent-proposed`; never widen this item.
+- The repo's own skill for the work and PR body, if any, wins.
+- Scope is the issue as claimed. A new ask: `capture` it with `agent-proposed`; never
+  widen this item.
 - Stuck on something only a person can settle: `board-needs-person`.
 
 ## Grants (BOARD.md rule 9)

@@ -47,7 +47,7 @@ A record comment is human-readable Markdown with one marker at the end:
 | `claim` | `item_claim` | `lease_until`, `takeover_of` (principal or null), `mandate`, `interruptions?` (informational, below) |
 | `renew` | `item_renew` | `lease_until` |
 | `release` | `item_release` | the [closing note](#the-closing-note) parts `done`, `left`, `decided`, `set_aside`; `remaining` (the old name of `left`), `next`, `handoff_to` (principal, role, `any`, or null) |
-| `report` | `item_report` | `state` (or null), `note`, `attention` (or null), `needs` (when `attention`), `links`, optionally the four closing note parts, and `answering?` (the comment id of the attention it answers, with `note` the person's words) |
+| `report` | `item_report` | `state` (or null), `note`, `attention` (or null), `needs` (when `attention`), `links`, optionally the four closing note parts, `answering?` (the comment id of the attention it answers, with `note` the person's words), `decision?` (`retry` or `hold`, with `answering`), and on an [interruption question](#the-interruption-limit) `escalation` and `count` |
 | `stop` | `item_stop` | `wind_down_until`, `reason?` |
 | `stop_clear` | `item_stop_clear` | `note?` |
 
@@ -132,6 +132,39 @@ that worker. A worker that recorded nothing leaves `none recorded`, never an ear
 worker's note, so a reader is never told something the last worker did not say. A lease
 in progress shows the note of the lease before it, until it ends.
 
+## The interruption limit
+
+An item that keeps being interrupted can bounce between workers unseen, so the count above
+has a limit. The **default limit is 3**; a deployment may set another whole number from 1,
+and `item_get` returns it as `interruption_limit`. The count is the `interruptions` of the
+fold, counted from the item's latest retry (below).
+
+**Reaching it.** A claim (not a renew) on an open item whose `interruptions` is at or above
+the limit, with no escalation yet, posts **one** `report` record and then refuses with
+`interruption-limit`, naming the question. The record carries `attention` (a question that
+gives the count and lists `retry` and `hold` as options), `needs` (the owner's value of the
+repo's profile), `escalation` `interruptions` and `count`. It is written under the
+principal that made the claim, so the sign-off names who triggered it. A server in the
+[Notifications](notifications.md) group pings once, as for any ask.
+
+**Waiting.** While the escalation is open or was answered without a retry, the item is not
+offered: every claim refuses `interruption-limit` and writes nothing, so the question is
+never repeated, and an unpointed pickup already refuses it because of its `needs:*` label.
+
+**Answering.** The owner answers with `item_report` `answering` (the escalation's comment
+id) and `decision`. `retry` resets the count to zero from that record and clears the
+escalation: the item is offered again. Any other answer (`hold`, or none) leaves the
+escalation `held`, and the item waits; a later `retry` naming the same comment id releases
+it. That `retry` is the one exception to the rule that `answering` must name the open
+attention: the answer closed the attention, so the server accepts `decision` `retry` naming
+the item's held `escalation.comment_id`, and refuses any other `answering` of a closed
+question, and a second `retry` once the escalation is cleared. The fold keeps `interruptions` from the latest `retry` on, and returns `escalation`
+(`{state, comment_id, count}`, state `asked` or `held`) or null.
+
+The record is the reporter's quote, as for any [answer](tools.md#claims-and-reports); the
+server does not check that the person is the owner, so the `note` names who said it and
+where.
+
 ## A stop
 
 `stop` and `stop_clear` are written only by `item_stop` and `item_stop_clear` for a caller
@@ -190,7 +223,7 @@ Walk record comments in ascending comment id (GitHub assigns ids in creation ord
 | `claim` | Unless a stop is in effect: if there is no holder, or the record's `takeover_of` equals the holder **and** the holder's `lease_until` is before this record's time: the record's `by` becomes holder; take its lease, id, mandate; clear `handoff_to` and `last_report`; a takeover also counts one interruption and sets `previous_holder`. Otherwise (or during a stop) it is a **lost claim** (listed, no effect) |
 | `renew` | If `by` is the holder: `lease_until` takes the record's value |
 | `release` | If `by` is the holder: clear holder, lease, claim, mandate, last report; `handoff_to` takes the record's value; the closing note and `previous_holder` are set |
-| `report` | `attention` becomes this record's question (or clears, if it has none; a record with `answering` clears the attention it names and is kept as `answered`; if the holder's report that asked it set `state`, `last_report` and `last_note` return to the values they had just before that report, unless a later holder report with `state` replaced them). If `by` is the holder and `state` is set: `last_report` and `last_note` take its values (the fold keeps the values they replace, for an `answering` record); `dropped` then releases as above. Closing note parts on a holder's report are kept for the lease |
+| `report` | `attention` becomes this record's question (or clears, if it has none; a record with `answering` clears the attention it names and is kept as `answered`; `decision` `retry` restarts the interruption count; if the holder's report that asked it set `state`, `last_report` and `last_note` return to the values they had just before that report, unless a later holder report with `state` replaced them). If `by` is the holder and `state` is set: `last_report` and `last_note` take its values (the fold keeps the values they replace, for an `answering` record); `dropped` then releases as above. Closing note parts on a holder's report are kept for the lease |
 | `stop`, `stop_clear` | `stop` starts a stop if none is in effect; `stop_clear` ends it |
 
 After the walk:
