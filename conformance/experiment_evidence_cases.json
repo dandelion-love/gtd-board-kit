@@ -255,6 +255,23 @@
       "name": "record-page-multiline",
       "layout": "page",
       "source_text": "```json record\n{\n  \"event\": \"result\"\n}\n```\n"
+    },
+    {
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "result_line_sha256": "693746e9666b138027ce6327ddbcc0b19c8a9e1a5c08d81ba9434fdea219f886",
+      "expect": {
+        "evidence_status": "legacy",
+        "verdict": "PASS",
+        "result_data": {
+          "score": 1,
+          "note": "a\u2028b"
+        },
+        "review_evidence": null
+      },
+      "name": "jsonl-unicode-separator",
+      "layout": "jsonl",
+      "source_text": "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":1,\"note\":\"a\u2028b\"}}\n"
     }
   ]
 }

@@ -22,7 +22,8 @@ def answer(case):
         if "source_text" in case:
             source = case["source_text"]
             if case["layout"] == "jsonl":
-                lines = source.splitlines()
+                lines = [line[:-1] if line.endswith("\r") else line
+                         for line in source.split("\n")]
             elif case["layout"] == "page":
                 lines = re.findall(r"(?m)^```json record\r?\n([^\r\n]+)\r?\n```\r?$", source)
             else:
