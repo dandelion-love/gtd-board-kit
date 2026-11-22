@@ -275,6 +275,8 @@ only as empty or not, because its wording is the server's own). The reference is
 | `all-three` | graphics memory, tools and a longest run are read | parsed |
 | `in-comment` | a Needs section inside an HTML comment (the story template) is not read | parsed |
 | `in-fence` | a Needs section inside a fenced example is not read | parsed |
+| `in-indented-fence` | a Needs section inside a fence indented up to three spaces is not read | parsed |
+| `in-open-fence` | a Needs section after a fence that is never closed is not read | parsed |
 | `size-default` | a Size supplies the longest run when none is declared | parsed |
 | `declared-over-size` | a declared longest run wins over the Size default | parsed |
 | `unit-days` | days convert to minutes | parsed |

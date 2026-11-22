@@ -110,7 +110,8 @@ When <situation>, <who> can <outcome>, so <benefit>. Today <what happens instead
 
 Blocked by #<n>
 
-## Needs (only when the story needs a particular machine)
+## Needs
+<!-- only when the story needs a particular machine; delete this section otherwise -->
 - Graphics memory: <GB>
 - Tools: <comma-separated names>
 - Longest run: <number and unit>
