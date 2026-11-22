@@ -112,6 +112,21 @@
       }
     },
     {
+      "name": "comment-marker-in-fence",
+      "what": "a comment marker inside a fenced example does not swallow the real section after it",
+      "body": "Summary.\n\n```html\n<!--\n```\n\n## Needs\n- Graphics memory: 20 GB\n<!-- explanation -->\n",
+      "size": null,
+      "expect": {
+        "declared": true,
+        "graphics_gb": 20.0,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": false,
+        "errors": []
+      }
+    },
+    {
       "name": "size-default",
       "what": "a Size supplies the longest run when none is declared",
       "body": "Summary.",

@@ -38,8 +38,9 @@ def prose_lines(text: str) -> list[str]:
 
 def section(body: str) -> list[str] | None:
     """The lines under the first ``## Needs`` heading, up to the next heading or rule; None if absent."""
-    text = re.sub(r"<!--.*?-->", "", body or "", flags=re.S)       # not a comment
-    lines = prose_lines(text)
+    # Fences first, so a comment marker inside a code example cannot swallow real text.
+    text = re.sub(r"<!--.*?-->", "", "\n".join(prose_lines(body or "")), flags=re.S)  # not a comment
+    lines = text.splitlines()
     for i, line in enumerate(lines):
         if re.fullmatch(r"##\s+Needs\s*", line):
             out = []
