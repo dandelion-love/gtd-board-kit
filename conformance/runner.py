@@ -2405,8 +2405,9 @@ def check_comment_edits(rep: Report, c: Client, tools: dict, sb: Sandbox | None)
     ok_x, out_x, t_x = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="secret-name",
                                                          replace="[redacted]"))
     _, got, _ = c.call("item_get", sb.args(g))
-    last = str((((got or {}).get("last_report") or {}).get("note")) or "")
-    still = (((got or {}).get("holder")) == (who_principal(out_k) or (got or {}).get("holder")))
+    got_item = (got or {}).get("item") or got or {}
+    last = str(got_item.get("last_note") or "")
+    still = got_item.get("holder") == (who_principal(out_k) or got_item.get("holder"))
     ok_b, _, t_b = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="agent:", replace="agent-x:"))
     ok_n, _, _ = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="no-such-text-xyz", replace="y"))
     ok_h, _, _ = c.call("comment_redact", sb.args(g, comment_id=rec_id, find="[redacted]", replace="<!-- x -->"))
@@ -2506,7 +2507,7 @@ def check_answering(rep: Report, c: Client, tools: dict, sb: Sandbox | None, pro
     _, got, _ = c.call("item_get", sb.args(n))
     again, _, t_again = c.call("item_report", sb.args(n, answering=cid, note="Yes."))
     item = (got or {}).get("item") or {}
-    back = str(((item.get("last_report") or {}).get("note")) or "")
+    back = str(item.get("last_note") or "")
     named = all("answering" in t.lower() for t in (t_note, t_unknown, t_again))
     rep.check("C22", ok1 and item.get("attention") is None and not no_note and not unknown
               and not again and named and "before the question" in back,
@@ -2567,6 +2568,24 @@ def check_interruption_limit(rep: Report, c: Client, tools: dict, sb: Sandbox | 
               and not lone and "answering" in t_lone.lower() and not word,
               f"limit {limit!r}; escalation {item.get('escalation', 'absent')!r}; decision alone refused {not lone} "
               f"({t_lone[:50]}); unknown word refused {not word}")
+    # C24, the part a sandbox can run: `decision` is an owner's. The rest of C24 is by hand.
+    seen_words = []
+    for word_ in ("retry", "hold"):
+        ok_d, _, t_d = c.call("item_report", sb.args(n, answering=1, note="x", decision=word_))
+        low = t_d.lower()
+        seen_words.append("owner-required" if "owner-required" in low else "not-open-attention"
+                          if "not-open-attention" in low else None)
+        if ok_d or seen_words[-1] is None:
+            rep.fail("C24", f"decision {word_} was not refused owner-required (an owner token: "
+                            f"not-open-attention): accepted {ok_d}, {t_d[:80]}")
+            return
+    if set(seen_words) == {"owner-required"}:
+        rep.ok("C24", "decision retry and hold refused owner-required for this non-owner token; the "
+                      "retry-path assertions (limit reached, retry resets, held, second retry) were "
+                      "skipped, not failed: they need an owner token and abandoned leases, by hand")
+    else:
+        rep.ok("C24", "this token is an owner: decision with no open question refused not-open-attention; "
+                      "the rest of C24 is by hand")
 
 
 def check_stall_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
@@ -3772,7 +3791,8 @@ MANUAL = {
     "C21": "claim with lease 1m, wait two minutes: item_get shows stale and interruptions 1; a takeover by a "
            "second principal keeps interruptions at 1, names previous_holder and shows the abandoned "
            "worker's last four parts, or none recorded",
-    "C24": "with the interruption limit reached by abandoned leases, the next claim refuses interruption-limit "
+    "C24": "(an owner's token; any other is refused owner-required, which the runner checks) with the "
+           "interruption limit reached by abandoned leases, the next claim refuses interruption-limit "
            "and posts one question for the owner; a second claim refuses and posts nothing; answering with "
            "decision retry resets interruptions to 0, clears escalation and a claim succeeds; another "
            "answer leaves escalation held and claims still refuse; a later retry naming the held escalation's "
@@ -3932,8 +3952,10 @@ def main(argv: list[str]) -> int:
             check_connector(rep, base, entrances, a.connector, a.connector_wait, seen, secrets)
         except CheckError as e:
             rep.fail("JC1", f"stopped: {e}")
+    ran = {r["id"] for r in rep.rows}
     for cid, how in MANUAL.items():
-        rep.manual(cid, how)
+        if cid not in ran:  # a check the run did in part (C24) already has its row
+            rep.manual(cid, how)
     if secrets:
         leaked = [s for s in secrets if any(s in body for body in seen)]
         rep.check("X1", not leaked, "a token the runner sent came back in a response body",
