@@ -3,7 +3,7 @@ name: board-decompose
 description: Decompose an epic or outcome into stories, or a story into steps, through the gtd MCP server. Proposes work for a person to promote; never makes work agent-ready.
 metadata:
   author: gtd-board-kit
-  version: 0.5.0
+  version: 0.6.0
 ---
 
 # Decompose work into stories and steps

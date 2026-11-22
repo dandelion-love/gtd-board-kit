@@ -16,6 +16,14 @@ type: Story
 
 - [ ] <!-- a step inside this story; no PR of its own -->
 
+<!-- Optional. Delete this section when the story runs on any machine.
+## Needs
+
+- Graphics memory: <GB>
+- Tools: <comma-separated names>
+- Longest run: <number and unit, e.g. 2 hours>
+-->
+
 <!-- Blocked by #<n>, only alongside a native blocked-by link -->
 
 ## Context

@@ -110,6 +110,11 @@ When <situation>, <who> can <outcome>, so <benefit>. Today <what happens instead
 
 Blocked by #<n>
 
+## Needs (only when the story needs a particular machine)
+- Graphics memory: <GB>
+- Tools: <comma-separated names>
+- Longest run: <number and unit>
+
 ## Context
 <Origin, evidence links, revisions and approvals. The parent link shows the epic.>
 ```
@@ -122,3 +127,4 @@ Blocked by #<n>
   report, a diagram) goes in an issue artifact
   ([where evidence goes](../../knowledge/model/evidence-places.md)); never a sub-issue.
 - A `Blocked by` line only alongside a native link; prose alone fails the ready check.
+- `## Needs` is optional and every line in it too; leave it out when any machine can do the story. The server refuses a value that is not a number or a tool name ([item needs](../../knowledge/model/item-needs.md)).
