@@ -579,6 +579,12 @@ Cases ([page_cases.json](../conformance/page_cases.json)):
 | `two-appends` | RP3 | base, ours, then theirs |
 | `same-append` | RP3 | the same entry on both sides is kept once |
 | `one-edited` | RP3 | refused (`null`) |
+| `v2-complete`, `v2-pin-mismatch`, `v2-other-register-v1`, `v2-typed-links` | RP1 | full readable experiment fields and digests; verify stored pin; other item kinds remain v1 |
+| `v2-pin-malformed`, `v2-pin-nonhex`, `v2-pin-full`, `v2-pin-absent` | RP1 | stored hash format and unverified or verified full digest are explicit |
+| `legacy-link-base-preserved`, `legacy-link-base-merge` | RP2, RP3 | historical base bytes remain untouched on append and merge |
+| `mixed-new`, `mixed-append-v2`, `mixed-append-v1` | RP2 | accept exact versioned entries on mixed histories |
+| `v2-tampered-prose`, `v2-tampered-marker`, `base-version-conflict`, `tail-version-conflict` | RP2 | reject altered or conflicting entry presentations |
+| `mixed-distinct-preserved`, `mixed-same-conflict`, `mixed-base-conflict`, `mixed-identical-dedup`, `mixed-tail-conflict` | RP3 | preserve entry bytes, deduplicate identical entries and refuse presentation conflicts |
 
 ## Experiment evidence
 

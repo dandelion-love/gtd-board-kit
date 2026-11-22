@@ -80,9 +80,7 @@ SUMMARY_FIELDS: dict[str, list[tuple[str, str]]] = {
 
 
 def _ref(item, folders: dict | None) -> str:
-    """An item id as a relative link to its page when its prefix is in the map, else plain text.
-    Each map value is the page's path relative to the linking page's own folder, with `{id}` for
-    the id: `../{id}/README.md` between item folders, `../listening/{id}.md` to a flat folder."""
+    """An item id as a relative link to its page when its prefix names a folder, else plain text."""
     if isinstance(item, str) and SAFE_ID.match(item):
         for prefix, target in (folders or {}).items():
             if item.startswith(prefix):
@@ -127,13 +125,109 @@ def summary(rec: dict, folders: dict | None = None) -> str:
     return "\n\n".join(parts) or "_Nothing to summarise; the record below holds it all._"
 
 
-def entry(line: str, folders: dict | None = None) -> str:
+def entry_v1(line: str, folders: dict | None = None) -> str:
     rec = json.loads(line)
     head = f"## {_esc(str(rec.get('event')))} · {_esc(str(rec.get('t') or 'no time'))}"
     if rec.get("by"):
         head += f" · {_esc(str(rec['by']))}"
     return (f"\n{head}\n\n{summary(rec, folders)}\n\n<details><summary>Record · sha256 {line_sha256(line)[:16]}"
             f"</summary>\n\n{FENCE}\n{line}\n```\n\n</details>\n")
+
+
+ENTRY_V2_MARKER = "<!-- okf-entry-v2 -->"
+RULE_FIELDS = ("hypothesis", "arms", "metric", "decision_rule", "falsified_by",
+               "void_if", "cannot_answer", "n_planned")
+
+
+def rule_digest(rec: dict) -> str | None:
+    """Compute the existing eight-field experiment rule; never infer a missing spec."""
+    if (rec.get("event") != "register" or not str(rec.get("id", "")).startswith("EXP-")
+            or not isinstance(rec.get("spec"), dict)):
+        return None
+    spec = rec["spec"]
+    payload = json.dumps({k: spec.get(k) for k in RULE_FIELDS}, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def full_value(value, depth: int = 0) -> str:
+    """Render full structured values as safe, readable Markdown without clipping."""
+    if isinstance(value, str):
+        return _esc(value)
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        pad = "  " * depth
+        return "\n" + "\n".join(
+            f"{pad}- **{_esc(str(key))}**: {full_value(val, depth + 1)}"
+            for key, val in value.items()
+        )
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        if all(not isinstance(item, (dict, list)) for item in value):
+            return ", ".join(full_value(item, depth + 1) for item in value)
+        pad = "  " * depth
+        return "\n" + "\n".join(f"{pad}- {full_value(item, depth + 1)}" for item in value)
+    return _esc(json.dumps(value, ensure_ascii=False))
+
+
+def summary_v2(rec: dict, folders: dict | None = None) -> str:
+    """Expose every field in labelled prose; the sole raw JSON copy stays in details."""
+    labels = {
+        "rule_hash": "Rule hash prefix (stored)", "prereg": "Preregistration",
+        "preregistration_status": "Preregistration status", "n_planned": "Planned",
+        "stopping_rule": "Stopping rule", "decision_rule": "Decision rule",
+        "cannot_answer": "Cannot answer", "falsified_by": "Falsified by",
+        "void_if": "Void if", "review_evidence": "Review evidence",
+        "run_dirs": "Run directories", "run_dir": "Run directory",
+    }
+    parts = []
+    def add(key, value):
+        if value in (None, "", [], {}):
+            return
+        label = labels.get(key, key.replace("_", " ").capitalize())
+        if key == "rule_hash":
+            if isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value):
+                label = "Rule SHA-256 (stored)"
+            elif not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{16}", value):
+                label = "Rule hash (stored; invalid format)"
+        rendered = _ref(value, folders) if key == "to" and isinstance(value, str) else full_value(value)
+        parts.append(f"**{_esc(label)}.** {rendered}".rstrip())
+    for key, value in rec.items():
+        if key in ("event", "id", "t", "by"):
+            continue
+        if key == "spec" and isinstance(value, dict):
+            for spec_key, spec_value in value.items():
+                add(spec_key, spec_value)
+        else:
+            add(key, value)
+    return "\n\n".join(parts) or "_No additional fields._"
+
+
+def entry(line: str, folders: dict | None = None) -> str:
+    """Render a versioned entry while keeping its fenced record byte-identical."""
+    rec = json.loads(line)
+    item = item_of(rec)
+    if not isinstance(item, str) or not item.startswith("EXP-"):
+        return entry_v1(line, folders)
+    head = f"## {_esc(str(rec.get('event')))} · {_esc(str(rec.get('t') or 'no time'))}"
+    if rec.get("by"):
+        head += f" · {_esc(str(rec['by']))}"
+    extra = [f"**Record SHA-256.** {line_sha256(line)}"]
+    full = rule_digest(rec)
+    if full is not None:
+        pin = rec.get("rule_hash")
+        valid = isinstance(pin, str) and len(pin) in (16, 64) and bool(re.fullmatch(r"[0-9a-f]+", pin))
+        if valid and full.startswith(pin):
+            extra.append(f"**Rule SHA-256.** {full} (verified against stored pin {pin}; eight registered fields)")
+        elif pin is None:
+            extra.append(f"**Rule SHA-256.** {full} (computed; no stored pin to verify)")
+        else:
+            extra.append(f"**Rule SHA-256.** {full} (computed; stored pin {_esc(str(pin))} does not verify)")
+    text = "\n\n".join([summary_v2(rec, folders), *extra])
+    return (f"\n{head}\n\n{ENTRY_V2_MARKER}\n\n{text}\n\n"
+            f"<details><summary>Record · sha256 {line_sha256(line)}</summary>\n\n"
+            f"{FENCE}\n{line}\n```\n\n</details>\n")
 
 
 def header(item: str, kind: str, first_line: str) -> str:
@@ -171,6 +265,25 @@ def page_id(page: str) -> str | None:
         return None
 
 
+def rendered_entries(text: str, folders: dict | None = None) -> list[tuple[str, str]] | None:
+    """Parse only complete, byte-exact v1/v2 entries; return original entry bytes."""
+    result = []
+    seen = {}
+    rest = text
+    for line in parse_page(text):
+        for candidate in (entry(line, folders), entry_v1(line, folders)):
+            if rest.startswith(candidate):
+                if line in seen and seen[line] != candidate:
+                    return None
+                seen[line] = candidate
+                result.append((line, candidate))
+                rest = rest[len(candidate):]
+                break
+        else:
+            return None
+    return result if not rest else None
+
+
 # ---------------------------------------------------------------------------
 # The rule
 # ---------------------------------------------------------------------------
@@ -197,12 +310,23 @@ def check_page(old: str | None, new: str | None, *, item: str, kind: str,
     if probs:
         return probs
     if old is None:
-        return [] if lines and new == render_page(item, kind, lines, folders) else ["page-is-not-rendered"]
+        if not lines:
+            return ["page-is-not-rendered"]
+        prefix = header(item, kind, lines[0])
+        return [] if new.startswith(prefix) and rendered_entries(new[len(prefix):], folders) is not None else ["page-is-not-rendered"]
     if not new.startswith(old):
         return ["edits-existing-content"]
     tail = new[len(old):]
-    if tail != "".join(entry(ln, folders) for ln in parse_page(tail)):
+    pairs = rendered_entries(tail, folders)
+    if pairs is None:
         return ["added-text-is-not-rendered-entries"]
+    old_lines = set(parse_page(old))
+    for line, rendered in pairs:
+        if line in old_lines:
+            known = {candidate for candidate in (entry_v1(line, folders), entry(line, folders))
+                     if candidate in old}
+            if len(known) != 1 or rendered not in known:
+                return ["conflicting-record-presentation"]
     return []
 
 
@@ -213,8 +337,20 @@ def merge_pages(base: str, ours: str, theirs: str, *, item: str, kind: str,
             check_page(base, theirs, item=item, kind=kind, folders=folders):
         return None
     have, page = set(parse_page(ours)), ours
-    for ln in parse_page(theirs[len(base):]):
+    base_lines = set(parse_page(base))
+    our_pairs = rendered_entries(ours[len(base):], folders) or []
+    their_pairs = rendered_entries(theirs[len(base):], folders) or []
+    for ln, rendered in our_pairs + their_pairs:
+        if ln in base_lines:
+            known = [candidate for candidate in (entry_v1(ln, folders), entry(ln, folders))
+                     if candidate in base]
+            if rendered not in known:
+                return None
+    our_new = dict(our_pairs)
+    for ln, rendered in their_pairs:
+        if ln in our_new and our_new[ln] != rendered:
+            return None
         if ln not in have:
-            page += entry(ln, folders)
+            page += rendered
             have.add(ln)
     return page
