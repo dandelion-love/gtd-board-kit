@@ -48,6 +48,7 @@ A record comment is human-readable Markdown with one marker at the end:
 | `renew` | `item_renew` | `lease_until` |
 | `release` | `item_release` | the [closing note](#the-closing-note) parts `done`, `left`, `decided`, `set_aside`; `remaining` (the old name of `left`), `next`, `handoff_to` (principal, role, `any`, or null) |
 | `report` | `item_report` | `state` (or null), `note`, `attention` (or null), `needs` (when `attention`), `links`, optionally the four closing note parts, `answering?` (the comment id of the attention it answers, with `note` the person's words), `decision?` (`retry` or `hold`, with `answering`), and on an [interruption question](#the-interruption-limit) `escalation` and `count` |
+| `backlog` | `backlog_decide` | `decision` (`promote`, `park` or `drop`), `note?`; the fold ignores it for the claim and keeps the latest one whose `by` is an owner as `backlog` |
 | `stop` | `item_stop` | `wind_down_until`, `reason?` |
 | `stop_clear` | `item_stop_clear` | `note?` |
 
@@ -240,7 +241,7 @@ After the walk:
 [interruptions](#interruptions) and [a stop](#a-stop) also returns `interruptions` (a whole
 number), `previous_holder` (a principal or null), `closing_note`
 (`{by, done, left, decided, set_aside}`, each part a string, with `none` and `none recorded`
-as above) and `stop` (`{state, by, at, wind_down_until, reason, overdue}`, or null).
+as above) and `stop` (`{state, by, at, wind_down_until, reason, overdue}`, or null). A server with [backlog review](tools.md#backlog-review) also returns `backlog` (`{decision, at, by, note}`, or null).
 
 ## Claiming safely without a lock
 

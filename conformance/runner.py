@@ -81,6 +81,7 @@ class Family(Enum):
     EDITS = "CE"            # Comment edits (when comment_update or comment_redact is offered)
     STALE = "SD"            # Stale done (when stale_done or item_close_done is offered)
     STALL = "SC"            # Stall check (when stall_check is offered)
+    BACKLOG = "BR"          # Backlog review (when backlog_review or backlog_decide is offered)
     STOP = "ST"             # Stop (when item_stop or item_stop_clear is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
@@ -101,6 +102,7 @@ HEADINGS = {
     Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.STALE: "Stale done", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
     Family.STOP: "Stop",
     Family.STALL: "Stall check",
+    Family.BACKLOG: "Backlog review",
     Family.RECORDS: "Register records",
     Family.HANDOFF: "Milestone handoff",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
@@ -129,6 +131,7 @@ LEVEL_OF = {
     Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.STALE: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
     Family.STOP: Level.EXTENDED,
     Family.STALL: Level.EXTENDED,
+    Family.BACKLOG: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
     Family.HANDOFF: Level.EXTENDED,
 }
@@ -185,7 +188,7 @@ CLASS.update(dict.fromkeys((
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
     "issue_artifact_get", "activity_since", "intake_list", "notify_get", "stale_done",
-                "stall_check"), "read"))
+                "stall_check", "backlog_review"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -196,6 +199,7 @@ CLASS.update(dict.fromkeys((
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
     "issue_artifact_update", "intake_ack", "comment_update", "comment_redact", "item_close_done"), "work"))
 CLASS["intake_check"] = "work"
+CLASS["backlog_decide"] = "work"
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
 #: classes `full` by prefix. A declaration can never lower one of these.
 SPEC_FULL = frozenset((
@@ -2590,6 +2594,43 @@ def check_stall_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -
               f"bad mode refused {not bad_mode}; 1m refused {not bad_limit} {text[:50]}")
 
 
+def check_backlog_review(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """BR1 to BR3: the backlog review tools, when either is offered. BR4 is by hand (the owner)."""
+    have = [t for t in ("backlog_review", "backlog_decide") if t in tools]
+    if not have:
+        for cid in ("BR1", "BR2", "BR3", "BR4"):
+            rep.na(cid, "the backlog review tools are not offered")
+        return
+    classes = {t: tool_class(tools[t])[0] for t in have}
+    rep.check("BR1", classes == {"backlog_review": "read", "backlog_decide": "work"},
+              f"offered {classes}", "backlog_review read, backlog_decide work")
+    rep.manual("BR4", "as the owner: promote, park and drop each post one signed record with the date; item_get "
+                      "shows the latest as backlog; the issue stays open, with no label or Priority changed")
+    if sb is None or len(have) < 2:
+        rep.skip("BR2", "needs --repo and both tools")
+        rep.skip("BR3", "needs --repo and both tools")
+        return
+    n = sb.issue("backlog review")
+    ok, out, text = c.call("backlog_review", sb.repo_args())
+    bad_mode, _, _ = c.call("backlog_review", sb.repo_args(mode="act"))
+    digest = (out or {}).get("digest") or {}
+    unset = [e.get("number") for e in digest.get("unset") or []]
+    total = sum(len(v) for v in digest.values())
+    counts = sum((out or {}).get("counts", {}).values()) if isinstance((out or {}).get("counts"), dict) else -1
+    _, got, _ = c.call("issue_get", sb.args(n))
+    rep.check("BR2", ok and (out or {}).get("mode") == "watch" and n in unset and counts == total
+              and (got or {}).get("state") == "open" and not bad_mode,
+              f"mode {(out or {}).get('mode')!r}; unset has the new issue {n in unset}; counts {counts} vs entries {total}; "
+              f"bad mode refused {not bad_mode} {text[:50]}")
+    ok3, _, t3 = c.call("backlog_decide", sb.args(n, decision="park"))
+    _, got3, _ = c.call("item_get", sb.args(n))
+    if ok3:
+        rep.skip("BR3", "this token is the item's owner, so the decision was recorded; use a non-owner token")
+        return
+    rep.check("BR3", "owner" in t3.lower() and ((got3 or {}).get("item") or {}).get("backlog") is None,
+              f"refused {not ok3} ({t3[:60]}); backlog {((got3 or {}).get('item') or {}).get('backlog')!r}")
+
+
 def check_stale_done(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """SD1 and SD2: the stale-done tools, when either is offered. SD3 is by hand."""
     have = [t for t in ("stale_done", "item_close_done") if t in tools]
@@ -3868,6 +3909,7 @@ def main(argv: list[str]) -> int:
                 check_registers(rep, _tools, a.record_cmd)
                 check_handoff(rep, _tools, a.handoff_cmd, who)
                 check_stall_check(rep, c, _tools, sb)
+                check_backlog_review(rep, c, _tools, sb)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
