@@ -40,6 +40,24 @@ Rules:
 - `agent:` names are one namespace: the operator keeps joined names and service subjects
   distinct.
 
+## Person sign-in (optional)
+
+A server MAY let a person sign in to the unified app **as themselves**, with a principal
+`person:<login>` that is distinct from every agent. It is off unless the operator turns it
+on (a switch whose default is off); with it off, no person token is issued and agent
+sign-in, join and every other call behave exactly as before.
+
+- The sign-in is a native-app flow that ends with a short-lived, revocable token and no
+  GitHub or cloud credential on the device. The server reads the redirect (callback) address
+  from configuration, never from the request.
+- A GitHub account that is not on the operator's list of approved people, and a cancelled
+  sign-in, get **no** token.
+- A person token is accepted only on the calls the app makes; it is refused on every other
+  call, and an agent token is refused as a person. The token expires and can be revoked.
+- `whoami` shows the principal, so the app can show who is signed in.
+
+Check T11 is a manual check, run only when a server offers it.
+
 ## Presets
 
 A preset is a ceiling on which tools a joined agent may see and call. They are ordered:
