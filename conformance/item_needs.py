@@ -18,11 +18,28 @@ RUN = re.compile(r"(\d+(?:\.\d+)?)\s*(minutes?|mins?|m|hours?|hrs?|h|days?|d)\Z"
 UNIT_MINUTES = {"m": 1, "h": 60, "d": 1440}
 
 
+FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+
+
+def prose_lines(text: str) -> list[str]:
+    """The lines outside fenced code blocks; an unclosed fence runs to the end."""
+    out, fence = [], None  # the open fence's character and length
+    for line in text.splitlines():
+        m = FENCE.match(line)
+        if fence is None:
+            if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):
+                fence = (m.group(1)[0], len(m.group(1)))
+                continue
+            out.append(line)
+        elif m and m.group(1)[0] == fence[0] and len(m.group(1)) >= fence[1] and not m.group(2).strip():
+            fence = None
+    return out
+
+
 def section(body: str) -> list[str] | None:
     """The lines under the first ``## Needs`` heading, up to the next heading; None if absent."""
     text = re.sub(r"<!--.*?-->", "", body or "", flags=re.S)       # not a comment
-    text = re.sub(r"^(`{3,}|~{3,}).*?^\1[`~]*\s*$", "", text, flags=re.S | re.M)  # not a fenced example
-    lines = text.splitlines()
+    lines = prose_lines(text)
     for i, line in enumerate(lines):
         if re.fullmatch(r"##\s+Needs\s*", line):
             out = []

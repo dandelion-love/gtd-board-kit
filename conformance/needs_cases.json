@@ -65,6 +65,36 @@
       }
     },
     {
+      "name": "in-indented-fence",
+      "what": "a Needs section inside a fence indented two spaces is not read",
+      "body": "Summary.\n\n  ```\n  ## Needs\n  - Graphics memory: lots\n  ```\n",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "in-open-fence",
+      "what": "a Needs section after a fence that is never closed is not read",
+      "body": "Summary.\n\n```\n## Needs\n- Graphics memory: lots\n",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
       "name": "size-default",
       "what": "a Size supplies the longest run when none is declared",
       "body": "Summary.",
