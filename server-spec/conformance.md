@@ -416,6 +416,17 @@ these ([closing finished items](tools.md#closing-finished-items)). SD2 needs a s
 | SD2 | For a fresh open story with criteria and no merged PR, `stale_done(number)` returns `verdict` `keep` with `no-merged-pr`, and `item_close_done` refuses naming it and leaves the issue open; with a `needs:*` label added, `reasons` also holds `needs` |
 | SD3 | (by hand) A story whose merged PR carries an Evidence row for every criterion gets `close`, and `item_close_done` ticks the boxes, posts one signed comment and closes it `completed`; a story whose only merged PR mentions it, one with an unmet criterion, an epic, and a `standing` item each get `keep` with the matching reason |
 
+## Stall check (when offered)
+
+A server that lists `stall_check` ([checking for work that stands still](tools.md#checking-for-work-that-stands-still))
+must also pass these. SC2 needs a sandbox repo.
+
+| Id | Check |
+| --- | --- |
+| SC1 | `tools/list` has `stall_check`, class `read` |
+| SC2 | With no `mode`, the result's `mode` is `watch` and `speak` is empty; a fresh item with no claim and no release is not in `findings`; a `mode` other than `watch` or `speak` refuses, and so does `silent_after` of `1m` |
+| SC3 | (by hand) A live claim with no report for longer than `silent_after` is listed as `silent-claim`, and one reported since is not; an unheld item whose latest release names a worker, older than `handoff_after`, is listed as `unheld-handoff`, and one held by someone else is not; in `watch` mode `would` has a line for each finding past three windows and `speak` is empty; in `speak` mode `speak` has one question for each, and nothing is written to the repo in either mode |
+
 ## Stop (when offered)
 
 A server that lists `item_stop` or `item_stop_clear` ([stopping an item](tools.md#stopping-an-item))

@@ -80,6 +80,7 @@ class Family(Enum):
     NOTIFY = "N"            # Notifications (when notify_get is offered)
     EDITS = "CE"            # Comment edits (when comment_update or comment_redact is offered)
     STALE = "SD"            # Stale done (when stale_done or item_close_done is offered)
+    STALL = "SC"            # Stall check (when stall_check is offered)
     STOP = "ST"             # Stop (when item_stop or item_stop_clear is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
@@ -99,6 +100,7 @@ HEADINGS = {
     Family.KINDS: "Kind and parent rules", Family.ARTIFACTS: "Issue artifacts",
     Family.INTAKE: "Intake", Family.NOTIFY: "Notifications", Family.EDITS: "Comment edits", Family.STALE: "Stale done", Family.LINKS: "Typed links", Family.PAGES: "Record pages",
     Family.STOP: "Stop",
+    Family.STALL: "Stall check",
     Family.RECORDS: "Register records",
     Family.HANDOFF: "Milestone handoff",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
@@ -126,6 +128,7 @@ LEVEL_OF = {
     Family.KINDS: Level.EXTENDED, Family.ARTIFACTS: Level.EXTENDED, Family.INTAKE: Level.EXTENDED,
     Family.NOTIFY: Level.EXTENDED, Family.EDITS: Level.EXTENDED, Family.STALE: Level.EXTENDED, Family.LINKS: Level.EXTENDED, Family.PAGES: Level.EXTENDED,
     Family.STOP: Level.EXTENDED,
+    Family.STALL: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
     Family.HANDOFF: Level.EXTENDED,
 }
@@ -181,7 +184,8 @@ CLASS.update(dict.fromkeys((
     "item_get", "issue_parent", "sub_issues_list", "work_items_plan", "actions_workflows",
     "actions_runs", "actions_run_get", "actions_logs", "run_state_read", "channels_list",
     "channel_comments_read", "profile_updates", "item_ready", "issue_artifact_list",
-    "issue_artifact_get", "activity_since", "intake_list", "notify_get", "stale_done"), "read"))
+    "issue_artifact_get", "activity_since", "intake_list", "notify_get", "stale_done",
+                "stall_check"), "read"))
 CLASS.update(dict.fromkeys((
     "capture", "issue_comment", "issue_labels", "item_claim", "item_renew", "item_release",
     "item_report", "project_set_status", "project_set_field", "project_item_move",
@@ -1422,6 +1426,13 @@ class Sandbox:
             a.setdefault("project", self.project)
         return a
 
+    def repo_args(self, **more: Any) -> dict:
+        """Arguments for a repository-wide tool: the repo and project, never an issue number."""
+        a = {"repo": self.repo, **more}
+        if self.project:
+            a.setdefault("project", self.project)
+        return a
+
 
 def _entries(out: Any, repo: str, number: int) -> list[dict]:
     return [e for e in (out or {}).get("entries") or []
@@ -2552,6 +2563,31 @@ def check_interruption_limit(rep: Report, c: Client, tools: dict, sb: Sandbox | 
               and not lone and "answering" in t_lone.lower() and not word,
               f"limit {limit!r}; escalation {item.get('escalation', 'absent')!r}; decision alone refused {not lone} "
               f"({t_lone[:50]}); unknown word refused {not word}")
+
+
+def check_stall_check(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
+    """SC1 and SC2: the stall check, when offered. SC3 is by hand."""
+    if "stall_check" not in tools:
+        for cid in ("SC1", "SC2", "SC3"):
+            rep.na(cid, "stall_check is not offered")
+        return
+    klass = tool_class(tools["stall_check"])[0]
+    rep.check("SC1", klass == "read", f"offered as {klass}", "stall_check, class read")
+    rep.manual("SC3", "a silent live claim and an unheld handoff past their limits are listed, a recent report "
+                      "and a held handoff are not; watch mode fills would and leaves speak empty; speak mode "
+                      "fills speak; neither writes to the repo")
+    if sb is None:
+        rep.skip("SC2", "needs --repo")
+        return
+    n = sb.issue("stall check")
+    ok, out, text = c.call("stall_check", sb.repo_args())
+    bad_mode, _, _ = c.call("stall_check", sb.repo_args(mode="loud"))
+    bad_limit, _, _ = c.call("stall_check", sb.repo_args(silent_after="1m"))
+    listed = [f.get("number") for f in (out or {}).get("findings") or []]
+    rep.check("SC2", ok and (out or {}).get("mode") == "watch" and not (out or {}).get("speak")
+              and n not in listed and not bad_mode and not bad_limit,
+              f"mode {(out or {}).get('mode')!r}; speak {(out or {}).get('speak')!r}; fresh item listed {n in listed}; "
+              f"bad mode refused {not bad_mode}; 1m refused {not bad_limit} {text[:50]}")
 
 
 def check_stale_done(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
@@ -3831,6 +3867,7 @@ def main(argv: list[str]) -> int:
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)
                 check_handoff(rep, _tools, a.handoff_cmd, who)
+                check_stall_check(rep, c, _tools, sb)
                 if sb:
                     print(f"note: created issues {', '.join('#' + str(x) for x in sb.made)} in {a.repo}",
                           file=sys.stderr)
