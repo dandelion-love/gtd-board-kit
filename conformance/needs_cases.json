@@ -95,6 +95,23 @@
       }
     },
     {
+      "name": "signoff-after",
+      "what": "a server's sign-off after the section (a rule, then a sub line) is not part of it",
+      "body": "Summary.\n\n## Needs\n- Tools: ffmpeg\n\n---\n<sub>gtd-sign · agent:x · worker · capture</sub>\n\n<!-- gtd-sign v1 {} -->",
+      "size": null,
+      "expect": {
+        "declared": true,
+        "graphics_gb": null,
+        "tools": [
+          "ffmpeg"
+        ],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": false,
+        "errors": []
+      }
+    },
+    {
       "name": "size-default",
       "what": "a Size supplies the longest run when none is declared",
       "body": "Summary.",
