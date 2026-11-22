@@ -31,7 +31,7 @@ Common rules for every tool:
 
 | Tool | Class | Arguments | Returns |
 | --- | --- | --- | --- |
-| `list_next_actions` | read | `repo`, `context?` (one label; empty for all open), `limit?` (default 30) | open **issues** (never PRs) with `number`, `title`, `labels`, `url` |
+| `list_next_actions` | read | `repo`, `context?` (one label; empty for all open), `limit?` (default 30), `resource?` (a registered resource id; see [machine fit](machine-fit.md)) | open **issues** (never PRs) with `number`, `title`, `labels`, `url`; with `resource`, only the items that fit its card, plus `resource` and `held_back` |
 | `issue_list` | read | `repo`, `state?` (`open`, `closed`, `all`), `labels?` (all must match), `limit?`, `query?` | the same shape; query results also report `truncated`, `incomplete`, and `search_warning` |
 | `issue_blocked_by_list` | read | `repo`, `number` | the issues blocking it (native blocked-by links), each with `repo`, `number`, `title`, `state` |
 | `project_get` | read | `project` | board `id`, `title`, `url`, `fields` (name, type, options), `status_options` (the live column names) |
@@ -132,7 +132,7 @@ errors}`. An item with no `## Needs` section, or one with no valid line, has
 `runs_anywhere` true and `declared` false; nothing declared never refuses and never hides the
 item. When no `Longest run` is declared and the board Size is known, `longest_run_minutes`
 is the Size default and `longest_run_source` is `size`: `XS` 15, `S` 60, `M` 240, `L` 1440,
-`XL` 4320 minutes (proposal; a person may change the table in a pull request). With a
+`XL` 4320 minutes (a profile may replace the table with its own `size_run_minutes`, Size to whole minutes above 0, and a server reads that before this default). With a
 declared run the source is `declared`; with neither it is null. A server that writes an
 issue body (`issue_update`, `issue_create`) **refuses** a body whose `## Needs` section has
 an error and names the offending line or value; a body with no section is never refused. A
@@ -286,6 +286,8 @@ that offers the capability uses the name.
 | Intake | `intake_list` (read), `intake_ack` (work); optional `intake_check` (work) | Requests other projects file into a repo, the acknowledgement each one gets, and which are overdue; and the clear, small, fits check a new item gets before it is ordered. See [intake](#intake) and [the intake check](#the-intake-check) |
 | Registers | `record_get` (read): `repo`, `id`, `ref?`; `record_append` (work): `repo`, `register`, `record` | Reading one register item folded and upgraded, and appending one record to it, by the rules in [register records](register-records.md): the server fills the envelope, validates, writes the item's page as one commit, and refuses a result carrying a machine's facts. A server with this group shows register items on GitHub as that section says |
 | Notifications | `notify_get` (read); adds `ping` to `item_report` and a review request to `pr_open` | One ping per ask, under an identity other than the person pinged. See [notifications](notifications.md) |
+| Machine fit | `list_next_actions` with `resource`; a card on `resource_register` and `resource_update` | Offering a machine only the items it can finish, and saying why the others were held back. See [machine fit](machine-fit.md) |
+| App board | `app_board` (read): `project?`, `repo?` | One call for the unified app's board screen: columns, workers, time left, items waiting for the caller. See [app board](app-board.md) |
 | Milestone handoff | `handoff_send`, `handoff_ack`, `handoff_cancel`, `handoff_bind`, `handoff_unbind` (work); `handoff_get`, `handoff_list`, `handoff_bindings` (read) | Handing a milestone of an item to another session, with delivery state kept apart from the review verdict. See [milestone handoff](milestone-handoff.md) |
 
 `project_views` (create a profile's views) is a write and sits in `full`. Agents that only

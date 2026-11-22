@@ -1,0 +1,126 @@
+{
+ "about": "Golden cases for the app board's columns (server-spec/app-board.md; check AB1). `mapping` is the profile's app_columns or null for the default; `expect` maps each Status (null counts as empty) to its column. Mapping cases give a mapping and expect ok.",
+ "cases": [
+  {
+   "name": "default-table",
+   "what": "each Status of the gtd-dispatch board maps as the story says",
+   "mapping": null,
+   "statuses": [
+    "Backlog",
+    "Blocked",
+    "Ready",
+    "In Progress",
+    "In Review",
+    "Needs owner",
+    "Done"
+   ],
+   "expect": {
+    "Backlog": "waiting",
+    "Blocked": "waiting",
+    "Ready": "ready",
+    "In Progress": "in_progress",
+    "In Review": "in_progress",
+    "Needs owner": "needs_you",
+    "Done": "done"
+   }
+  },
+  {
+   "name": "unmapped-is-other",
+   "what": "a Status with no mapping is other, never dropped",
+   "mapping": null,
+   "statuses": [
+    "Someday"
+   ],
+   "expect": {
+    "Someday": "other"
+   }
+  },
+  {
+   "name": "no-status-is-other",
+   "what": "an item with no Status is other",
+   "mapping": null,
+   "statuses": [
+    null,
+    ""
+   ],
+   "expect": {
+    "": "other"
+   }
+  },
+  {
+   "name": "case-and-space",
+   "what": "options match without regard to case or extra spaces",
+   "mapping": null,
+   "statuses": [
+    "in  progress",
+    "READY"
+   ],
+   "expect": {
+    "in  progress": "in_progress",
+    "READY": "ready"
+   }
+  },
+  {
+   "name": "profile-mapping",
+   "what": "a profile's own mapping replaces the default",
+   "mapping": {
+    "Queued": "ready",
+    "Running": "in_progress",
+    "Verdict": "done"
+   },
+   "statuses": [
+    "Queued",
+    "Running",
+    "Verdict",
+    "Backlog"
+   ],
+   "expect": {
+    "Queued": "ready",
+    "Running": "in_progress",
+    "Verdict": "done",
+    "Backlog": "other"
+   }
+  }
+ ],
+ "mapping_cases": [
+  {
+   "name": "mapping-ok",
+   "what": "a mapping onto the five columns is valid",
+   "mapping": {
+    "Queued": "ready",
+    "Done": "done"
+   },
+   "expect": {
+    "ok": true
+   }
+  },
+  {
+   "name": "mapping-bad-column",
+   "what": "a mapping onto a column that does not exist is refused",
+   "mapping": {
+    "Queued": "later"
+   },
+   "expect": {
+    "ok": false
+   }
+  },
+  {
+   "name": "mapping-to-other",
+   "what": "other is the fallback, not a target",
+   "mapping": {
+    "Queued": "other"
+   },
+   "expect": {
+    "ok": false
+   }
+  },
+  {
+   "name": "mapping-empty",
+   "what": "an empty mapping is refused (omit it for the default)",
+   "mapping": {},
+   "expect": {
+    "ok": false
+   }
+  }
+ ]
+}

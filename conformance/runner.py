@@ -85,6 +85,8 @@ class Family(Enum):
     STOP = "ST"             # Stop (when item_stop or item_stop_clear is offered)
     LINKS = "L"             # Typed links (when work_items_sync is offered)
     PAGES = "RP"            # Record pages (when a register is kept as pages)
+    FIT = "MF"              # Machine fit (when a resource card or the resource argument is offered)
+    APPBOARD = "AB"         # App board (when app_board is offered)
     HANDOFF = "MH"          # Milestone handoff (when a handoff_* tool or the capability is offered)
     RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
     JOIN = "J"              # Join (Join level)
@@ -105,6 +107,7 @@ HEADINGS = {
     Family.BACKLOG: "Backlog review",
     Family.RECORDS: "Register records",
     Family.HANDOFF: "Milestone handoff",
+    Family.FIT: "Machine fit", Family.APPBOARD: "App board",
     Family.JOIN: "Join", Family.CONNECTOR: "Connector entrance", Family.SECURITY: "Security",
 }
 
@@ -134,6 +137,8 @@ LEVEL_OF = {
     Family.BACKLOG: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
     Family.HANDOFF: Level.EXTENDED,
+    Family.FIT: Level.EXTENDED,
+    Family.APPBOARD: Level.EXTENDED,
 }
 
 WELL_KNOWN = "/.well-known/gtd-board-kit"
@@ -1714,6 +1719,8 @@ def check_needs_cases(rep: Report, needs_cmd: str | None) -> None:
     bad = []
     for case in cases:
         inp = {"body": case["body"], "size": case.get("size")}
+        if case.get("size_table"):
+            inp["size_table"] = case["size_table"]
         if needs_cmd:
             proc = subprocess.run(needs_cmd, shell=True, input=json.dumps(inp), capture_output=True,
                                   text=True, timeout=60, check=False)
@@ -1725,7 +1732,7 @@ def check_needs_cases(rep: Report, needs_cmd: str | None) -> None:
         else:
             sys.path.insert(0, str(HERE))
             import item_needs
-            got = item_needs.parse(inp["body"], inp["size"])
+            got = item_needs.parse(inp["body"], inp["size"], inp.get("size_table"))
         want = case["expect"]
         diff = [k for k in NEEDS_KEYS if got.get(k) != want[k]]
         if bool(got.get("errors")) != bool(want["errors"]):
@@ -1734,6 +1741,119 @@ def check_needs_cases(rep: Report, needs_cmd: str | None) -> None:
             bad.append(f"{case['name']} ({case['what']}): differs in {', '.join(diff)}")
     who = "--needs-cmd" if needs_cmd else "the reference needs parser"
     rep.check("R12", not bad, "; ".join(bad[:4]), f"{len(cases)} cases, {who}")
+
+
+def _cmd_answer(cmd: str, inp: dict) -> dict | None:
+    proc = subprocess.run(cmd, shell=True, input=json.dumps(inp), capture_output=True,
+                          text=True, timeout=60, check=False)
+    try:
+        got = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    return got if isinstance(got, dict) else None
+
+
+def check_machine_cards(rep: Report, fit_cmd: str | None) -> None:
+    """MF1: the golden machine-card cases, against the reference or a server's own validation
+    (--fit-cmd, which reads ``{"op": "card", "card": ...}`` and answers ``{ok, fields}``)."""
+    cases = json.loads((HERE / "machine_fit_cases.json").read_text(encoding="utf-8"))["card_cases"]
+    bad = []
+    for case in cases:
+        if fit_cmd:
+            got = _cmd_answer(fit_cmd, {"op": "card", "card": case["card"]})
+            if got is None:
+                bad.append(f"{case['name']}: no JSON from --fit-cmd")
+                continue
+        else:
+            sys.path.insert(0, str(HERE))
+            import machine_fit
+            got = machine_fit.check_card(case["card"])
+        if got.get("ok") != case["expect"]["ok"] or list(got.get("fields") or []) != case["expect"]["fields"]:
+            bad.append(f"{case['name']} ({case['what']}): ok={got.get('ok')} fields={got.get('fields')}")
+    who = "--fit-cmd" if fit_cmd else "the reference card check"
+    rep.check("MF1", not bad, "; ".join(bad[:4]), f"{len(cases)} cases, {who}")
+
+
+def check_machine_fit(rep: Report, fit_cmd: str | None) -> None:
+    """MF2: the golden fit cases, against the reference or a server's own logic (--fit-cmd,
+    which reads ``{"op": "fit", "card", "needs", "speed_factor"}`` and answers ``{fits, reasons}``)."""
+    cases = json.loads((HERE / "machine_fit_cases.json").read_text(encoding="utf-8"))["fit_cases"]
+    bad = []
+    for case in cases:
+        factor = case.get("speed_factor", 1)
+        if fit_cmd:
+            got = _cmd_answer(fit_cmd, {"op": "fit", "card": case["card"], "needs": case["needs"],
+                                        "speed_factor": factor})
+            if got is None:
+                bad.append(f"{case['name']}: no JSON from --fit-cmd")
+                continue
+        else:
+            sys.path.insert(0, str(HERE))
+            import machine_fit
+            got = machine_fit.fit(case["card"], case["needs"], factor)
+        if got.get("fits") != case["expect"]["fits"] or list(got.get("reasons") or []) != case["expect"]["reasons"]:
+            bad.append(f"{case['name']} ({case['what']}): fits={got.get('fits')} reasons={got.get('reasons')}")
+    who = "--fit-cmd" if fit_cmd else "the reference fit rule"
+    rep.check("MF2", not bad, "; ".join(bad[:4]), f"{len(cases)} cases, {who}")
+
+
+def check_app_columns(rep: Report, columns_cmd: str | None) -> None:
+    """AB1: the golden column cases, against the reference or a server's own mapping
+    (--columns-cmd, which reads ``{"status", "mapping"}`` or ``{"mapping_only": ...}`` and
+    answers ``{column}`` or ``{ok}``)."""
+    data = json.loads((HERE / "app_columns_cases.json").read_text(encoding="utf-8"))
+    bad = []
+    sys.path.insert(0, str(HERE))
+    import app_columns
+    for case in data["cases"]:
+        for status in case["statuses"]:
+            if columns_cmd:
+                got = _cmd_answer(columns_cmd, {"status": status, "mapping": case["mapping"]})
+                column = got.get("column") if got else None
+            else:
+                column = app_columns.column_for(status, case["mapping"])
+            if column != case["expect"][status or ""]:
+                bad.append(f"{case['name']} ({status!r}): {column}")
+    for case in data["mapping_cases"]:
+        if columns_cmd:
+            got = _cmd_answer(columns_cmd, {"mapping_only": case["mapping"]})
+            ok = got.get("ok") if got else None
+        else:
+            ok = app_columns.check_mapping(case["mapping"])["ok"]
+        if ok != case["expect"]["ok"]:
+            bad.append(f"{case['name']} ({case['what']}): ok={ok}")
+    who = "--columns-cmd" if columns_cmd else "the reference column mapping"
+    rep.check("AB1", not bad, "; ".join(bad[:4]), f"{len(data['cases']) + len(data['mapping_cases'])} cases, {who}")
+
+
+def check_machine_and_board(rep: Report, tools: dict | None, fit_cmd: str | None,
+                            columns_cmd: str | None) -> None:
+    """MF1 to MF4 and AB1 to AB4. The golden cases run offline (or against a server's own code
+    through --fit-cmd and --columns-cmd); the checks that need a live server and a registry or
+    a board are manual, and not applicable when the server does not offer the tool."""
+    check_machine_cards(rep, fit_cmd)
+    check_machine_fit(rep, fit_cmd)
+    check_app_columns(rep, columns_cmd)
+    if tools is None:
+        return
+    if "resource_register" not in tools:
+        for cid in ("MF3", "MF4"):
+            rep.na(cid, "resource_register is not offered")
+    else:
+        rep.manual("MF3", "a resource with a card, list_next_actions with that resource: held_back names each "
+                          "item that does not fit with the stated reason; an unknown resource id, and one with "
+                          "no card, are refused and offer nothing; an item is never offered and then refused for fit")
+        rep.manual("MF4", "list_next_actions with no resource returns exactly what it did before, and the same "
+                          "call with a resource lists only items that fit, each of which an inferred claim accepts")
+    if "app_board" not in tools:
+        for cid in ("AB2", "AB3", "AB4"):
+            rep.na(cid, "app_board is not offered")
+    else:
+        rep.manual("AB2", "app_board returns the six columns and the same counts as project_items by Status; a Status "
+                          "with no mapping is under other; the call writes nothing and returns no credential")
+        rep.manual("AB3", "a claimed item in progress shows its worker and the seconds left on its lease")
+        rep.manual("AB4", "items labelled with the signed-in person's needs value are marked and counted in "
+                          "needs_you_count; another person's are not")
 
 
 def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
@@ -3837,6 +3957,9 @@ MANUAL = {
            "comment id succeeds and offers the item again, and a second retry of it refuses",
     "C18": "review a PR opened through pr_open, and comment on a channel issue: activity_since for the "
            "PR's by principal lists a pr review with its review_state, and a channel comment",
+    "T10": "(only when person sign-in is offered) with the switch off, no person token is issued and agent "
+           "sign-in, join and every existing call behave as before; with it on, a person token is refused on "
+           "agent-only calls and an agent token is refused as a person; the token expires and can be revoked",
     "J1": "remove every approver: /join/start and joined tokens are refused",
     "J4": "approve a join at a lower preset: the first poll returns that preset, the second nothing",
     "J5": "inspect the auth store after collection: hashes only",
@@ -3879,6 +4002,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--ready-cmd", help="a command that runs the ready check on one case from stdin (R1)")
     ap.add_argument("--prose-cmd", help="a command that runs the prose check on one case from stdin (R9)")
     ap.add_argument("--needs-cmd", help="a command that parses one item's declared needs from stdin (R12)")
+    ap.add_argument("--fit-cmd", help="a command that answers one machine-card or fit case from stdin (MF1, MF2)")
+    ap.add_argument("--columns-cmd", help="a command that answers one app-board column case from stdin (AB1)")
     ap.add_argument("--kind-cmd", help="a command that answers one Kind rule case from stdin (K1)")
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
     ap.add_argument("--intake-cmd", help="a command that answers one intake-check case from stdin (I6)")
@@ -3900,6 +4025,7 @@ def main(argv: list[str]) -> int:
         check_ready_cases(rep, a.ready_cmd)
         check_prose_cases(rep, a.prose_cmd)
         check_needs_cases(rep, a.needs_cmd)
+        check_machine_and_board(rep, None, a.fit_cmd, a.columns_cmd)
         check_kind_cases(rep, a.kind_cmd)
         check_link_cases(rep, a.link_cmd)
         check_intake_check_cases(rep, a.intake_cmd)
@@ -3955,6 +4081,7 @@ def main(argv: list[str]) -> int:
                         check_board(rep, c, sb, profiles.get(name) or {}, who)
                     check_prs(rep, c, sb, _tools, who, a.pr_head, token(a.github_token_env))
                 check_readiness(rep, c, _tools, sb, profiles.get(name) or {}, a.ready_cmd, a.prose_cmd, a.needs_cmd)
+                check_machine_and_board(rep, _tools, a.fit_cmd, a.columns_cmd)
                 check_kinds(rep, c, _tools, sb, a.kind_cmd)
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)

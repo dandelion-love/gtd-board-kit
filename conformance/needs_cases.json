@@ -97,7 +97,7 @@
     {
       "name": "signoff-after",
       "what": "a server's sign-off after the section (a rule, then a sub line) is not part of it",
-      "body": "Summary.\n\n## Needs\n- Tools: ffmpeg\n\n---\n<sub>gtd-sign · agent:x · worker · capture</sub>\n\n<!-- gtd-sign v1 {} -->",
+      "body": "Summary.\n\n## Needs\n- Tools: ffmpeg\n\n---\n<sub>gtd-sign \u00b7 agent:x \u00b7 worker \u00b7 capture</sub>\n\n<!-- gtd-sign v1 {} -->",
       "size": null,
       "expect": {
         "declared": true,
@@ -259,6 +259,24 @@
         "graphics_gb": null,
         "tools": [],
         "longest_run_minutes": 4320,
+        "longest_run_source": "size",
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "size-table-override",
+      "what": "a profile's own Size table replaces the default",
+      "body": "Summary.",
+      "size": "M",
+      "size_table": {
+        "M": 480
+      },
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": 480,
         "longest_run_source": "size",
         "runs_anywhere": true,
         "errors": []

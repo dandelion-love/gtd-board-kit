@@ -260,6 +260,17 @@ needs_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Item needs"), re.M
 needs_json = [c["name"] for c in json.loads((ROOT / "conformance" / "needs_cases.json").read_text())["cases"]]
 if needs_table != needs_json:
     fail(f"R12 case table {needs_table} differs from needs_cases.json {needs_json}")
+mf = json.loads((ROOT / "conformance" / "machine_fit_cases.json").read_text())
+mf_tables = section("Machine fit").split("MF2 cases")
+for label, part, cases in (("MF1", mf_tables[0], mf["card_cases"]), ("MF2", mf_tables[-1], mf["fit_cases"])):
+    names = re.findall(r"^\| `([a-z][a-z-]+)` \|", part, re.M)
+    if names != [x["name"] for x in cases]:
+        fail(f"{label} case table {names} differs from machine_fit_cases.json")
+ab = json.loads((ROOT / "conformance" / "app_columns_cases.json").read_text())
+ab_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("App board"), re.M)
+ab_json = [x["name"] for x in ab["cases"] + ab["mapping_cases"]]
+if ab_table != ab_json:
+    fail(f"AB1 case table {ab_table} differs from app_columns_cases.json {ab_json}")
 kind_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Kind and parent rules"), re.M)
 kind_json = [c["name"] for c in json.loads((ROOT / "conformance" / "kind_cases.json").read_text())["cases"]]
 if kind_table != kind_json:
