@@ -1,0 +1,288 @@
+{
+  "about": "Golden cases for an item's declared needs (server-spec/tools.md, Item needs; check R12). `body` is the issue body, `size` the board Size or null. `expect` is every field of the answer.",
+  "cases": [
+    {
+      "name": "none",
+      "what": "an item with no Needs section runs anywhere",
+      "body": "Summary.\n\n## Acceptance criteria\n- [ ] AC1: x",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "all-three",
+      "what": "graphics memory, tools and a longest run are read",
+      "body": "Summary.\n\n## Needs\n\n- Graphics memory: 20 GB\n- Tools: voice, ffmpeg\n- Longest run: 2 hours\n\n## Context\nx",
+      "size": null,
+      "expect": {
+        "declared": true,
+        "graphics_gb": 20.0,
+        "tools": [
+          "voice",
+          "ffmpeg"
+        ],
+        "longest_run_minutes": 120,
+        "longest_run_source": "declared",
+        "runs_anywhere": false,
+        "errors": []
+      }
+    },
+    {
+      "name": "in-comment",
+      "what": "a Needs section inside an HTML comment (the story template) is not read",
+      "body": "Summary.\n\n<!-- Optional.\n## Needs\n\n- Graphics memory: <GB>\n-->\n\n## Context\nx",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "in-fence",
+      "what": "a Needs section inside a fenced example is not read",
+      "body": "Summary.\n\n```\n## Needs\n\n- Graphics memory: lots\n```\n",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "in-indented-fence",
+      "what": "a Needs section inside a fence indented two spaces is not read",
+      "body": "Summary.\n\n  ```\n  ## Needs\n  - Graphics memory: lots\n  ```\n",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "in-open-fence",
+      "what": "a Needs section after a fence that is never closed is not read",
+      "body": "Summary.\n\n```\n## Needs\n- Graphics memory: lots\n",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "size-default",
+      "what": "a Size supplies the longest run when none is declared",
+      "body": "Summary.",
+      "size": "M",
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": 240,
+        "longest_run_source": "size",
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "declared-over-size",
+      "what": "a declared longest run wins over the Size default",
+      "body": "Summary.\n\n## Needs\n\n- Longest run: 90 minutes\n\n## Context\nx",
+      "size": "L",
+      "expect": {
+        "declared": true,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": 90,
+        "longest_run_source": "declared",
+        "runs_anywhere": false,
+        "errors": []
+      }
+    },
+    {
+      "name": "unit-days",
+      "what": "days convert to minutes",
+      "body": "Summary.\n\n## Needs\n\n- Longest run: 1 day\n\n## Context\nx",
+      "size": null,
+      "expect": {
+        "declared": true,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": 1440,
+        "longest_run_source": "declared",
+        "runs_anywhere": false,
+        "errors": []
+      }
+    },
+    {
+      "name": "size-xs",
+      "what": "XS gives 15 minutes",
+      "body": "Summary.",
+      "size": "XS",
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": 15,
+        "longest_run_source": "size",
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "size-s",
+      "what": "S gives 1 hour",
+      "body": "Summary.",
+      "size": "S",
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": 60,
+        "longest_run_source": "size",
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "size-l",
+      "what": "L gives 1 day",
+      "body": "Summary.",
+      "size": "L",
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": 1440,
+        "longest_run_source": "size",
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "size-xl",
+      "what": "XL gives 3 days",
+      "body": "Summary.",
+      "size": "XL",
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": 4320,
+        "longest_run_source": "size",
+        "runs_anywhere": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "bad-graphics",
+      "what": "a graphics memory that is not a number is named",
+      "body": "Summary.\n\n## Needs\n\n- Graphics memory: lots\n\n## Context\nx",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": [
+          "Graphics memory 'lots' is not a number of GB"
+        ]
+      }
+    },
+    {
+      "name": "bad-tool",
+      "what": "a tool that is not a name is named",
+      "body": "Summary.\n\n## Needs\n\n- Tools: Voice Box\n\n## Context\nx",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": [
+          "tool 'voice box' is not a tool name"
+        ]
+      }
+    },
+    {
+      "name": "bad-run",
+      "what": "a longest run with no unit is named",
+      "body": "Summary.\n\n## Needs\n\n- Longest run: 5\n\n## Context\nx",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": [
+          "Longest run '5' is not a number with a unit"
+        ]
+      }
+    },
+    {
+      "name": "unknown-need",
+      "what": "a line that names no known need is named",
+      "body": "Summary.\n\n## Needs\n\n- Colour: red\n\n## Context\nx",
+      "size": null,
+      "expect": {
+        "declared": false,
+        "graphics_gb": null,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": true,
+        "errors": [
+          "unknown need 'Colour: red'"
+        ]
+      }
+    },
+    {
+      "name": "tools-repeat",
+      "what": "a repeated tool is listed once, lowercased",
+      "body": "Summary.\n\n## Needs\n\n- Tools: Voice, voice\n\n## Context\nx",
+      "size": null,
+      "expect": {
+        "declared": true,
+        "graphics_gb": null,
+        "tools": [
+          "voice"
+        ],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": false,
+        "errors": []
+      }
+    }
+  ]
+}

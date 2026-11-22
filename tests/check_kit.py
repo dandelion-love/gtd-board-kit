@@ -256,6 +256,10 @@ ready_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Ready check"), re.
 ready_json = [c["name"] for c in json.loads((ROOT / "conformance" / "ready_cases.json").read_text())["cases"]]
 if ready_table != ready_json:
     fail(f"R1 case table {ready_table} differs from ready_cases.json {ready_json}")
+needs_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Item needs"), re.M)
+needs_json = [c["name"] for c in json.loads((ROOT / "conformance" / "needs_cases.json").read_text())["cases"]]
+if needs_table != needs_json:
+    fail(f"R12 case table {needs_table} differs from needs_cases.json {needs_json}")
 kind_table = re.findall(r"^\| `([a-z][a-z-]+)` \|", section("Kind and parent rules"), re.M)
 kind_json = [c["name"] for c in json.loads((ROOT / "conformance" / "kind_cases.json").read_text())["cases"]]
 if kind_table != kind_json:

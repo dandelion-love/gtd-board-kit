@@ -1,5 +1,9 @@
 # Update log
 
+## 2026-11-22
+
+* **Added**: item needs (kit 0.51.0), additive. A story may declare `Graphics memory`, `Tools` and `Longest run` in a `## Needs` section; `item_get` returns `needs` with `runs_anywhere` for an item that declares none; a board Size supplies a default longest run (XS 15 minutes, S 1 hour, M 4 hours, L 1 day, XL 3 days); a server refuses an issue body whose section has an invalid value. New check R12 with golden cases and a reference parser. The story template shows where.
+
 ## 2026-11-21
 
 * **Added**: the second orchestrator release (kit 0.50.0), all additive. (1) **Answering**: `item_report` takes `answering` (the comment id of the open question) with the person's quoted words in `note`, from any principal; the question closes and the item reads the Status it would have had; `board-needs-person` says how to record an answer given outside the board; check C22. (2) **Interruption limit**: at 3 interruptions (a deployment may change it) a claim posts one question for the owner and refuses; the item waits, and `decision` `retry` with `answering` resets the count; `item_get` returns `interruption_limit` and `escalation`; `board-claim` tells the worker to wait; checks C23 and C24. (3) **Stall check**: `stall_check` (read, started by hand, not a lane) lists live claims with no recent report and unheld handoffs, starts in watch mode and speaks only when a person must act; checks SC1 to SC3. (4) **Backlog review**: a named backlog owner role (the board steward; a person decides) reviews open items by Priority and age on a proposed weekly cadence, started by hand; `backlog_review` is a watch-mode digest with no-Priority items under `unset`, `backlog_decide` records the owner's promote, park or drop with its date, and nothing closes an idle item; checks BR1 to BR4. Old clients and servers keep working; the new fields and tools are optional.

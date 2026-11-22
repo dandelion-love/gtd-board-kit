@@ -217,6 +217,7 @@ both `item_ready` and `prose_check`.
 | R9 | `prose_check` is offered, and the [prose golden cases](../conformance/prose_cases.json), fed to the server's own prose logic (`--prose-cmd`), give the stated `verdict`, fail rules and warn rules, each in rule order |
 | R10 | `prose_check` on a sandbox issue whose title has a prefix and whose body opens with a heading is `unclear` with `title-prefix` and `summary-first`, and `item_ready` on it fails `prose`; on draft text (`title`, `body`, `kind` `epic`) with no Outcome check it returns exactly the fail rule `epic-sections` |
 | R11 | (needs a closing-note server) `item_ready` on a story whose last worker released with four parts returns `interruptions`, `previous_holder` and the same `closing_note` as `item_get` |
+| R12 | The golden cases of an item's declared needs ([needs_cases.json](../conformance/needs_cases.json), table under Item needs below), fed to the server's own parser (`--needs-cmd`), give the stated fields; an invalid need gives a non-empty `errors` that names the value, and an item with no `## Needs` section is `runs_anywhere` |
 
 R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,
 `pickup_sizes` is `XS`, `S`, `M`, and it is on the board unless the case says otherwise):
@@ -259,6 +260,35 @@ R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Siz
 
 Every R1 case has the title `Show the thing working for its owner` unless it names its
 own, and a body that opens with a summary unless the case is about the summary.
+
+## Item needs (when offered)
+
+R12 cases ([needs_cases.json](../conformance/needs_cases.json); the file gives the body, the
+board Size or null, and every field of the answer: `declared`, `graphics_gb`, `tools`,
+`longest_run_minutes`, `longest_run_source`, `runs_anywhere`, and `errors`, which is compared
+only as empty or not, because its wording is the server's own). The reference is
+[item_needs.py](../conformance/item_needs.py).
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `none` | an item with no Needs section runs anywhere | parsed |
+| `all-three` | graphics memory, tools and a longest run are read | parsed |
+| `in-comment` | a Needs section inside an HTML comment (the story template) is not read | parsed |
+| `in-fence` | a Needs section inside a fenced example is not read | parsed |
+| `in-indented-fence` | a Needs section inside a fence indented up to three spaces is not read | parsed |
+| `in-open-fence` | a Needs section after a fence that is never closed is not read | parsed |
+| `size-default` | a Size supplies the longest run when none is declared | parsed |
+| `declared-over-size` | a declared longest run wins over the Size default | parsed |
+| `unit-days` | days convert to minutes | parsed |
+| `size-xs` | XS gives 15 minutes | parsed |
+| `size-s` | S gives 1 hour | parsed |
+| `size-l` | L gives 1 day | parsed |
+| `size-xl` | XL gives 3 days | parsed |
+| `bad-graphics` | a graphics memory that is not a number is named | refused, errors name the value |
+| `bad-tool` | a tool that is not a name is named | refused, errors name the value |
+| `bad-run` | a longest run with no unit is named | refused, errors name the value |
+| `unknown-need` | a line that names no known need is named | refused, errors name the value |
+| `tools-repeat` | a repeated tool is listed once, lowercased | parsed |
 
 ## Kind and parent rules (when offered)
 

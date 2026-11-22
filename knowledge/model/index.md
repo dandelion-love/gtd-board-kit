@@ -16,3 +16,4 @@
 * [Milestone handoff](milestone-handoff.md) - An optional packet naming an immutable revision and one next action; delivery, verdict and completion stay apart, and a verdict counts only for the revision it names
 * [Typed links between items](typed-links.md) - A fixed set of link kinds; only depends-on is a native blocked-by, the rest are Related lines on both ends, and one fold feeds the issues and the OKF graph
 * [Release and repin](release-and-repin.md) - A slice ships in a fixed order, stays additive, passes a live check, and rides a release train
+* [Item needs](item-needs.md) - A story declares graphics memory, tools and a longest run in a Needs section; nothing declared means it runs anywhere, and Size supplies a default run
