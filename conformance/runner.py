@@ -137,6 +137,7 @@ LEVEL_OF = {
     Family.STOP: Level.EXTENDED,
     Family.STALL: Level.EXTENDED,
     Family.BACKLOG: Level.EXTENDED,
+    Family.EVIDENCE: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
     Family.HANDOFF: Level.EXTENDED,
     Family.FIT: Level.EXTENDED,
@@ -205,6 +206,7 @@ CLASS.update(dict.fromkeys((
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
     "issue_artifact_update", "intake_ack", "comment_update", "comment_redact", "item_close_done"), "work"))
+CLASS["experiment_evidence_get"] = "read"
 CLASS["app_board"] = "read"
 CLASS["intake_check"] = "work"
 CLASS["backlog_decide"] = "work"
@@ -2924,7 +2926,8 @@ def check_evidence(rep: Report, tools: dict, cmd: str | None, who: dict | None) 
     caps = (who or {}).get("capabilities") or []
     offered = "experiment-evidence:1" in caps
     has_tool = "experiment_evidence_get" in tools
-    rep.check("EE2", not offered or has_tool, "capability advertised without its read tool",
+    read_tool = has_tool and tool_class(tools["experiment_evidence_get"]) == ("read", None)
+    rep.check("EE2", not offered or read_tool, "capability advertised without its read tool",
               "capability/tool agreement")
     if not offered:
         rep.na("EE1", "experiment-evidence:1 not offered")

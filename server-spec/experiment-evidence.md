@@ -8,7 +8,11 @@ reading. Resolve that commit and return its full hash; no working tree, branch t
 implicit latest result is a substitute.
 
 Read all original result record lines for the selected item at that commit, in the
-register's configured file or page layout. `result_line_sha256` hashes the exact UTF-8
+register's configured file or page layout. The server MUST support JSONL and the
+normal page format containing a single original JSON line in a `json record` fenced
+block, preserving the line bytes (remove only LF or CRLF). For generated prose or
+multiline representations that do not retain exact record-line bytes, it MUST refuse
+as unsupported; it MUST NOT substitute a synthesized serialization. `result_line_sha256` hashes the exact UTF-8
 line bytes without the terminating newline; it does not hash reformatted JSON. Refuse
 zero or multiple matches, an invalid hash, an unreadable commit, or a matched line whose
 id or event is wrong. Do not silently choose a duplicate or a different result.
@@ -18,7 +22,8 @@ The response carries `repo`, `id`, resolved `ref`, `result_line_sha256`, `verdic
 `review_evidence`. `evidence_status` is `present`, `legacy` or
 `empty-void`. For `present`, return the exact `data.review_evidence` object; for the
 other statuses return null. An empty VOID has no data and no finding; a legacy result
-has no evidence envelope. A populated VOID is handled as any other result. A malformed
+has no evidence envelope. This status describes the stored record only: it does not
+exempt any new invalid write from the repository's prospective gate. A populated VOID is handled as any other result. A malformed
 present envelope MUST be refused rather than treated as legacy. Validate its fields,
 source identity, canonical receipt hash and its binding to the result data as specified
 by the golden cases. Canonical JSON is UTF-8, sorted keys, no insignificant whitespace,
@@ -40,3 +45,16 @@ These requirements do not add a generic result writer: the existing
 `written-on-the-host` refusal for experiment results remains in force. Older records
 and operational failures remain readable. Repositories may adopt further local gates;
 this discovery interface makes no new claim that every result has evidence.
+
+## How a reviewer gets the identifiers
+
+Start at the board item and follow its experiment reference. Where the repository
+offers the `experiment_get` extension, call it with `repo`, `id` and the desired
+revision: a server supporting this discovery path returns `source_commit` as the
+full commit actually read, and each result carries its exact `line_sha256`. Select
+the result using its verdict, time and other displayed context; pass that
+`source_commit` and `line_sha256` to `experiment_evidence_get`. A moving branch name
+is not an immutable source. If the extension cannot return both identifiers, use
+an authorized Git client to resolve the desired commit and hash the exact record
+line, or report that discovery is unavailable. An experiment-level artifact link
+may help locate context but is not a per-result receipt.

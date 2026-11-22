@@ -587,7 +587,7 @@ fetch private bundles or execute a scorer; see [the contract](experiment-evidenc
 
 | Check | Pass |
 | --- | --- |
-| EE1 | Every `experiment_evidence_cases.json` case selects the exact line, returns the unmodified result data and receipt, distinguishes legacy and empty VOID, and refuses ambiguity or malformed binding. Run against server code via `--evidence-cmd`. |
+| EE1 | Every `experiment_evidence_cases.json` case selects the exact line, returns the unmodified result data and receipt, distinguishes legacy and empty VOID, reads JSONL and byte-preserving page fences, and refuses ambiguity or malformed binding. Run against server code via `--evidence-cmd`. |
 | EE2 | A server claiming `experiment-evidence:1` exposes `experiment_evidence_get` as a read tool. |
 
 ## Register records (when offered)

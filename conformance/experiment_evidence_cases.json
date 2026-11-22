@@ -158,6 +158,103 @@
       "expect": {
         "error": "refused"
       }
+    },
+    {
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "evidence_status": "present",
+        "verdict": "PASS",
+        "result_data": {
+          "score": 2,
+          "review_evidence": {
+            "receipt": {
+              "version": 1,
+              "method": "immutable-bundle-local-python-replay-v1",
+              "uri": "gs://example-bucket/review.zip",
+              "generation": "12345",
+              "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+              "verified_at": "2026-01-01T00:00:00+00:00"
+            },
+            "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+          }
+        },
+        "review_evidence": {
+          "receipt": {
+            "version": 1,
+            "method": "immutable-bundle-local-python-replay-v1",
+            "uri": "gs://example-bucket/review.zip",
+            "generation": "12345",
+            "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+            "verified_at": "2026-01-01T00:00:00+00:00"
+          },
+          "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+        }
+      },
+      "name": "jsonl-exact",
+      "layout": "jsonl",
+      "source_text": "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}\r\n"
+    },
+    {
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "evidence_status": "present",
+        "verdict": "PASS",
+        "result_data": {
+          "score": 2,
+          "review_evidence": {
+            "receipt": {
+              "version": 1,
+              "method": "immutable-bundle-local-python-replay-v1",
+              "uri": "gs://example-bucket/review.zip",
+              "generation": "12345",
+              "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+              "verified_at": "2026-01-01T00:00:00+00:00"
+            },
+            "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+          }
+        },
+        "review_evidence": {
+          "receipt": {
+            "version": 1,
+            "method": "immutable-bundle-local-python-replay-v1",
+            "uri": "gs://example-bucket/review.zip",
+            "generation": "12345",
+            "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+            "verified_at": "2026-01-01T00:00:00+00:00"
+          },
+          "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+        }
+      },
+      "name": "record-page-exact",
+      "layout": "page",
+      "source_text": "## Result\n\n```json record\n{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}\n```\n"
+    },
+    {
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "error": "refused"
+      },
+      "name": "record-page-multiline",
+      "layout": "page",
+      "source_text": "```json record\n{\n  \"event\": \"result\"\n}\n```\n"
     }
   ]
 }

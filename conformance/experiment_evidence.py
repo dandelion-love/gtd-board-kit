@@ -19,7 +19,17 @@ def answer(case):
         target = case["result_line_sha256"]
         if not HEX.fullmatch(target) or not COMMIT.fullmatch(case["ref"]):
             raise ValueError("identity")
-        matches = [line for line in case["lines"] if digest(line.encode("utf-8")) == target]
+        if "source_text" in case:
+            source = case["source_text"]
+            if case["layout"] == "jsonl":
+                lines = source.splitlines()
+            elif case["layout"] == "page":
+                lines = re.findall(r"(?m)^```json record\r?\n([^\r\n]+)\r?\n```\r?$", source)
+            else:
+                raise ValueError("unsupported-layout")
+        else:
+            lines = case["lines"]
+        matches = [line for line in lines if digest(line.encode("utf-8")) == target]
         if len(matches) != 1:
             raise ValueError("missing-or-duplicate")
         rec = json.loads(matches[0])
@@ -46,6 +56,8 @@ def answer(case):
             git = isinstance(uri, str) and re.fullmatch(r"git:[A-Za-z0-9_./-]+", uri) and ".." not in uri[4:].split("/") and isinstance(generation, str) and COMMIT.fullmatch(generation)
             if not (gcs or git):
                 raise ValueError("invalid-source")
+            if not isinstance(receipt["verified_at"], str):
+                raise ValueError("invalid-timestamp")
             timestamp = datetime.fromisoformat(receipt["verified_at"].replace("Z", "+00:00"))
             if timestamp.tzinfo is None or digest(canonical(receipt)) != envelope["receipt_sha256"]:
                 raise ValueError("invalid-receipt-hash")
