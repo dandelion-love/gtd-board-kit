@@ -203,6 +203,7 @@ CLASS.update(dict.fromkeys((
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
     "issue_artifact_update", "intake_ack", "comment_update", "comment_redact", "item_close_done"), "work"))
+CLASS["app_board"] = "read"
 CLASS["intake_check"] = "work"
 CLASS["backlog_decide"] = "work"
 #: Tools the spec classes `full` by name (tools.md, Optional groups), and the families it
@@ -1828,33 +1829,44 @@ def check_app_columns(rep: Report, columns_cmd: str | None) -> None:
 
 def check_machine_and_board(rep: Report, tools: dict | None, fit_cmd: str | None,
                             columns_cmd: str | None) -> None:
-    """MF1 to MF4 and AB1 to AB4. The golden cases run offline (or against a server's own code
-    through --fit-cmd and --columns-cmd); the checks that need a live server and a registry or
-    a board are manual, and not applicable when the server does not offer the tool."""
-    check_machine_cards(rep, fit_cmd)
-    check_machine_fit(rep, fit_cmd)
-    check_app_columns(rep, columns_cmd)
+    """MF1 to MF4 and AB1 to AB4. Offline (``tools`` None) the golden cases run against the
+    references. Against a server they run only through the server's own code (--fit-cmd,
+    --columns-cmd) and are manual without it, and not applicable when the tool is not offered;
+    the checks that need a live server, a registry or a board are manual."""
     if tools is None:
+        check_machine_cards(rep, fit_cmd)
+        check_machine_fit(rep, fit_cmd)
+        check_app_columns(rep, columns_cmd)
         return
     if "resource_register" not in tools:
-        for cid in ("MF3", "MF4"):
+        for cid in ("MF1", "MF2", "MF3", "MF4"):
             rep.na(cid, "resource_register is not offered")
     else:
+        if fit_cmd:
+            check_machine_cards(rep, fit_cmd)
+            check_machine_fit(rep, fit_cmd)
+        else:
+            for cid in ("MF1", "MF2"):
+                rep.manual(cid, "run the golden machine-card and fit cases against the server's own code: "
+                                "--fit-cmd CMD")
         rep.manual("MF3", "a resource with a card, list_next_actions with that resource: held_back names each "
                           "item that does not fit with the stated reason; an unknown resource id, and one with "
                           "no card, are refused and offer nothing; an item is never offered and then refused for fit")
         rep.manual("MF4", "list_next_actions with no resource returns exactly what it did before, and the same "
                           "call with a resource lists only items that fit, each of which an inferred claim accepts")
     if "app_board" not in tools:
-        for cid in ("AB2", "AB3", "AB4"):
+        for cid in ("AB1", "AB2", "AB3", "AB4"):
             rep.na(cid, "app_board is not offered")
     else:
+        if columns_cmd:
+            check_app_columns(rep, columns_cmd)
+        else:
+            rep.manual("AB1", "run the golden column cases against the server's own mapping: --columns-cmd CMD")
         rep.manual("AB2", "app_board returns the six columns and the same counts as project_items by Status; a Status "
                           "with no mapping is under other; the call writes nothing and returns no credential")
         rep.manual("AB3", "a claimed item in progress shows its worker and the seconds left on its lease")
         rep.manual("AB4", "items labelled with the signed-in person's needs value are marked and counted in "
                           "needs_you_count; another person's are not")
-
 
 def check_readiness(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict,
                     ready_cmd: str | None, prose_cmd: str | None = None,
