@@ -235,6 +235,17 @@
         {"event": "renew", "by": "agent:a", "t": 90, "lease_until": 300}
       ],
       "expect": {"holder": "agent:a", "stale": false, "interruptions": 0}
+    },
+    {
+      "name": "z",
+      "says": "an answer returns the report that the holder's question replaced",
+      "records": [
+        {"event": "claim", "by": "agent:a", "t": 0, "lease_until": 300},
+        {"event": "report", "by": "agent:a", "t": 10, "state": "progress"},
+        {"event": "report", "by": "agent:a", "t": 20, "state": "waiting", "attention": "Which way?", "needs": "owner"},
+        {"event": "report", "by": "agent:b", "t": 30, "answering": 3, "note": "Yes."}
+      ],
+      "expect": {"holder": "agent:a", "last_report": "progress", "attention_by": null}
     }
   ]
 }

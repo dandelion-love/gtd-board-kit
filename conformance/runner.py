@@ -696,12 +696,16 @@ def closing_parts(rec: dict) -> dict | None:
     return parts if any(parts.values()) else None
 
 
+_KEEP = object()  # the question's report set no state, so it replaced nothing
+
+
 def reference_fold(comments: list[dict], now: str, owners: list[str] | None = None) -> dict:
     """The fold in server-spec/claim-records.md, over ``[{id, body}]`` in any order. ``owners`` are the
     principals whose ``stop`` and ``stop_clear`` records count; a record by anyone else is conversation."""
     holder = lease = handoff = last_report = attention_by = None
     lost = taken = 0
     previous = stop = cur = ended = None  # cur: this lease's latest parts; ended: the last ended lease
+    asked: dict | None = None  # the open question's id and the report its state replaced
     for c in sorted(comments, key=lambda c: c["id"]):
         rec = parse_record(c["body"])
         if rec is None:
@@ -721,6 +725,7 @@ def reference_fold(comments: list[dict], now: str, owners: list[str] | None = No
                     previous, ended = holder, {"by": holder, "parts": cur}
                 holder, lease, cur = by, _ts(rec.get("lease_until")), None
                 handoff = last_report = None
+                asked = None
             else:
                 lost += 1
         elif ev == "renew" and by == holder:
@@ -728,11 +733,21 @@ def reference_fold(comments: list[dict], now: str, owners: list[str] | None = No
         elif ev == "release" and by == holder:
             previous, ended = holder, {"by": holder, "parts": closing_parts(rec) or cur}
             holder = lease = last_report = cur = None
+            asked = None
             handoff = rec.get("handoff_to")
         elif ev == "report":
             attention_by = by if rec.get("attention") else None
+            if rec.get("answering") is not None and asked and str(rec["answering"]) == str(asked["id"]):
+                if asked["replaced"] is not _KEEP and last_report == asked["state"]:
+                    last_report = asked["replaced"]
+                asked = None
+            elif not rec.get("attention"):
+                asked = None
             if by == holder and closing_parts(rec):
                 cur = closing_parts(rec)
+            if rec.get("attention"):
+                asked = {"id": c["id"], "state": rec.get("state") if by == holder else None,
+                         "replaced": last_report if by == holder and rec.get("state") else _KEEP}
             if by == holder and rec.get("state"):
                 last_report = rec["state"]
                 if last_report == "dropped":
@@ -2446,6 +2461,45 @@ STOP_HAND = {
 }
 
 
+def check_answering(rep: Report, c: Client, tools: dict, sb: Sandbox | None, profile: dict) -> None:
+    """C22: `answering` on `item_report` clears the open attention it names (tools.md)."""
+    props = ((tools.get("item_report") or {}).get("inputSchema") or {}).get("properties") or {}
+    if "answering" not in props:
+        rep.na("C22", "item_report does not take answering")
+        return
+    if sb is None:
+        rep.skip("C22", "needs --repo")
+        return
+    needs = profile.get("owner_needs") or "triage"
+    n = sb.issue("answering")
+    ok_c, _, t_c = c.call("item_claim", sb.args(n, basis="explicit", asked_by="conformance", lease="30m"))
+    ok_p, _, t_p = c.call("item_report", sb.args(n, state="progress", note="before the question"))
+    ok, out, text = c.call("item_report", sb.args(n, attention="Which way?", needs=needs,
+                                                  state="waiting", note="asked"))
+    # The id is the folded item's attention.comment_id; a write may also not return it, so read it back.
+    cid = (((out or {}).get("item") or {}).get("attention") or {}).get("comment_id")
+    if ok and not cid:
+        _, got0, _ = c.call("item_get", sb.args(n))
+        cid = (((got0 or {}).get("item") or {}).get("attention") or {}).get("comment_id")
+    if not (ok_c and ok_p and ok and cid):
+        rep.check("C22", False, f"could not ask the question (claim {ok_c} {t_c[:40]}; progress {ok_p} "
+                  f"{t_p[:40]}; ask {ok} {text[:60]}; attention.comment_id {cid!r})")
+        return
+    no_note, _, t_note = c.call("item_report", sb.args(n, answering=cid))
+    unknown, _, t_unknown = c.call("item_report", sb.args(n, answering=int(cid) + 7, note="Yes."))
+    ok1, _, t1 = c.call("item_report", sb.args(n, answering=cid, note="Yes, go ahead (said in chat)."))
+    _, got, _ = c.call("item_get", sb.args(n))
+    again, _, t_again = c.call("item_report", sb.args(n, answering=cid, note="Yes."))
+    item = (got or {}).get("item") or {}
+    back = str(((item.get("last_report") or {}).get("note")) or "")
+    named = all("answering" in t.lower() for t in (t_note, t_unknown, t_again))
+    rep.check("C22", ok1 and item.get("attention") is None and not no_note and not unknown
+              and not again and named and "before the question" in back,
+              f"answer {ok1} {t1[:60]}; attention after {item.get('attention')!r}; last report back to "
+              f"{back!r}; no note refused {not no_note}; unknown id refused {not unknown}; "
+              f"second answer refused {not again}; refusals name answering {named}")
+
+
 def check_stop(rep: Report, c: Client, tools: dict, sb: Sandbox | None) -> None:
     """ST1 and ST2: the stop tools, when either is offered; ST3 to ST6 need the owner's token."""
     have = [t for t in ("item_stop", "item_stop_clear") if t in tools]
@@ -3741,6 +3795,7 @@ def main(argv: list[str]) -> int:
                 check_artifacts(rep, c, _tools, sb, artifact_source)
                 check_intake(rep, c, _tools, sb, who, c2 if a.repo else None)
                 check_intake_check(rep, c, _tools, sb, a.intake_cmd, c2)
+                check_answering(rep, c, _tools, sb, profiles.get(name) or {})
                 check_comment_edits(rep, c, _tools, sb)
                 check_stale_done(rep, c, _tools, sb)
                 check_stop(rep, c, _tools, sb)

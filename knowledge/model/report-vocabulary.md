@@ -25,6 +25,13 @@ value saying whom it waits for. The server adds `needs:<value>`, the card moves 
 profile's needs-a-person column, and work on the item stops until the person answers.
 Taking the label off is the person's call.
 
+When a person answers, the question closes with a report that says which question it
+answers (`answering`, the question's comment id) and quotes the answer with its time and
+where it was said. The item then reads the Status it would have had without the question,
+not "needs a person" until the holder reports again. The record is the reporter's quote,
+not the person's own act, so it names where the person said it. The answer page records
+the same thing for the person who answered there.
+
 # Closing note
 
 A release, and a report that closes a leg of work, carries four short parts, so the next
