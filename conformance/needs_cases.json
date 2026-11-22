@@ -266,7 +266,7 @@
     },
     {
       "name": "size-table-override",
-      "what": "a profile's own Size table replaces the default",
+      "what": "a profile's own Size table overrides the default for the Sizes it lists",
       "body": "Summary.",
       "size": "M",
       "size_table": {

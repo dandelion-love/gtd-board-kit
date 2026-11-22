@@ -132,7 +132,7 @@ errors}`. An item with no `## Needs` section, or one with no valid line, has
 `runs_anywhere` true and `declared` false; nothing declared never refuses and never hides the
 item. When no `Longest run` is declared and the board Size is known, `longest_run_minutes`
 is the Size default and `longest_run_source` is `size`: `XS` 15, `S` 60, `M` 240, `L` 1440,
-`XL` 4320 minutes (a profile may replace the table with its own `size_run_minutes`, Size to whole minutes above 0, and a server reads that before this default). With a
+`XL` 4320 minutes (a profile may override Sizes with its own `size_run_minutes`, Size to whole minutes above 0, and a server reads that before this default; a Size it leaves out keeps the default). With a
 declared run the source is `declared`; with neither it is null. A server that writes an
 issue body (`issue_update`, `issue_create`) **refuses** a body whose `## Needs` section has
 an error and names the offending line or value; a body with no section is never refused. A

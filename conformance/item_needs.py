@@ -6,7 +6,7 @@ Standard library only. A server copies this and holds its copy to conformance/ne
 
 ``body`` is the issue body; ``size`` the board Size (``XS`` to ``XL``) or None; ``table`` the
 profile's own Size table (``size_run_minutes``: Size to whole minutes, positive), which
-replaces the default table when given.
+overrides the default for the Sizes it lists; the others keep the default.
 """
 from __future__ import annotations
 
@@ -112,7 +112,7 @@ def parse(body: str, size: str | None = None, table: dict | None = None) -> dict
                     tools.append(t)
     declared = graphics is not None or bool(tools) or run is not None
     source = "declared" if run is not None else None
-    sizes = table if table else SIZE_RUN_MINUTES
+    sizes = {**SIZE_RUN_MINUTES, **(table or {})}
     if run is None and size in sizes:
         run, source = sizes[size], "size"
     return {"declared": declared, "graphics_gb": graphics, "tools": tools,

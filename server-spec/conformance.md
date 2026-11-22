@@ -289,7 +289,7 @@ only as empty or not, because its wording is the server's own). The reference is
 | `size-s` | S gives 1 hour | parsed |
 | `size-l` | L gives 1 day | parsed |
 | `size-xl` | XL gives 3 days | parsed |
-| `size-table-override` | a profile's own Size table replaces the default | parsed |
+| `size-table-override` | a profile's own Size table overrides the default for the Sizes it lists | parsed |
 | `bad-graphics` | a graphics memory that is not a number is named | refused, errors name the value |
 | `bad-tool` | a tool that is not a name is named | refused, errors name the value |
 | `bad-run` | a longest run with no unit is named | refused, errors name the value |
