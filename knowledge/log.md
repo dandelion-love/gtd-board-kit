@@ -2,6 +2,10 @@
 
 ## 2026-11-22
 
+* **Added**: optional `experiment-evidence:1` discovers the exact receipt on one immutable result line without claiming replay or availability (kit 0.53.0). Conformance adds EE1 and EE2.
+
+## 2026-11-22
+
 * **Added**: item needs (kit 0.51.0), additive. A story may declare `Graphics memory`, `Tools` and `Longest run` in a `## Needs` section; `item_get` returns `needs` with `runs_anywhere` for an item that declares none; a board Size supplies a default longest run (XS 15 minutes, S 1 hour, M 4 hours, L 1 day, XL 3 days); a server refuses an issue body whose section has an invalid value. New check R12 with golden cases and a reference parser. The story template shows where.
 
 ## 2026-11-21

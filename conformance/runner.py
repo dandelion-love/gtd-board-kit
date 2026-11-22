@@ -88,6 +88,7 @@ class Family(Enum):
     FIT = "MF"              # Machine fit (when a resource card or the resource argument is offered)
     APPBOARD = "AB"         # App board (when app_board is offered)
     HANDOFF = "MH"          # Milestone handoff (when a handoff_* tool or the capability is offered)
+    EVIDENCE = "EE"         # Optional experiment evidence discovery
     RECORDS = "RR"          # Register records (when a server writes, reads or mirrors register records)
     JOIN = "J"              # Join (Join level)
     CONNECTOR = "JC"        # Connector entrance (when offered)
@@ -105,6 +106,7 @@ HEADINGS = {
     Family.STOP: "Stop",
     Family.STALL: "Stall check",
     Family.BACKLOG: "Backlog review",
+    Family.EVIDENCE: "Experiment evidence",
     Family.RECORDS: "Register records",
     Family.HANDOFF: "Milestone handoff",
     Family.FIT: "Machine fit", Family.APPBOARD: "App board",
@@ -135,6 +137,7 @@ LEVEL_OF = {
     Family.STOP: Level.EXTENDED,
     Family.STALL: Level.EXTENDED,
     Family.BACKLOG: Level.EXTENDED,
+    Family.EVIDENCE: Level.EXTENDED,
     Family.RECORDS: Level.EXTENDED,
     Family.HANDOFF: Level.EXTENDED,
     Family.FIT: Level.EXTENDED,
@@ -203,6 +206,7 @@ CLASS.update(dict.fromkeys((
     "sub_issue_add", "sub_issue_remove", "issue_blocked_by_add", "issue_blocked_by_remove",
     "run_state_post", "channel_comment_post", "pr_open", "issue_artifact_create",
     "issue_artifact_update", "intake_ack", "comment_update", "comment_redact", "item_close_done"), "work"))
+CLASS["experiment_evidence_get"] = "read"
 CLASS["app_board"] = "read"
 CLASS["intake_check"] = "work"
 CLASS["backlog_decide"] = "work"
@@ -2896,6 +2900,43 @@ HANDOFF_GROUPS = {"MH2": ("head",), "MH3": ("routing",), "MH4": ("bindings", "au
                   "MH5": ("delivery",), "MH6": ("retry",), "MH7": ("negotiation",)}
 
 
+def check_evidence_cases(rep: Report, cmd: str | None) -> None:
+    """EE1: run golden selection and validation cases against an adapter or reference."""
+    cases = json.loads((HERE / "experiment_evidence_cases.json").read_text(encoding="utf-8"))["cases"]
+    sys.path.insert(0, str(HERE))
+    import experiment_evidence
+    bad = []
+    for case in cases:
+        item = {k: v for k, v in case.items() if k not in ("name", "expect")}
+        if cmd:
+            result = subprocess.run(cmd, shell=True, input=json.dumps(item), capture_output=True,
+                                    text=True, timeout=60, check=False)
+            try:
+                got = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                got = {"error": "invalid adapter output"}
+        else:
+            got = experiment_evidence.answer(item)
+        if got != case["expect"]:
+            bad.append(case["name"])
+    rep.check("EE1", not bad, "; ".join(bad), f"{len(cases)} cases")
+
+
+def check_evidence(rep: Report, tools: dict, cmd: str | None, who: dict | None) -> None:
+    caps = (who or {}).get("capabilities") or []
+    offered = "experiment-evidence:1" in caps
+    has_tool = "experiment_evidence_get" in tools
+    read_tool = has_tool and tool_class(tools["experiment_evidence_get"]) == ("read", None)
+    rep.check("EE2", not offered or read_tool, "capability advertised without its read tool",
+              "capability/tool agreement")
+    if not offered:
+        rep.na("EE1", "experiment-evidence:1 not offered")
+    elif cmd:
+        check_evidence_cases(rep, cmd)
+    else:
+        rep.manual("EE1", "run golden cases against server code with --evidence-cmd")
+
+
 def check_handoff_cases(rep: Report, cmd: str | None) -> None:
     """MH1 to MH7: the golden handoff cases, against the reference or a server's own code."""
     cases = json.loads((HERE / "handoff_cases.json").read_text(encoding="utf-8"))
@@ -4020,6 +4061,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--link-cmd", help="a command that folds one typed-link case from stdin (L1)")
     ap.add_argument("--intake-cmd", help="a command that answers one intake-check case from stdin (I6)")
     ap.add_argument("--page-cmd", help="a command that answers one record-page case from stdin (RP1 to RP3)")
+    ap.add_argument("--evidence-cmd", help="adapter answering experiment evidence cases on stdin")
     ap.add_argument("--record-cmd", help="a command that answers one register-record case from stdin (RR1 to RR4)")
     ap.add_argument("--handoff-cmd", help="a command that answers one milestone-handoff case from stdin (MH1 to MH7)")
     ap.add_argument("--github-token-env",
@@ -4043,6 +4085,7 @@ def main(argv: list[str]) -> int:
         check_intake_check_cases(rep, a.intake_cmd)
         check_page_cases(rep, a.page_cmd)
         check_record_cases(rep, a.record_cmd)
+        check_evidence_cases(rep, a.evidence_cmd)
         check_handoff_cases(rep, a.handoff_cmd)
         check_handoff_public(rep)
     seen: list[str] = []
@@ -4106,6 +4149,7 @@ def main(argv: list[str]) -> int:
                 check_notify(rep, c, _tools, sb, profiles.get(name) or {}, token(a.github_token_env))
                 check_links(rep, _tools, a.link_cmd)
                 check_registers(rep, _tools, a.record_cmd)
+                check_evidence(rep, _tools, a.evidence_cmd, who)
                 check_handoff(rep, _tools, a.handoff_cmd, who)
                 check_stall_check(rep, c, _tools, sb)
                 check_backlog_review(rep, c, _tools, sb)

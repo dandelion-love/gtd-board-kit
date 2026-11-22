@@ -580,6 +580,16 @@ Cases ([page_cases.json](../conformance/page_cases.json)):
 | `same-append` | RP3 | the same entry on both sides is kept once |
 | `one-edited` | RP3 | refused (`null`) |
 
+## Experiment evidence
+
+A server advertising `experiment-evidence:1` runs these optional checks. They do not
+fetch private bundles or execute a scorer; see [the contract](experiment-evidence.md).
+
+| Check | Pass |
+| --- | --- |
+| EE1 | Every `experiment_evidence_cases.json` case selects the exact line, returns the unmodified result data and receipt, distinguishes legacy and empty VOID, reads JSONL and byte-preserving page fences, and refuses ambiguity or malformed binding. Run against server code via `--evidence-cmd`. |
+| EE2 | A server claiming `experiment-evidence:1` exposes `experiment_evidence_get` as a read tool. |
+
 ## Register records (when offered)
 
 A server that writes, reads or mirrors register records ([register records](register-records.md))

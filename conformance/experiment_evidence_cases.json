@@ -1,0 +1,277 @@
+{
+  "cases": [
+    {
+      "name": "receipt-present",
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}"
+      ],
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "evidence_status": "present",
+        "verdict": "PASS",
+        "result_data": {
+          "score": 2,
+          "review_evidence": {
+            "receipt": {
+              "version": 1,
+              "method": "immutable-bundle-local-python-replay-v1",
+              "uri": "gs://example-bucket/review.zip",
+              "generation": "12345",
+              "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+              "verified_at": "2026-01-01T00:00:00+00:00"
+            },
+            "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+          }
+        },
+        "review_evidence": {
+          "receipt": {
+            "version": 1,
+            "method": "immutable-bundle-local-python-replay-v1",
+            "uri": "gs://example-bucket/review.zip",
+            "generation": "12345",
+            "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+            "verified_at": "2026-01-01T00:00:00+00:00"
+          },
+          "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+        }
+      }
+    },
+    {
+      "name": "legacy",
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":1}}"
+      ],
+      "result_line_sha256": "4e85b44b47c9d5cbfafba2c3d551fd0b3477f0edab3d912a77b15355e34378aa",
+      "expect": {
+        "evidence_status": "legacy",
+        "verdict": "PASS",
+        "result_data": {
+          "score": 1
+        },
+        "review_evidence": null
+      }
+    },
+    {
+      "name": "empty-void",
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"VOID\",\"data\":{}}"
+      ],
+      "result_line_sha256": "a5af62cfc464f5f347ae8819637b5ebb78089e9c6d928020d044671b6e3cb6f1",
+      "expect": {
+        "evidence_status": "empty-void",
+        "verdict": "VOID",
+        "result_data": {},
+        "review_evidence": null
+      }
+    },
+    {
+      "name": "tampered-result",
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":3,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}"
+      ],
+      "result_line_sha256": "4114383dc2152a06c2c7dcf8ba2949ab9fe856faf481a33a2bf994fd5ba2cc7d",
+      "expect": {
+        "error": "refused"
+      }
+    },
+    {
+      "name": "tampered-receipt",
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"}}}"
+      ],
+      "result_line_sha256": "12860f1f46b7e040ba534f90f0c7446494c3c79554ad24daca63a99f935797e7",
+      "expect": {
+        "error": "refused"
+      }
+    },
+    {
+      "name": "duplicate-line",
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}",
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}"
+      ],
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "error": "refused"
+      }
+    },
+    {
+      "name": "missing-line",
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [],
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "error": "refused"
+      }
+    },
+    {
+      "name": "wrong-item",
+      "id": "EXP-2",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}"
+      ],
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "error": "refused"
+      }
+    },
+    {
+      "name": "moving-ref",
+      "id": "EXP-1",
+      "ref": "main",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}"
+      ],
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "error": "refused"
+      }
+    },
+    {
+      "name": "malformed-present",
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "lines": [
+        "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":null}}"
+      ],
+      "result_line_sha256": "2b77e674f97855b547f3ee345b81d047770c68252c9defbaf3bbfe05a2e49cb0",
+      "expect": {
+        "error": "refused"
+      }
+    },
+    {
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "evidence_status": "present",
+        "verdict": "PASS",
+        "result_data": {
+          "score": 2,
+          "review_evidence": {
+            "receipt": {
+              "version": 1,
+              "method": "immutable-bundle-local-python-replay-v1",
+              "uri": "gs://example-bucket/review.zip",
+              "generation": "12345",
+              "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+              "verified_at": "2026-01-01T00:00:00+00:00"
+            },
+            "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+          }
+        },
+        "review_evidence": {
+          "receipt": {
+            "version": 1,
+            "method": "immutable-bundle-local-python-replay-v1",
+            "uri": "gs://example-bucket/review.zip",
+            "generation": "12345",
+            "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+            "verified_at": "2026-01-01T00:00:00+00:00"
+          },
+          "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+        }
+      },
+      "name": "jsonl-exact",
+      "layout": "jsonl",
+      "source_text": "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}\r\n"
+    },
+    {
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "evidence_status": "present",
+        "verdict": "PASS",
+        "result_data": {
+          "score": 2,
+          "review_evidence": {
+            "receipt": {
+              "version": 1,
+              "method": "immutable-bundle-local-python-replay-v1",
+              "uri": "gs://example-bucket/review.zip",
+              "generation": "12345",
+              "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+              "verified_at": "2026-01-01T00:00:00+00:00"
+            },
+            "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+          }
+        },
+        "review_evidence": {
+          "receipt": {
+            "version": 1,
+            "method": "immutable-bundle-local-python-replay-v1",
+            "uri": "gs://example-bucket/review.zip",
+            "generation": "12345",
+            "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "replay_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "result_sha256": "b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1",
+            "verified_at": "2026-01-01T00:00:00+00:00"
+          },
+          "receipt_sha256": "d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c"
+        }
+      },
+      "name": "record-page-exact",
+      "layout": "page",
+      "source_text": "## Result\n\n```json record\n{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":2,\"review_evidence\":{\"receipt\":{\"version\":1,\"method\":\"immutable-bundle-local-python-replay-v1\",\"uri\":\"gs://example-bucket/review.zip\",\"generation\":\"12345\",\"bundle_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"manifest_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"replay_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"result_sha256\":\"b467c14af78ba52cd8339ebcaf8c6e28b636b90d1c69c216cf96821b371b8ca1\",\"verified_at\":\"2026-01-01T00:00:00+00:00\"},\"receipt_sha256\":\"d127fa26f70c669bb03926b8d2a0219d5ce1ddca545a419d8d0a7978b2d89e3c\"}}}\n```\n"
+    },
+    {
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "result_line_sha256": "109ab2e91f3ca98f6f3ab1342569f1b9e1c6555888544b21e75107d5c579f8ed",
+      "expect": {
+        "error": "refused"
+      },
+      "name": "record-page-multiline",
+      "layout": "page",
+      "source_text": "```json record\n{\n  \"event\": \"result\"\n}\n```\n"
+    },
+    {
+      "id": "EXP-1",
+      "ref": "dddddddddddddddddddddddddddddddddddddddd",
+      "result_line_sha256": "693746e9666b138027ce6327ddbcc0b19c8a9e1a5c08d81ba9434fdea219f886",
+      "expect": {
+        "evidence_status": "legacy",
+        "verdict": "PASS",
+        "result_data": {
+          "score": 1,
+          "note": "a\u2028b"
+        },
+        "review_evidence": null
+      },
+      "name": "jsonl-unicode-separator",
+      "layout": "jsonl",
+      "source_text": "{\"event\":\"result\",\"id\":\"EXP-1\",\"verdict\":\"PASS\",\"data\":{\"score\":1,\"note\":\"a\u2028b\"}}\n"
+    }
+  ]
+}

@@ -27,6 +27,7 @@ sense of RFC 2119 and leaves the how open.
 | [prose-check.md](prose-check.md) | The prose check: what an epic or story title and summary must say, and the rules every server checks the same way |
 | [record-pages.md](record-pages.md) | Record pages: one addendum-only Markdown page per register item, the rule, the merge, and how a server reads and writes them |
 | [register-records.md](register-records.md) | Register records: the envelope, each register's events and required fields, validation, upgrading older records on read, the fold, and how an item shows on GitHub |
+| [experiment-evidence.md](experiment-evidence.md) | Optional exact-result receipt discovery, with no artifact retrieval or replay |
 | [typed-links.md](typed-links.md) | Typed links between items: the record, the kinds and their native forms, the fold, the Related section, the graph render |
 | [machine-fit.md](machine-fit.md) | Optional machine fit: the machine card, the fit rule and the held-back reasons in `list_next_actions` |
 | [app-board.md](app-board.md) | Optional app board: the six columns, the per-profile Status mapping, workers and time left |
