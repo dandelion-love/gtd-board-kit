@@ -127,6 +127,21 @@
       }
     },
     {
+      "name": "fence-marker-in-comment",
+      "what": "a fence marker inside an HTML comment does not hide the real section after the comment",
+      "body": "Summary.\n\n<!-- an example:\n```\n-->\n\n## Needs\n- Graphics memory: 20 GB\n",
+      "size": null,
+      "expect": {
+        "declared": true,
+        "graphics_gb": 20.0,
+        "tools": [],
+        "longest_run_minutes": null,
+        "longest_run_source": null,
+        "runs_anywhere": false,
+        "errors": []
+      }
+    },
+    {
       "name": "size-default",
       "what": "a Size supplies the longest run when none is declared",
       "body": "Summary.",

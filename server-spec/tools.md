@@ -125,7 +125,7 @@ section of its body, one `- Name: value` line each, every line optional:
 `Graphics memory` is a positive number of GB. `Tools` is a comma-separated list of names
 of lowercase letters, digits, `.`, `_` and `-` (at most 40 characters, read as lowercase,
 repeats listed once). `Longest run` is a positive number with a unit: minutes (`m`, `min`,
-`minutes`), hours (`h`, `hours`) or days (`d`, `days`), read as minutes. The section ends at the next heading or at a line of three or more dashes (a server's sign-off starts with one). A section inside an HTML comment or a fenced code block is not read. A line that names
+`minutes`), hours (`h`, `hours`) or days (`d`, `days`), read as minutes. The section ends at the next heading or at a line of three or more dashes (a server's sign-off starts with one). A section inside an HTML comment or a fenced code block is not read. Comments and fences are read in one pass, so a marker of one inside the other is ignored. A line that names
 none of the three, or repeats one, is an error. `item_get` returns `needs` for the item:
 `{declared, graphics_gb, tools, longest_run_minutes, longest_run_source, runs_anywhere,
 errors}`. An item with no `## Needs` section, or one with no valid line, has
