@@ -153,12 +153,14 @@ offered: every claim refuses `interruption-limit` and writes nothing, so the que
 never repeated, and an unpointed pickup already refuses it because of its `needs:*` label.
 
 **Answering.** The owner answers with `item_report` `answering` (the escalation's comment
-id) and `decision`. `retry` resets the count to zero from that record and clears the
+id) and `decision`. Both words are an owner's decision: from any other principal the server
+refuses `owner-required`, fails closed when it has no owners configured, and records nothing. `retry` resets the count to zero from that record and clears the
 escalation: the item is offered again. Any other answer (`hold`, or none) leaves the
 escalation `held`, and the item waits; a later `retry` naming the same comment id releases
 it. That `retry` is the one exception to the rule that `answering` must name the open
 attention: the answer closed the attention, so the server accepts `decision` `retry` naming
-the item's held `escalation.comment_id`, and refuses any other `answering` of a closed
+the item's `escalation.comment_id` once the attention is no longer open (the escalation is
+`held`, or still `asked` but an unrelated report cleared the attention), and refuses any other `answering` of a closed
 question, and a second `retry` once the escalation is cleared. The fold keeps `interruptions` from the latest `retry` on, and returns `escalation`
 (`{state, comment_id, count}`, state `asked` or `held`) or null.
 
