@@ -57,11 +57,26 @@ _Addendum-only record. ..._
   record line inside `<details>`, in a fence whose info string is `json record`.
 - **The record line is the record**, byte for byte as the register line it replaces, so its
   sha256 is the line hash anything already cites. The readable text is a view of it.
-- **The readable text** is written by the reference renderer and nothing else: for each
-  event the fields it summarises, values made Markdown-safe (no raw HTML, no line that opens
-  a heading, fence or table), long values clipped with a pointer to the record. A writer
-  MAY pass a map from id prefix to a link target, so that a link's target and a finding's
-  citations render as relative links to their pages. A target is the page's path relative to
+- **The readable text** is written by the reference renderer and nothing else. Version 1
+  summaries clip long values and remain valid byte for byte. A version 2 entry is used for
+  an experiment item (an id beginning `EXP-`); other item kinds continue to use version 1.
+  Its heading is followed by `<!-- okf-entry-v2 -->` and the record's fields are written in
+  labelled, Markdown-safe prose without clipping, including nested method and qualification
+  values. Its details title and visible record digest carry the full SHA-256 of the exact
+  UTF-8 record line. The fenced line remains unchanged. The page front-matter format stays
+  `okf-register-v1`; the marker versions entries, not the page or record schema.
+- For an experiment registration with a `spec` object, version 2 computes a full rule digest
+  from the eight fields `hypothesis`, `arms`, `metric`, `decision_rule`, `falsified_by`,
+  `void_if`, `cannot_answer` and `n_planned`. Include absent fields as JSON null, serialize
+  the object with UTF-8, `ensure_ascii=False` and sorted keys using the JSON encoder's normal
+  separators, then SHA-256 the bytes. Mark it verified against the stored pin only when a
+  lowercase 16-character prefix or 64-character full digest matches. Otherwise state that the
+  computed digest is unverified; label a valid stored prefix, valid full digest, or invalid
+  stored format accurately, and never invent a missing suffix. Records without an experiment registration spec have no computed
+  rule digest. Values are escaped as Markdown-safe text (including raw HTML and lines that
+  open a heading, fence or table), but not truncated.
+- A writer MAY pass a map from id prefix to a link target, so that a link's target and a
+  finding's citations render as relative links to their pages. A target is the page's path relative to
   the linking page's own folder, with `{id}` standing for the id (`../{id}/README.md` from one
   item folder to another, `../../listening/{id}.md` from an item folder to a flat register).
   The map is the repository's, one per register since the relative paths differ, and a
@@ -81,6 +96,7 @@ For each page, between a base revision and a head:
 | `front-matter-id-is-not-the-file-name` | the front matter's `id` is not the file's stem, or its item folder's name |
 | `conflict-markers` | the page holds a line opening with `<<<<<<< ` or `>>>>>>> ` |
 | `bad-record-json` | a record line is not JSON |
+| `conflicting-record-presentation` | an appended entry repeats an existing record with different valid rendered bytes |
 
 A change the rule refuses is never written by a tool. A correction is a new record (a
 reading, a retire), never an edit. A repository runs the rule in its writers and in CI
@@ -89,8 +105,12 @@ against the pull request's base.
 ## Merging
 
 Two branches that each append to the same page are merged as: the base, then the first
-side's new entries, then the second side's entries the first side lacks. The merge is
-refused when either side breaks the rule against the base. A line-based union merge MUST
+side's new entries, then the second side's entries the first side lacks. Preserve each
+incoming entry's exact bytes, including its version. Identical record and entry bytes are
+kept once; if the same record is presented with different valid entry bytes in the base or
+between branches, refuse the merge rather than silently discard either presentation. A
+single appended tail that presents the same record in two different versions is invalid.
+The merge is refused when either side breaks the rule against the base. A line-based union merge MUST
 NOT be used: entries share identical lines (the fences, the closing tag, blank lines), and a
 union merge interleaves them while reporting success. A repository wires this merge as a git
 merge driver, and where the driver is not installed git falls back to an ordinary conflict.

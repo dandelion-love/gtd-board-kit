@@ -2108,7 +2108,14 @@ def _page_case_result(case: dict, op: str, page_cmd: str | None):
     import record_pages as rp
     f = inp.get("folders")
     if op == "render":
-        return {"page": rp.render_page(inp["item"], inp["kind"], inp["records"], f)}
+        version = inp.get("render_version", 1)
+        if version == 1:
+            records = inp["records"]
+            return {"page": rp.header(inp["item"], inp["kind"], records[0]) +
+                    "".join(rp.entry_v1(line, f) for line in records)}
+        if version == 2:
+            return {"page": rp.render_page(inp["item"], inp["kind"], inp["records"], f)}
+        raise ValueError("unsupported render version")
     if op == "check":
         return {"refused": rp.check_page(inp["old"], inp["new"], item=inp["item"], kind=inp["kind"], folders=f)}
     return {"page": rp.merge_pages(inp["base"], inp["ours"], inp["theirs"], item=inp["item"],
