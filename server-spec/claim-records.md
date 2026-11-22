@@ -156,7 +156,10 @@ never repeated, and an unpointed pickup already refuses it because of its `needs
 id) and `decision`. `retry` resets the count to zero from that record and clears the
 escalation: the item is offered again. Any other answer (`hold`, or none) leaves the
 escalation `held`, and the item waits; a later `retry` naming the same comment id releases
-it. The fold keeps `interruptions` from the latest `retry` on, and returns `escalation`
+it. That `retry` is the one exception to the rule that `answering` must name the open
+attention: the answer closed the attention, so the server accepts `decision` `retry` naming
+the item's held `escalation.comment_id`, and refuses any other `answering` of a closed
+question, and a second `retry` once the escalation is cleared. The fold keeps `interruptions` from the latest `retry` on, and returns `escalation`
 (`{state, comment_id, count}`, state `asked` or `held`) or null.
 
 The record is the reporter's quote, as for any [answer](tools.md#claims-and-reports); the
@@ -221,7 +224,7 @@ Walk record comments in ascending comment id (GitHub assigns ids in creation ord
 | `claim` | Unless a stop is in effect: if there is no holder, or the record's `takeover_of` equals the holder **and** the holder's `lease_until` is before this record's time: the record's `by` becomes holder; take its lease, id, mandate; clear `handoff_to` and `last_report`; a takeover also counts one interruption and sets `previous_holder`. Otherwise (or during a stop) it is a **lost claim** (listed, no effect) |
 | `renew` | If `by` is the holder: `lease_until` takes the record's value |
 | `release` | If `by` is the holder: clear holder, lease, claim, mandate, last report; `handoff_to` takes the record's value; the closing note and `previous_holder` are set |
-| `report` | `attention` becomes this record's question (or clears, if it has none; a record with `answering` clears the attention it names and is kept as `answered`; `decision` `retry` restarts the interruption count). If `by` is the holder and `state` is set: `last_report` and `last_note` take its values; `dropped` then releases as above. Closing note parts on a holder's report are kept for the lease |
+| `report` | `attention` becomes this record's question (or clears, if it has none; a record with `answering` clears the attention it names and is kept as `answered`; `decision` `retry` restarts the interruption count; if the holder's report that asked it set `state`, `last_report` and `last_note` return to the values they had just before that report, unless a later holder report with `state` replaced them). If `by` is the holder and `state` is set: `last_report` and `last_note` take its values (the fold keeps the values they replace, for an `answering` record); `dropped` then releases as above. Closing note parts on a holder's report are kept for the lease |
 | `stop`, `stop_clear` | `stop` starts a stop if none is in effect; `stop_clear` ends it |
 
 After the walk:
