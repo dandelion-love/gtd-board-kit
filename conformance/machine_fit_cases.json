@@ -1,0 +1,643 @@
+{
+ "about": "Golden cases for a machine's card and for item fit (server-spec/machine-fit.md; checks MF1 and MF2). Card cases give a card and expect ok and the named fields. Fit cases give a valid card, an item's needs, and an optional speed_factor, and expect fits and the exact reasons.",
+ "card_cases": [
+  {
+   "name": "valid",
+   "what": "a full card is accepted",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": true,
+    "fields": []
+   }
+  },
+  {
+   "name": "no-tools",
+   "what": "an empty tool list is a valid card",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": true,
+    "fields": []
+   }
+  },
+  {
+   "name": "tools-normalised",
+   "what": "tools are lowercased and listed once",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "Voice",
+     "voice",
+     "FFmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": true,
+    "fields": []
+   }
+  },
+  {
+   "name": "zero-graphics",
+   "what": "a machine with no graphics memory is valid",
+   "card": {
+    "graphics_gb": 0,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": true,
+    "fields": []
+   }
+  },
+  {
+   "name": "missing-graphics",
+   "what": "a missing graphics memory is named",
+   "card": {
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "graphics_gb"
+    ]
+   }
+  },
+  {
+   "name": "missing-storage",
+   "what": "a missing free storage is named",
+   "card": {
+    "graphics_gb": 8,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "free_storage_gb"
+    ]
+   }
+  },
+  {
+   "name": "missing-tools",
+   "what": "a missing tool list is named",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "tools"
+    ]
+   }
+  },
+  {
+   "name": "missing-speed",
+   "what": "a missing speed is named",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ]
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "speed_minutes"
+    ]
+   }
+  },
+  {
+   "name": "speed-text",
+   "what": "a speed that is not a number is named",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": "fast"
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "speed_minutes"
+    ]
+   }
+  },
+  {
+   "name": "speed-zero",
+   "what": "a speed of zero is refused",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 0
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "speed_minutes"
+    ]
+   }
+  },
+  {
+   "name": "storage-negative",
+   "what": "negative free storage is refused",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": -1,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "free_storage_gb"
+    ]
+   }
+  },
+  {
+   "name": "graphics-bool",
+   "what": "a boolean is not a number",
+   "card": {
+    "graphics_gb": true,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "graphics_gb"
+    ]
+   }
+  },
+  {
+   "name": "bad-tool",
+   "what": "a tool that is not a name is named under tools",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "has space"
+    ],
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "tools"
+    ]
+   }
+  },
+  {
+   "name": "tools-not-list",
+   "what": "tools that are not a list are named",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": "voice",
+    "speed_minutes": 45
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "tools"
+    ]
+   }
+  },
+  {
+   "name": "unknown-field",
+   "what": "a field outside the card is refused by name",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45,
+    "token": "x"
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "token"
+    ]
+   }
+  },
+  {
+   "name": "two-bad",
+   "what": "every bad field is named, in card order",
+   "card": {
+    "graphics_gb": "x",
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": -3
+   },
+   "expect": {
+    "ok": false,
+    "fields": [
+     "graphics_gb",
+     "speed_minutes"
+    ]
+   }
+  },
+  {
+   "name": "not-an-object",
+   "what": "a card that is not an object is refused",
+   "card": [
+    "voice"
+   ],
+   "expect": {
+    "ok": false,
+    "fields": [
+     "card"
+    ]
+   }
+  }
+ ],
+ "fit_cases": [
+  {
+   "name": "anywhere",
+   "what": "an item with no declared needs fits every machine",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": false,
+    "graphics_gb": null,
+    "tools": [],
+    "longest_run_minutes": null,
+    "runs_anywhere": true
+   },
+   "expect": {
+    "fits": true,
+    "reasons": []
+   }
+  },
+  {
+   "name": "anywhere-with-size-run",
+   "what": "a Size default run does not hold back an item that declares nothing",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 500
+   },
+   "needs": {
+    "declared": false,
+    "graphics_gb": null,
+    "tools": [],
+    "longest_run_minutes": 15,
+    "runs_anywhere": true
+   },
+   "expect": {
+    "fits": true,
+    "reasons": []
+   }
+  },
+  {
+   "name": "graphics-short",
+   "what": "too little graphics memory is held back with the numbers",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": 20,
+    "tools": [],
+    "longest_run_minutes": null,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": false,
+    "reasons": [
+     "needs 20 GB graphics, machine has 8 GB"
+    ]
+   }
+  },
+  {
+   "name": "graphics-equal",
+   "what": "exactly enough graphics memory fits",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": 8,
+    "tools": [],
+    "longest_run_minutes": null,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": true,
+    "reasons": []
+   }
+  },
+  {
+   "name": "tool-missing",
+   "what": "a tool the machine lacks is named",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": null,
+    "tools": [
+     "blender"
+    ],
+    "longest_run_minutes": null,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": false,
+    "reasons": [
+     "needs tool blender, machine does not list it"
+    ]
+   }
+  },
+  {
+   "name": "tools-present",
+   "what": "tools the machine lists fit",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": null,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "longest_run_minutes": null,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": true,
+    "reasons": []
+   }
+  },
+  {
+   "name": "tools-two-missing",
+   "what": "each missing tool is named, in the item's order",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": null,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "longest_run_minutes": null,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": false,
+    "reasons": [
+     "needs tool voice, machine does not list it",
+     "needs tool ffmpeg, machine does not list it"
+    ]
+   }
+  },
+  {
+   "name": "run-too-slow",
+   "what": "a machine slower than the longest run is held back",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": null,
+    "tools": [],
+    "longest_run_minutes": 30,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": false,
+    "reasons": [
+     "longest run 30 minutes, machine needs 45 minutes for the reference job"
+    ]
+   }
+  },
+  {
+   "name": "run-equal",
+   "what": "a machine exactly as fast as the longest run fits",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": null,
+    "tools": [],
+    "longest_run_minutes": 45,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": true,
+    "reasons": []
+   }
+  },
+  {
+   "name": "no-run-limit",
+   "what": "with no longest run, speed is not compared",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 9999
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": 4,
+    "tools": [],
+    "longest_run_minutes": null,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": true,
+    "reasons": []
+   }
+  },
+  {
+   "name": "all-three",
+   "what": "every failing need is named, graphics then tools then run",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": 24,
+    "tools": [
+     "blender"
+    ],
+    "longest_run_minutes": 10,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": false,
+    "reasons": [
+     "needs 24 GB graphics, machine has 8 GB",
+     "needs tool blender, machine does not list it",
+     "longest run 10 minutes, machine needs 45 minutes for the reference job"
+    ]
+   }
+  },
+  {
+   "name": "speed-factor",
+   "what": "a profile's speed factor scales the machine's time",
+   "card": {
+    "graphics_gb": 8,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": null,
+    "tools": [],
+    "longest_run_minutes": 60,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": false,
+    "reasons": [
+     "longest run 60 minutes, machine needs 90 minutes for the reference job"
+    ]
+   },
+   "speed_factor": 2
+  },
+  {
+   "name": "fraction",
+   "what": "a fractional memory is printed without a trailing zero",
+   "card": {
+    "graphics_gb": 7.5,
+    "free_storage_gb": 200,
+    "tools": [
+     "voice",
+     "ffmpeg"
+    ],
+    "speed_minutes": 45
+   },
+   "needs": {
+    "declared": true,
+    "graphics_gb": 8.5,
+    "tools": [],
+    "longest_run_minutes": null,
+    "runs_anywhere": false
+   },
+   "expect": {
+    "fits": false,
+    "reasons": [
+     "needs 8.5 GB graphics, machine has 7.5 GB"
+    ]
+   }
+  }
+ ]
+}

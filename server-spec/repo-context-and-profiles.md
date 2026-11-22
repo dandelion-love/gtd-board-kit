@@ -52,6 +52,9 @@ are called is the deployment's choice.
 | `fingerprint` on every label, field and view | string | That item's declaration fingerprint ([below](#fingerprints)) |
 | `pickup_sizes` | list of strings | Size options an unpointed (`inferred`) pickup may take. Default `XS`, `S`, `M` |
 | `status_for_label` | list of rules | The label-to-Status map ([below](#the-label-to-status-map)) |
+| `size_run_minutes` | object, optional | Size to the default longest run in whole minutes (overrides the Sizes it lists in the [Size table](tools.md#finding-work); the others keep the default); omitted means the kit's table |
+| `fit_speed_factor` | number, optional | Scales a machine's speed in [machine fit](machine-fit.md); default 1 |
+| `app_columns` | object, optional | Status option to app column ([app board](app-board.md)); omitted means the default mapping |
 
 A server MAY return more (item types, done checks, file sources); item types follow
 [Kinds](#kinds). The repo's

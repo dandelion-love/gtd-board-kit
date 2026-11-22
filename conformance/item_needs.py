@@ -1,10 +1,12 @@
 """Reference for an item's declared needs (server-spec/tools.md, Item needs), for check R12.
 Standard library only. A server copies this and holds its copy to conformance/needs_cases.json.
 
-    parse(body, size) -> {declared, graphics_gb, tools, longest_run_minutes,
-                          longest_run_source, runs_anywhere, errors}
+    parse(body, size, table=None) -> {declared, graphics_gb, tools, longest_run_minutes,
+                                      longest_run_source, runs_anywhere, errors}
 
-``body`` is the issue body; ``size`` the board Size (``XS`` to ``XL``) or None.
+``body`` is the issue body; ``size`` the board Size (``XS`` to ``XL``) or None; ``table`` the
+profile's own Size table (``size_run_minutes``: Size to whole minutes, positive), which
+overrides the default for the Sizes it lists; the others keep the default.
 """
 from __future__ import annotations
 
@@ -70,7 +72,7 @@ def section(body: str) -> list[str] | None:
     return None
 
 
-def parse(body: str, size: str | None = None) -> dict:
+def parse(body: str, size: str | None = None, table: dict | None = None) -> dict:
     graphics = None
     tools: list[str] = []
     run = None
@@ -110,8 +112,9 @@ def parse(body: str, size: str | None = None) -> dict:
                     tools.append(t)
     declared = graphics is not None or bool(tools) or run is not None
     source = "declared" if run is not None else None
-    if run is None and size in SIZE_RUN_MINUTES:
-        run, source = SIZE_RUN_MINUTES[size], "size"
+    sizes = {**SIZE_RUN_MINUTES, **(table or {})}
+    if run is None and size in sizes:
+        run, source = sizes[size], "size"
     return {"declared": declared, "graphics_gb": graphics, "tools": tools,
             "longest_run_minutes": run, "longest_run_source": source,
             "runs_anywhere": not declared, "errors": errors}

@@ -69,6 +69,8 @@ An agent asked to "run conformance" or "certify the server" does this, in order:
 | `--fold-cmd CMD` | C13 against **your** fold instead of the reference | runs `CMD` locally |
 | `--ready-cmd CMD` | R1 against **your** ready check; without `--server`, R1 runs against the reference | runs `CMD` locally |
 | `--needs-cmd CMD` | R12 against **your** item-needs parser; without it they run against [item_needs.py](item_needs.py) | runs `CMD` locally |
+| `--fit-cmd CMD` | MF1 and MF2 against **your** card validation and fit rule; without it they run against [machine_fit.py](machine_fit.py) | runs `CMD` locally |
+| `--columns-cmd CMD` | AB1 against **your** column mapping; without it they run against [app_columns.py](app_columns.py) | runs `CMD` locally |
 | `--intake-cmd CMD` | I6 against **your** intake-check status and write rules; without it they run against [intake_check.py](intake_check.py) | runs `CMD` locally |
 | `--page-cmd CMD` | RP1 to RP3 against **your** record-page code (render, rule, merge); without it they run against [record_pages.py](record_pages.py) | runs `CMD` locally |
 | `--kind-cmd CMD` | K1 against **your** Kind rules; without `--server`, K1 runs against the reference | runs `CMD` locally |

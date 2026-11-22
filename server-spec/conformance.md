@@ -24,6 +24,7 @@ reports pass, fail, skip or manual for every id below.
 | T7 | No tool's input schema has a property used as identity (S1) |
 | T8 | An unauthenticated `GET <mcp_url>/.well-known/gtd-board-kit` returns `200` JSON with `spec_version` (`MAJOR.MINOR.PATCH`), `conformance` (only level names from the [README](README.md#conformance-levels), and no other level without `Core`), `mcp` and `join_url`; with a token, its `spec_version` and `conformance` equal those `whoami` returns |
 | T9 | The levels in `conformance` are honest: no check of a claimed level, or of a level below it, fails in the same run ([spec version and levels](transport-and-identity.md#spec-version-and-levels)). The run also reports which levels it makes claimable: those where the run covered every check of the level and of Core, and each passed, is manual, or does not apply (an optional entrance or tool group the server does not offer); a failed, skipped or unreached check keeps the level unclaimable |
+| T10 | (manual, only when [person sign-in](transport-and-identity.md#person-sign-in-optional) is offered) With the switch off no person token is issued and every existing call behaves as before; with it on, a person token is refused on agent-only calls, an agent token is refused as a person, a cancelled sign-in or an unapproved account gets no token, and the token expires and can be revoked |
 
 ## Repo context and labels (Core)
 
@@ -217,7 +218,7 @@ both `item_ready` and `prose_check`.
 | R9 | `prose_check` is offered, and the [prose golden cases](../conformance/prose_cases.json), fed to the server's own prose logic (`--prose-cmd`), give the stated `verdict`, fail rules and warn rules, each in rule order |
 | R10 | `prose_check` on a sandbox issue whose title has a prefix and whose body opens with a heading is `unclear` with `title-prefix` and `summary-first`, and `item_ready` on it fails `prose`; on draft text (`title`, `body`, `kind` `epic`) with no Outcome check it returns exactly the fail rule `epic-sections` |
 | R11 | (needs a closing-note server) `item_ready` on a story whose last worker released with four parts returns `interruptions`, `previous_holder` and the same `closing_note` as `item_get` |
-| R12 | The golden cases of an item's declared needs ([needs_cases.json](../conformance/needs_cases.json), table under Item needs below), fed to the server's own parser (`--needs-cmd`), give the stated fields; an invalid need gives a non-empty `errors` that names the value, and an item with no `## Needs` section is `runs_anywhere` |
+| R12 | The golden cases of an item's declared needs ([needs_cases.json](../conformance/needs_cases.json), table under Item needs below), fed to the server's own parser (`--needs-cmd`, which also gets `size_table` when a case has one), give the stated fields; an invalid need gives a non-empty `errors` that names the value, and an item with no `## Needs` section is `runs_anywhere` |
 
 R1 cases ([ready_cases.json](../conformance/ready_cases.json); the issue has Size `S`,
 `pickup_sizes` is `XS`, `S`, `M`, and it is on the board unless the case says otherwise):
@@ -288,6 +289,7 @@ only as empty or not, because its wording is the server's own). The reference is
 | `size-s` | S gives 1 hour | parsed |
 | `size-l` | L gives 1 day | parsed |
 | `size-xl` | XL gives 3 days | parsed |
+| `size-table-override` | a profile's own Size table overrides the default for the Sizes it lists | parsed |
 | `bad-graphics` | a graphics memory that is not a number is named | refused, errors name the value |
 | `bad-tool` | a tool that is not a name is named | refused, errors name the value |
 | `bad-run` | a longest run with no unit is named | refused, errors name the value |
@@ -601,6 +603,78 @@ Cases ([record_cases.json](../conformance/record_cases.json)):
 | RR1 | 35 | a complete registration and a version 0 line pass; bad JSON, an unknown event, a version ahead, a missing envelope field, a time without offset, a `by` that is no principal, a missing spec field, an enum miss, a missing stopping rule, a verdict outside the rule, a differing rule hash, an event before registration, a second registration, a reused `eid`, a link kind outside the list, an artifact with no pointer, a citation that is no hash |
 | RR2 | 13 | a current record unchanged; a naive time read in the source's zone; no time; a free-text `by`; a link with a URL becoming an artifact; an observation headline moving to `title`; prereg from a tag, from a plain registered-before, and left empty when qualified; a reading with no kind; `from` with no `id`; a benchmark result's status from its counts |
 | RR3, RR4 | 20 | an experiment registered, running, blocked, unblocked, closed by a verdict, unvalidated, retired void, a verdict standing over a later retire, unretired, holding an invalid record, and a version 0 one; a benchmark waiting, partial, complete and withdrawn; a finding current, stale after a reading, unchanged by a planning link, stale after another item's contradicts link, and retired |
+
+## Machine fit (when offered)
+
+| Id | Check |
+| --- | --- |
+| MF1 | The golden machine-card cases ([machine_fit_cases.json](../conformance/machine_fit_cases.json), `card_cases`, table below), fed to the server's own card validation (`--fit-cmd`), give the stated `ok` and name the stated fields in the stated order |
+| MF2 | The golden fit cases (`fit_cases`, table below), fed to the server's own fit rule (`--fit-cmd`), give the stated `fits` and exactly the stated reasons |
+| MF3 | (manual, when `resource_register` is offered) `list_next_actions` with a resource holds back each item that does not fit and gives its reason; an unknown resource id and a resource with no card are refused and offer nothing; an item is never offered and then refused for fit ([machine fit](machine-fit.md#fit)) |
+| MF4 | (manual, when `resource_register` is offered) `list_next_actions` with no resource returns exactly what it did before; with a resource it lists only items that fit, and an `inferred` claim accepts each |
+
+MF1 cases (the reference is [machine_fit.py](../conformance/machine_fit.py)):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `valid` | a full card is accepted | accepted |
+| `no-tools` | an empty tool list is a valid card | accepted |
+| `tools-normalised` | tools are lowercased and listed once | accepted |
+| `zero-graphics` | a machine with no graphics memory is valid | accepted |
+| `missing-graphics` | a missing graphics memory is named | refused, names `graphics_gb` |
+| `missing-storage` | a missing free storage is named | refused, names `free_storage_gb` |
+| `missing-tools` | a missing tool list is named | refused, names `tools` |
+| `missing-speed` | a missing speed is named | refused, names `speed_minutes` |
+| `speed-text` | a speed that is not a number is named | refused, names `speed_minutes` |
+| `speed-zero` | a speed of zero is refused | refused, names `speed_minutes` |
+| `storage-negative` | negative free storage is refused | refused, names `free_storage_gb` |
+| `graphics-bool` | a boolean is not a number | refused, names `graphics_gb` |
+| `bad-tool` | a tool that is not a name is named under tools | refused, names `tools` |
+| `tools-not-list` | tools that are not a list are named | refused, names `tools` |
+| `unknown-field` | a field outside the card is refused by name | refused, names `token` |
+| `two-bad` | every bad field is named, in card order | refused, names `graphics_gb`, `speed_minutes` |
+| `not-an-object` | a card that is not an object is refused | refused, names `card` |
+
+MF2 cases (the card is the valid card with 8 GB graphics, 200 GB storage, tools `voice` and `ffmpeg`, 45 minutes, unless the case says otherwise):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `anywhere` | an item with no declared needs fits every machine | fits |
+| `anywhere-with-size-run` | a Size default run does not hold back an item that declares nothing | fits |
+| `graphics-short` | too little graphics memory is held back with the numbers | held back |
+| `graphics-equal` | exactly enough graphics memory fits | fits |
+| `tool-missing` | a tool the machine lacks is named | held back |
+| `tools-present` | tools the machine lists fit | fits |
+| `tools-two-missing` | each missing tool is named, in the item's order | held back |
+| `run-too-slow` | a machine slower than the longest run is held back | held back |
+| `run-equal` | a machine exactly as fast as the longest run fits | fits |
+| `no-run-limit` | with no longest run, speed is not compared | fits |
+| `all-three` | every failing need is named, graphics then tools then run | held back |
+| `speed-factor` | a profile's speed factor scales the machine's time | held back |
+| `fraction` | a fractional memory is printed without a trailing zero | held back |
+
+## App board (when offered)
+
+| Id | Check |
+| --- | --- |
+| AB1 | The golden column cases ([app_columns_cases.json](../conformance/app_columns_cases.json), table below), fed to the server's own mapping (`--columns-cmd`), give the stated column for each Status and accept or refuse each mapping as stated |
+| AB2 | (manual, when `app_board` is offered) The call returns the six columns and the same counts as `project_items` by Status; a Status with no mapping is under `other`; it writes nothing and returns no credential |
+| AB3 | (manual) An item in progress with a live claim shows its worker and the seconds left on its lease |
+| AB4 | (manual) Items labelled with the signed-in owner's `needs:*` value are marked and counted in `needs_you_count`; another person's are not |
+
+AB1 cases (the reference is [app_columns.py](../conformance/app_columns.py)):
+
+| Case | What | Expected |
+| --- | --- | --- |
+| `default-table` | each Status of the gtd-dispatch board maps as the story says | mapped |
+| `unmapped-is-other` | a Status with no mapping is other, never dropped | mapped |
+| `no-status-is-other` | an item with no Status is other | mapped |
+| `case-and-space` | options match without regard to case or extra spaces | mapped |
+| `profile-mapping` | a profile's own mapping replaces the default | mapped |
+| `mapping-ok` | a mapping onto the five columns is valid | valid |
+| `mapping-bad-column` | a mapping onto a column that does not exist is refused | refused |
+| `mapping-to-other` | other is the fallback, not a target | refused |
+| `mapping-empty` | an empty mapping is refused (omit it for the default) | refused |
 
 ## Milestone handoff (when offered)
 

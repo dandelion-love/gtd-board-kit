@@ -28,6 +28,8 @@ sense of RFC 2119 and leaves the how open.
 | [record-pages.md](record-pages.md) | Record pages: one addendum-only Markdown page per register item, the rule, the merge, and how a server reads and writes them |
 | [register-records.md](register-records.md) | Register records: the envelope, each register's events and required fields, validation, upgrading older records on read, the fold, and how an item shows on GitHub |
 | [typed-links.md](typed-links.md) | Typed links between items: the record, the kinds and their native forms, the fold, the Related section, the graph render |
+| [machine-fit.md](machine-fit.md) | Optional machine fit: the machine card, the fit rule and the held-back reasons in `list_next_actions` |
+| [app-board.md](app-board.md) | Optional app board: the six columns, the per-profile Status mapping, workers and time left |
 | [sign-offs.md](sign-offs.md) | The sign-off the server ends every write with: who, in which role, which act, which session |
 | [notifications.md](notifications.md) | Who an ask pings, under which identity, once: the map, `notify_get`, the ping comment, review requests, the push copy |
 | [milestone-handoff.md](milestone-handoff.md) | Optional milestone handoff between sessions: the record, the authoritative head, delivery state apart from the verdict, routing, delivery and negotiation |
