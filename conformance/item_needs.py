@@ -37,15 +37,16 @@ def prose_lines(text: str) -> list[str]:
 
 
 def section(body: str) -> list[str] | None:
-    """The lines under the first ``## Needs`` heading, up to the next heading; None if absent."""
-    text = re.sub(r"<!--.*?-->", "", body or "", flags=re.S)       # not a comment
-    lines = prose_lines(text)
+    """The lines under the first ``## Needs`` heading, up to the next heading or rule; None if absent."""
+    # Fences first, so a comment marker inside a code example cannot swallow real text.
+    text = re.sub(r"<!--.*?-->", "", "\n".join(prose_lines(body or "")), flags=re.S)  # not a comment
+    lines = text.splitlines()
     for i, line in enumerate(lines):
         if re.fullmatch(r"##\s+Needs\s*", line):
             out = []
             for nxt in lines[i + 1:]:
-                if nxt.startswith("#"):
-                    break
+                if nxt.startswith("#") or re.fullmatch(r" {0,3}-{3,}\s*", nxt):
+                    break  # the next heading, or a rule (a server's sign-off starts with one)
                 out.append(nxt)
             return out
     return None

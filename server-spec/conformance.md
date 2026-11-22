@@ -277,6 +277,8 @@ only as empty or not, because its wording is the server's own). The reference is
 | `in-fence` | a Needs section inside a fenced example is not read | parsed |
 | `in-indented-fence` | a Needs section inside a fence indented up to three spaces is not read | parsed |
 | `in-open-fence` | a Needs section after a fence that is never closed is not read | parsed |
+| `signoff-after` | a server's sign-off after the section (a rule, then a sub line) is not part of it | parsed |
+| `comment-marker-in-fence` | a comment marker inside a fenced example does not swallow the real section after it | parsed |
 | `size-default` | a Size supplies the longest run when none is declared | parsed |
 | `declared-over-size` | a declared longest run wins over the Size default | parsed |
 | `unit-days` | days convert to minutes | parsed |
